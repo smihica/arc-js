@@ -1,0 +1,4 @@
+*.min.js
+!/lib/*.min.js
+memo*
+*memo

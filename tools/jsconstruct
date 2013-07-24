@@ -1,0 +1,137 @@
+#!/usr/bin/python
+
+## This is a JavaScript concatenate utility.
+## Copylight (C) smihica Mit Licence.
+
+## Providing syntax. (javascript)
+##
+## 1. include("./abc.js");
+## 2. var def = require("./def.js");
+##
+
+import sys
+import os
+import re
+import argparse
+import random
+from cStringIO import StringIO
+
+class ApplicationException(Exception):
+    pass
+
+def gencharset(spec):
+    retval = u''
+    for item in re.finditer(ur'([^\\-]|\\-|\\\\)(?:-([^\\-]|\\-|\\\\))?', spec):
+        if item.group(2):
+            retval += ''.join(unichr(c) for c in range(ord(item.group(1)), ord(item.group(2)) + 1))
+        else:
+            retval += item.group(1)
+    return retval
+
+class IDGenerator(object):
+    INITIAL_CHARS = gencharset("A-Za-z_")
+    SUCCEEDING_CHARS = gencharset("0-9A-Za-Z_")
+
+    def __init__(self):
+        self.generated = set()
+
+    def __call__(self):
+        retval = random.choice(self.__class__.INITIAL_CHARS)
+        for i in range(0, 15):
+            retval += random.choice(self.__class__.SUCCEEDING_CHARS)
+        return retval
+
+class Processor(object):
+    def __init__(self):
+        self.included_files = set()
+        self.search_path = set(['.'])
+        self.libs = {}
+        self.out = StringIO()
+        self.idgen = IDGenerator()
+
+    def lookup_file(self, file, includer=None):
+        for dir in self.search_path:
+            if os.path.isabs(dir):
+                path = os.path.join(dir, file)
+            else:
+                if includer is None:
+                    raise ApplicationException("Relative path specified but no includer given")
+                path = os.path.join(os.path.dirname(includer), dir, file)
+            if os.path.exists(path):
+                return os.path.normpath(path)
+        return None
+
+    def compose_source(self, file, out):
+        self.included_files.add(file)
+        with open(file, 'r') as f:
+            out.write('/** @file %s { */\n' % os.path.basename(file))
+            for line in f:
+                includes = re.findall(r'include\s*\(\"(.+?)\"\)', line)
+                if not includes:
+                    def repl(match):
+                        required_file_name = match.group(2)
+                        required = self.lookup_file(required_file_name, file)
+                        if required is None:
+                            raise ApplicationException("File not found: %s" % required_file_name)
+                        pair = self.libs.get(required)
+                        if pair is None:
+                            id = self.idgen()
+                            self.libs[required] = (id, None)
+                            out = StringIO()
+                            self.compose_source(required, out)
+                            pair = self.libs[required] = (id, out.getvalue())
+                        return "__LIBS__['%s']" % pair[0]
+
+                    line = re.sub(r'''require\s*\((["'])(.+)(\1)\)''', repl, line)
+                    out.write(line)
+                else:
+                    for included_file_name in includes:
+                        included = self.lookup_file(included_file_name, file)
+                        if included in self.included_files:
+                            continue
+                        if included is None:
+                            raise ApplicationException("File not found: %s" % included_file_name)
+                        self.compose_source(included, out)
+            out.write('/** @} */\n')
+
+    def read(self, file):
+        self.compose_source(file, self.out)
+
+    def write(self, out):
+        # TODO: dependency resolution
+        if self.libs:
+            out.write("(function () {\n")
+            out.write("var __LIBS__ = {};\n")
+            for path, pair in self.libs.iteritems():
+                out.write("__LIBS__['%s'] = (function (exports) { (function () { %s })(); return exports; })({});\n" % pair)
+                first = False
+            out.write(self.out.getvalue())
+            out.write("})();\n")
+        else:
+            out.write(self.out.getvalue())
+
+def main():
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('-o', type=str, metavar='file', help='output file.')
+    argparser.add_argument('file', nargs='+', type=str, help='input files.', metavar='file')
+    options = argparser.parse_args()
+    if options.o is not None:
+        out = open(options.o, 'w')
+    else:
+        out = sys.stdout
+    try:
+        p = Processor()
+        for file in options.file:
+            p.read(os.path.abspath(file))
+        p.write(out)
+    except:
+        if options.o is not None:
+            out.close()
+            os.unlink(options.o)
+        raise
+
+if __name__ == '__main__':
+    try:
+        main()
+    except ApplicationException as e:
+        print >>sys.stderr, e.message

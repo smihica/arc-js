@@ -1,0 +1,54 @@
+#!/usr/bin/env node
+
+/*
+ * File watch and exec command cli tool.
+ * https://gist.github.com/1632134
+ * copylight (c) hokaccha
+ *
+ * Example
+ *
+ * $ watcher *.less -- lessc style.less style.css
+ *
+ */
+
+'use strict';
+
+var fs = require('fs');
+var exec = require('child_process').exec;
+var argv = process.argv.slice(2);
+var separator = argv.indexOf('--');
+var targets = argv.slice(0, separator);
+var command = argv.slice(separator + 1).join(' ');
+var tmp = [], ignores = [];
+for (var i=0,l=targets.length; i<l; i++) {
+  if (targets[i] === '-i') { i++; ignores.push(targets[i]); continue; }
+  tmp.push(targets[i]);
+}
+targets = tmp.filter(function(x){ return ignores.indexOf(x) < 0; });
+
+if (!targets.length || !command.length) {
+  console.log('Usage: watcher file [files ... ] [ -i ignore.file ] -- command');
+  console.log('');
+  console.log('Example');
+  console.log('$ watcher *.less -- lessc foo.less foo.css');
+  process.exit();
+}
+
+targets.forEach(function(file) {
+  fs.watchFile(file, function(curr, prev) {
+    if (curr.mtime > prev.mtime) {
+      exec(command, function(err, stdout, stderr) {
+        if (err) {
+          console.error(err);
+        }
+        if (stdout) {
+          console.log(stdout);
+        }
+        if (stderr) {
+          console.error(stderr);
+        }
+        console.log('[LAST UPDATED]: ' + (new Date()));
+      });
+    }
+  });
+});

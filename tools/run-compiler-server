@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd /Users/smihica/code/anarki
+./arc.sh /Users/smihica/code/arc-js/tools/helper-compiler/compiler-server.arc
