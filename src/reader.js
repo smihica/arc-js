@@ -31,7 +31,7 @@ var Reader = classify("Reader", {
     },
 
     delimited: function(c) {
-      return (-1 < ' ()[]";'.indexOf(c));
+      return this.whitespace_p(c) || (-1 < '()[]";'.indexOf(c));
     },
 
     number_p: function(c) {

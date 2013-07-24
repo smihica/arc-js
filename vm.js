@@ -524,7 +524,7 @@ var Reader = classify("Reader", {
     },
 
     delimited: function(c) {
-      return (-1 < ' ()[]";'.indexOf(c));
+      return this.whitespace_p(c) || (-1 < '()[]";'.indexOf(c));
     },
 
     number_p: function(c) {
@@ -743,7 +743,7 @@ var Reader = classify("Reader", {
 /** @} */
 /** @file preload.js { */
 // This is an auto generated file.
-// Compiled from ['/Users/smihica/code/arc-js/src/arc/compiler.arc', '/Users/smihica/code/arc-js/src/arc/lib.arc', '/Users/smihica/code/arc-js/src/arc/util.arc'] on 2013-07-24 10:08:15.
+// Compiled from ['/Users/smihica/code/arc-js/src/arc/compiler.arc', '/Users/smihica/code/arc-js/src/arc/lib.arc', '/Users/smihica/code/arc-js/src/arc/util.arc'] on 2013-07-24 16:10:05.
 // DON'T EDIT !!!
 var preload = [
 "((close 0 190 1 -1) (conti 2) (argument) (constant 1) (argument) (refer-local 0) (argument) (close 1 181 1 -1) (refer-free 0) (argument) (constant 1) (argument) (refer-nil) (argument) (enter-let) (box 0) (refer-let 0 0) (argument) (refer-local 0) (argument) (close 2 164 1 -1) (frame 8) (refer-local 0) (argument) (constant 1) (argument) (refer-global type) (indirect) (apply) (argument) (enter-let) (frame 10) (refer-let 0 0) (argument) (constant cons) (argument) (constant 2) (argument) (refer-global is) (indirect) (apply) (test 140) (frame 8) (refer-local 0) (argument) (constant 1) (argument) (refer-global car) (indirect) (apply) (argument) (enter-let) (frame 10) (refer-let 0 0) (argument) (constant unquote) (argument) (constant 2) (argument) (refer-global is) (indirect) (apply) (test 27) (refer-free 0) (argument) (close 1 8 1 -1) (refer-t) (argument) (constant 1) (argument) (refer-free 0) (shift 2 2) (apply) (argument) (frame 8) (refer-local 0) (argument) (constant 1) (argument) (refer-global cdr) (indirect) (apply) (argument) (constant 2) (argument) (refer-global apply) (indirect) (shift 3 6) (apply) (frame 10) (refer-let 0 0) (argument) (constant unquote-splicing) (argument) (constant 2) (argument) (refer-global is) (indirect) (apply) (test 27) (refer-free 0) (argument) (close 1 8 1 -1) (refer-t) (argument) (constant 1) (argument) (refer-free 0) (shift 2 2) (apply) (argument) (frame 8) (refer-local 0) (argument) (constant 1) (argument) (refer-global cdr) (indirect) (apply) (argument) (constant 2) (argument) (refer-global apply) (indirect) (shift 3 6) (apply) (refer-local 0) (argument) (constant 1) (argument) (refer-nil) (argument) (enter-let) (box 0) (refer-let 0 0) (argument) (refer-free 1) (argument) (close 2 39 1 -1) (refer-local 0) (test 35) (frame 8) (refer-local 0) (argument) (constant 1) (argument) (refer-global car) (indirect) (apply) (argument) (enter-let) (frame 8) (refer-let 0 0) (argument) (constant 1) (argument) (refer-free 0) (indirect) (apply) (exit-let 2) (frame 8) (refer-local 0) (argument) (constant 1) (argument) (refer-global cdr) (indirect) (apply) (argument) (constant 1) (argument) (refer-free 1) (indirect) (shift 2 2) (apply) (refer-nil) (return 2) (assign-let 0 0) (exit-let 2) (shift 2 6) (apply) (refer-nil) (exit-let 2) (return 2) (assign-let 0 0) (exit-let 2) (shift 2 2) (apply) (shift 2 2) (apply) (assign-global find-qq-eval) (halt))",
