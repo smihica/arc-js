@@ -39,6 +39,7 @@
       vm.cleanup();
       vm.load(compiled);
       show_asm(res);
+      reset();
     }
 
     function run() {
@@ -120,6 +121,14 @@
     $("#run-btn").click(run);
     $("#step-btn").click(step);
     $("#reset-btn").click(reset);
+
+    $("#arc").val(
+      ("(def fib (n)\n" +
+       "  (if (< n 2)\n"+
+       "      n\n" +
+       "      (+ (fib (- n 1)) (fib (- n 2)))))\n\n; (fib 10)"));
+
+    read_compile();
 
   });
 
