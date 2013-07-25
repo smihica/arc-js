@@ -1,4 +1,4 @@
-(load "/Users/smihica/code/darc/js/compiler/util.arc")
+(load "/Users/smihica/code/arc-js/tools/helper-compiler/util.arc")
 
 (def find-qq-eval (x)
   (ccc
@@ -321,7 +321,10 @@
                next))
     cons (reccase
            x
-           (quote (obj) `(constant ,obj ,next))
+           (quote (obj)
+                  (if (is obj nil) `(refer-nil ,next)
+                      (is obj t)   `(refer-t ,next)
+                      `(constant ,obj ,next)))
 
            (fn (vars body)
              (with (dotpos (dotted-pos vars)
@@ -432,7 +435,9 @@
                              (apply))
                           '(apply)))))
 
-    `(constant ,x ,next)))
+    (if (is x nil) `(refer-nil ,next)
+        (is x t)   `(refer-t ,next)
+        `(constant ,x ,next))))
 
 (def preproc (x i)
   (reccase

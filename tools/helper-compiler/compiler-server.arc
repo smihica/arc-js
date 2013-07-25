@@ -1,4 +1,4 @@
-(load "/Users/smihica/code/darc/js/compiler/compiler.arc")
+(load "/Users/smihica/code/arc-js/tools/helper-compiler/compiler.arc")
 
 (defop arc-compiler req
        (let asm (do-compile (read (alref (req 'args) "code")))

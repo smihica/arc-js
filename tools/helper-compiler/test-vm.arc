@@ -1,4 +1,4 @@
-(load "/Users/smihica/code/darc/js/compiler/util.arc")
+(load "/Users/smihica/code/arc-js/tools/helper-compiler/util.arc")
 
 (= stack (n-of 1000 0))
 
