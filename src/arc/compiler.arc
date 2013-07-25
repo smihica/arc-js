@@ -1,3 +1,31 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; util
+
+(def set-minus (s1 s2)
+  (if s1
+      (if (mem (car s1) s2)
+          (set-minus (cdr s1) s2)
+          (cons (car s1) (set-minus (cdr s1) s2)))))
+
+(def set-intersect (s1 s2)
+  (if s1
+      (if (mem (car s1) s2)
+          (cons (car s1) (set-intersect (cdr s1) s2))
+          (set-intersect (cdr s1) s2))))
+
+(def dotted-to-proper (l)
+  (if (no l) nil
+      (atom l) (cons l nil)
+      (cons (car l) (dotted-to-proper (cdr l)))))
+
+(def dotted-pos (lis)
+  ((afn (l n)
+     (if (no l) -1
+         (atom l) n
+         (self (cdr l) (+ n 1))))
+   lis 0))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (def find-qq-eval (x)
   (ccc
     (fn (c)

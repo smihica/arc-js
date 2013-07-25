@@ -28,10 +28,60 @@ var VM = classify("VM", {
         this.global[p] = new Box(primitives[p]);
       }
       this.reader = new Reader();
-      for (var i=0,l=preload.length; i<l; i++) {
-        var def = preload[i];
-        this.run(def);
-      }
+      this.init_def();
+    },
+    init_def: function() {
+      var ops = ['frame', 'close', 'test', 'conti', 'shift', 'constant', 'argument',
+                 'refer-let', 'refer-local', 'refer-free', 'refer-global',
+                 'refer-nil', 'refer-t', 'enter-let', 'exit-let', 'assign-let', 'assign-local', 'assign-global',
+                 'box', 'indirect', 'apply', 'return', 'halt'];
+      for (var i=0,l=preload.length; i<l; i++) (function(i) {
+        var asm = [], line = preload[i];
+        for (var k=0,m=line.length; k<m; k++) {
+          var op = ops[line[k]];
+          switch (op) {
+          case 'refer-local':
+          case 'refer-free':
+          case 'box':
+          case 'test':
+          case 'assign-local':
+          case 'assign-free':
+          case 'frame':
+          case 'return':
+          case 'exit-let':
+          case 'conti':
+            asm.push([op, line[++k]|0]);
+            break;
+          case 'shift':
+          case 'refer-let':
+          case 'assign-let':
+            asm.push([op, line[++k]|0, line[++k]|0]);
+            break;
+          case 'close':
+            asm.push([op, line[++k]|0, line[++k]|0, line[++k]|0, line[++k]|0]);
+            break;
+          case 'refer-global':
+          case 'assign-global':
+            asm.push([op, line[++k]]);
+            break;
+          case 'constant':
+            asm.push([op, this.reader.read(line[++k])]);
+            break;
+          case 'indirect':
+          case 'halt':
+          case 'argument':
+          case 'apply':
+          case 'nuate':
+          case 'refer-nil':
+          case 'refer-t':
+          case 'enter-let':
+            asm.push([op]);
+            break;
+          default:
+          }
+        }
+        this.set_asm(asm).run();
+      }).call(this, i);
     },
     set_asm: function(asm) {
       this.x = asm;
@@ -134,8 +184,6 @@ var VM = classify("VM", {
           break;
         case 'exit-let':
           n = op[1];
-          //this.l = this.stack.index(this.l, 0);
-          //this.s = this.l;
           this.l -= n;
           this.s = this.l;
           this.p++;
@@ -172,9 +220,6 @@ var VM = classify("VM", {
           this.p++;
           break;
         case 'indirect':
-          if (this.a === void(0)) {
-            console.log('here');
-          }
           this.a = this.a.unbox();
           this.p++;
           break;

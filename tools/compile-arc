@@ -19,9 +19,9 @@ def main():
         out = sys.stdout
     try:
         out.write("""// This is an auto generated file.
-// Compiled from %s on %s.
+// Compiled from %s.
 // DON'T EDIT !!!
-var preload = [""" % (map(os.path.realpath, options.file), datetime.now().strftime("%Y-%m-%d %H:%M:%S"),))
+preload.push.apply(preload, [""" % (map(os.path.realpath, options.file),))
         for file in options.file:
             with open(file, 'r') as _input:
                 compiler_path = os.path.dirname(os.path.realpath(__file__)) + "/helper-compiler/compiler-file.arc"
@@ -29,10 +29,10 @@ var preload = [""" % (map(os.path.realpath, options.file), datetime.now().strfti
                 res, err = p.communicate()
                 if 0 < len(err.decode('utf-8')):
                     raise Exception(err.decode('utf-8'))
-                for line in res.decode('utf-8').split('\n'):
-                    if line != '':
-                        out.write('\n' + json.dumps(line) + ',')
-        out.write("\n];")
+                lines = filter(lambda l: l != '', res.decode('utf-8').split('\n'))
+                for line in lines:
+                    out.write('\n' + line)
+        out.write("]);")
     except:
         if options.o is not None:
             out.close()
