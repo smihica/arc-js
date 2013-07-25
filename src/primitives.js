@@ -308,6 +308,9 @@ var cons  = primitives.cons;
 var list  = primitives.list;
 var car   = primitives.car;
 var cdr   = primitives.cdr;
+var caar  = primitives.caar;
+var cadr  = primitives.cadr;
+var cddr  = primitives.cddr;
 var type  = primitives.type;
 var nreverse = primitives.nrev;
 
