@@ -248,239 +248,243 @@ var stringify_list = function(cons) {
 
 var uniq_counter = 0;
 
-var primitives = ({
-  'cons': function(car, cdr) {
-    return new Cons(car, cdr);
-  },
-  'car':  function(x) {
-    if (x instanceof Cons) return x.car;
-    else throw new Error(x + ' is not cons type.');
-  },
-  'cdr': function(x) {
-    if (x instanceof Cons) return x.cdr;
-    else throw new Error(x + ' is not cons type.');
-  },
-  'caar': function(x) { return car(car(x)); },
-  'cadr': function(x) { return car(cdr(x)); },
-  'cddr': function(x) { return cdr(cdr(x)); },
-  'list': function($$) {
-    for (var i=arguments.length-1, rt=nil; -1<i; i--) {
-      rt = cons(arguments[i], rt);
-    }
-    return rt;
-  },
-  'len': function(lis) {
-    var i = 0;
-    while (lis !== nil) {
-      i++; lis = cdr(lis);
-    }
-    return i;
-  },
-  'rev': function(lis) {
-    var rt = nil;
-    while (lis !== nil) {
-      rt = cons(car(lis), rt);
-      lis = cdr(lis);
-    }
-    return rt;
-  },
-  'nrev': function(lis, $$) {
-    var r = $$ || nil;
-    var tmp;
-    while (lis !== nil && 'cdr' in lis) {
-      tmp = lis.cdr;
-      lis.cdr = r;
-      r = lis;
-      lis = tmp;
-    }
-    return r;
-  },
-  'uniq': function() {
-    var rt = Symbol.get('%g'+uniq_counter);
-    uniq_counter++;
-    return rt;
-  },
-  'type': function(x) {
-    if (x === nil || x === t) return s_sym;
-    var type = typeof x;
-    switch (type) {
-    case 'string':
-      return s_string;
-    case 'number':
-      return (!!(x % 1)) ? s_num : s_int;
-    case 'function':
-      return s_fn;
-    case 'object':
-      if (x instanceof Symbol)  return s_sym;
-      if (x instanceof Cons)    return s_cons;
-      if (x instanceof Closure) return s_fn;
-    default:
-      return Symbol.get('javascript-' + type);
-    }
-  },
-  'err': function($$) {
-    throw new Error(
-      ('error: ' +
-       Array.prototype.map.call(
-         arguments,
-         function(x) { return type(x) === s_string ? x : stringify(x); }
-       ).join(' ') + '.'));
-  },
-  '+':   function($$) {
-    var l = arguments.length;
-    if (0 < l && (arguments[0] === nil || type(arguments[0]) === s_cons))
-      return primitives['%list-append'].apply(this, arguments);
-    for (var i=0, rt = 0; i<l; i++)
-      rt += arguments[i];
-    return rt;
-  },
-  '%list-append': function($$) {
-    var dotted = nil;
-    for (var i=0, l=arguments.length, rt = nil; i<l; i++) {
-      if (dotted !== nil) throw new Error(
-        ('error: +(list): contract violation (' +
-         Array.prototype.map.call(arguments, stringify).join(' ') + ')'));
-      var lis = arguments[i];
+var primitives = (function() {
+  var rt = {
+    'cons': [{dot: -1}, function(car, cdr) {
+      return new Cons(car, cdr);
+    }],
+    'car':  [{dot: -1}, function(x) {
+      if (x instanceof Cons) return x.car;
+      else throw new Error(x + ' is not cons type.');
+    }],
+    'cdr': [{dot: -1}, function(x) {
+      if (x instanceof Cons) return x.cdr;
+      else throw new Error(x + ' is not cons type.');
+    }],
+    'caar': [{dot: -1}, function(x) { return car(car(x)); }],
+    'cadr': [{dot: -1}, function(x) { return car(cdr(x)); }],
+    'cddr': [{dot: -1}, function(x) { return cdr(cdr(x)); }],
+    'list': [{dot: 0}, function($$) {
+      for (var i=arguments.length-1, rt=nil; -1<i; i--)
+        rt = cons(arguments[i], rt);
+      return rt;
+    }],
+    'len': [{dot: -1}, function(lis) {
+      var i = 0;
+      while (lis !== nil) {
+        i++; lis = cdr(lis);
+      }
+      return i;
+    }],
+    'rev': [{dot: -1}, function(lis) {
+      var rt = nil;
       while (lis !== nil) {
         rt = cons(car(lis), rt);
         lis = cdr(lis);
-        if (!(lis instanceof Cons)) { dotted = lis; break; }
       }
-    }
-    return nreverse(rt, dotted);
-  },
-  '-': function(x, $$) {
-    for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
-      rt -= arguments[i];
-    return rt;
-  },
-  '*': function($$) {
-    for (var i=0, l=arguments.length, rt = 1; i<l; i++)
-      rt *= arguments[i];
-    return rt;
-  },
-  '/': function(x, $$) {
-    for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
-      rt /= arguments[i];
-    return rt;
-  },
-  '<': function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] < arguments[i])) return nil;
-    }
-    return t;
-  },
-  '>': function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] > arguments[i])) return nil;
-    }
-    return t;
-  },
-  '<=': function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] <= arguments[i])) return nil;
-    }
-    return t;
-  },
-  '>=': function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] >= arguments[i])) return nil;
-    }
-    return t;
-  },
-  'no': function(x) {
-    return (x === nil) ? t : nil;
-  },
-  'is': function(a, b) {
-    return (a === b) ? t : nil;
-  },
-  'mem': function(test, lis) {
-    if (lis === nil) return nil;
-    if (type(test).name === 'fn') {
-      return new Call('%mem-fn', [test, lis]);
-    } else {
-      while (lis !== nil) {
-        if (car(lis) === test) return lis;
-        lis = cdr(lis);
+      return rt;
+    }],
+    'nrev': [{dot: 1}, function(lis, $$) {
+      var r = $$ || nil;
+      var tmp;
+      while (lis !== nil && 'cdr' in lis) {
+        tmp = lis.cdr;
+        lis.cdr = r;
+        r = lis;
+        lis = tmp;
       }
-      return nil;
-    }
-  },
-  'pos': function(test, lis) {
-    if (lis === nil) return nil;
-    if (type(test).name === 'fn') {
-      return new Call('%pos-fn', [test, lis]);
-    } else {
-      var i = 0;
-      while (lis !== nil) {
-        if (car(lis) === test) return i;
-        lis = cdr(lis);
-        i++;
+      return r;
+    }],
+    'uniq': [{dot: -1}, function() {
+      var rt = Symbol.get('%g'+uniq_counter);
+      uniq_counter++;
+      return rt;
+    }],
+    'type': [{dot: -1}, function(x) {
+      if (x === nil || x === t) return s_sym;
+      var type = typeof x;
+      switch (type) {
+      case 'string':
+        return s_string;
+      case 'number':
+        return (!!(x % 1)) ? s_num : s_int;
+      case 'function':
+        return s_fn;
+      case 'object':
+        if (x instanceof Symbol)  return s_sym;
+        if (x instanceof Cons)    return s_cons;
+        if (x instanceof Closure) return s_fn;
+      default:
+        return Symbol.get('javascript-' + type);
       }
-      return nil;
-    }
-  },
-  'atom': function(x) {
-    return (type(x).name === 'cons') ? nil : t;
-  },
-  'apply': function(fn, $$) {
-    for (var i=1, l=arguments.length, args=[]; i<l; i++)
-      args = args.concat(list_to_javascript_arr(arguments[i]));
-    return new Call(fn, args);
-  },
-  'pair': function(lis) {
-    var rt = nil, toggle = true;
-    while (lis !== nil) {
-      if (toggle) {
-        rt = cons(cons(car(lis), nil), rt);
+    }],
+    'err': [{dot: 0}, function($$) {
+      throw new Error(
+        ('error: ' +
+         Array.prototype.map.call(
+           arguments,
+           function(x) { return type(x) === s_string ? x : stringify(x); }
+         ).join(' ') + '.'));
+    }],
+    '+': [{dot: 0}, function($$) {
+      var l = arguments.length;
+      if (0 < l && (arguments[0] === nil || type(arguments[0]) === s_cons))
+        return primitives['%list-append'].apply(this, arguments);
+      for (var i=0, rt = 0; i<l; i++)
+        rt += arguments[i];
+      return rt;
+    }],
+    '%list-append': [{dot: 0}, function($$) {
+      var dotted = nil;
+      for (var i=0, l=arguments.length, rt = nil; i<l; i++) {
+        if (dotted !== nil) throw new Error(
+          ('error: +(list): contract violation (' +
+           Array.prototype.map.call(arguments, stringify).join(' ') + ')'));
+        var lis = arguments[i];
+        while (lis !== nil) {
+          rt = cons(car(lis), rt);
+          lis = cdr(lis);
+          if (!(lis instanceof Cons)) { dotted = lis; break; }
+        }
+      }
+      return nreverse(rt, dotted);
+    }],
+    '-': [{dot: 1}, function(x, $$) {
+      for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
+        rt -= arguments[i];
+      return rt;
+    }],
+    '*': [{dot: 0}, function($$) {
+      for (var i=0, l=arguments.length, rt = 1; i<l; i++)
+        rt *= arguments[i];
+      return rt;
+    }],
+    '/': [{dot: 1}, function(x, $$) {
+      for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
+        rt /= arguments[i];
+      return rt;
+    }],
+    '<': [{dot: 0}, function($$) {
+      for (var i=1, l=arguments.length; i<l; i++) {
+        if (!(arguments[i-1] < arguments[i])) return nil;
+      }
+      return t;
+    }],
+    '>': [{dot: 0}, function($$) {
+      for (var i=1, l=arguments.length; i<l; i++) {
+        if (!(arguments[i-1] > arguments[i])) return nil;
+      }
+      return t;
+    }],
+    '<=': [{dot: 0}, function($$) {
+      for (var i=1, l=arguments.length; i<l; i++) {
+        if (!(arguments[i-1] <= arguments[i])) return nil;
+      }
+      return t;
+    }],
+    '>=': [{dot: 0}, function($$) {
+      for (var i=1, l=arguments.length; i<l; i++) {
+        if (!(arguments[i-1] >= arguments[i])) return nil;
+      }
+      return t;
+    }],
+    'no': [{dot: -1}, function(x) {
+      return (x === nil) ? t : nil;
+    }],
+    'is': [{dot: -1}, function(a, b) {
+      return (a === b) ? t : nil;
+    }],
+    'mem': [{dot: -1}, function(test, lis) {
+      if (lis === nil) return nil;
+      if (type(test).name === 'fn') {
+        return new Call('%mem-fn', [test, lis]);
       } else {
-        car(rt).cdr = cons(car(lis), nil);
+        while (lis !== nil) {
+          if (car(lis) === test) return lis;
+          lis = cdr(lis);
+        }
+        return nil;
       }
-      lis = cdr(lis);
-      toggle = !toggle;
-    }
-    return nreverse(rt);
-  },
-  'union': function(test, lis1, lis2) {
-    if (test === primitives['is']) {
-      var arr = list_to_javascript_arr(lis1);
-      while (lis2 !== nil) {
-        var ca = car(lis2);
-        if (arr.indexOf(ca) < 0) arr.push(ca);
-        lis2 = cdr(lis2);
+    }],
+    'pos': [{dot: -1}, function(test, lis) {
+      if (lis === nil) return nil;
+      if (type(test).name === 'fn') {
+        return new Call('%pos-fn', [test, lis]);
+      } else {
+        var i = 0;
+        while (lis !== nil) {
+          if (car(lis) === test) return i;
+          lis = cdr(lis);
+          i++;
+        }
+        return nil;
       }
-      return javascript_arr_to_list(arr);
-    } else {
-      return new Call('%union-fn', [test, lis1, lis2]);
+    }],
+    'atom': [{dot: -1}, function(x) {
+      return (type(x).name === 'cons') ? nil : t;
+    }],
+    'apply': [{dot: 1}, function(fn, $$) {
+      for (var i=1, l=arguments.length, args=[]; i<l; i++)
+        args = args.concat(list_to_javascript_arr(arguments[i]));
+      return new Call(fn, args);
+    }],
+    'pair': [{dot: -1}, function(lis) {
+      var rt = nil, toggle = true;
+      while (lis !== nil) {
+        if (toggle) {
+          rt = cons(cons(car(lis), nil), rt);
+        } else {
+          car(rt).cdr = cons(car(lis), nil);
+        }
+        lis = cdr(lis);
+        toggle = !toggle;
+      }
+      return nreverse(rt);
+    }],
+    'union': [{dot: -1}, function(test, lis1, lis2) {
+      if (test === primitives['is']) {
+        var arr = list_to_javascript_arr(lis1);
+        while (lis2 !== nil) {
+          var ca = car(lis2);
+          if (arr.indexOf(ca) < 0) arr.push(ca);
+          lis2 = cdr(lis2);
+        }
+        return javascript_arr_to_list(arr);
+      } else {
+        return new Call('%union-fn', [test, lis1, lis2]);
+      }
+    }],
+    'dedup': [{dot: -1}, function(lis) {
+      var arr = list_to_javascript_arr(lis);
+      var narr = [];
+      for (var i=0, l=arr.length; i<l; i++) {
+        if (narr.indexOf(arr[i]) < 0) narr.push(arr[i]);
+      }
+      return javascript_arr_to_list(narr);
+    }]
+  };
+  for (var n in rt) {
+    var f = rt[n];
+    if (f instanceof Array && typeof f[1] === 'function') {
+      var options = f[0];
+      f = f[1];
+      f.dotpos = options['dot'];
+      f.toString().match(/^function.*?\((.*?)\)/);
+      var args = RegExp.$1;
+      if (args === '') {
+        f.arglen = 0;
+        f.prim_name = n;
+      } else {
+        var vs = args.split(/\s*,\s*/g);
+        f.arglen = vs.length;
+        f.prim_name = n;
+      }
+      rt[n] = f;
     }
-  },
-  'dedup': function(lis) {
-    var arr = list_to_javascript_arr(lis);
-    var narr = [];
-    for (var i=0, l=arr.length; i<l; i++) {
-      if (narr.indexOf(arr[i]) < 0) narr.push(arr[i]);
-    }
-    return javascript_arr_to_list(narr);
   }
-});
+  return rt;
+})();
 
-for (var n in primitives) {
-  var f = primitives[n];
-  if ((typeof f) === 'function') {
-    f.toString().match(/^function.*?\((.*?)\)/);
-    var args = RegExp.$1;
-    if (args === '') {
-      f.dotpos = -1;
-      f.arglen = 0;
-      f.prim_name = n;
-    } else {
-      var vs = args.split(/\s*,\s*/g);
-      f.dotpos = vs.indexOf('$$');
-      f.arglen = vs.length;
-      f.prim_name = n;
-    }
-  }
-}
 
 var cons  = primitives.cons;
 var list  = primitives.list;
@@ -491,7 +495,6 @@ var cadr  = primitives.cadr;
 var cddr  = primitives.cddr;
 var type  = primitives.type;
 var nreverse = primitives.nrev;
-
 /** @} */
 /** @file reader.js { */
 var Reader = classify("Reader", {
