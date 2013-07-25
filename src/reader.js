@@ -242,7 +242,7 @@ var Reader = classify("Reader", {
     },
 
     read: function(str) {
-      this.load_source(str);
+      if (str) this.load_source(str);
       return this.read_expr();
     }
   }
