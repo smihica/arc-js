@@ -164,6 +164,12 @@
                            (is (len p) 1) (car p))))
                    (pair args))))
 
+           (mac (name vars . body)
+               (expand-macro
+                 (if body
+                     `(sref %___macros___ (annotate 'mac (fn ,vars ,@body)) ',name)
+                     `(annotate 'mac (fn ,name ,@vars)))))
+
            (map expand-macro x))
     x))
 

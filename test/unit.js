@@ -73,6 +73,11 @@ describe('Reader', function(){
       rex('"ab\\tcd"').equal('ab\tcd');
       // TODO more escape patterns.
     });
+    it('char', function() {
+      function c(x) { return Char.get(x); }
+      rex('#\\a').equal(c('a'));
+      expect(stringify(reader.read("#\\a"))).to.equal('#\\a');
+    });
     it('cons', function() {
       function s(x) { return Symbol.get(x); }
       rex("(a b c)").to.deep.equal(
@@ -351,6 +356,36 @@ describe('VM eval', function(){
     );
   });
 
+  describe('tag', function() {
+    eval_print_eql(
+      "(assign x (annotate 'my-type (fn () x)))", "#<tagged my-type #<fn>>",
+      "(type x)", "my-type",
+      "(rep x)", "#<fn>"
+    );
+  });
+
+  describe('table', function() {
+    eval_print_eql(
+      "(table)", "#<table n=0>",
+      "(assign tbl (table))", "#<table n=0>",
+      "(sref tbl 'a 0)", "a",
+      "(ref tbl 0)", "a",
+      "(sref tbl 'b 1.3)", "b",
+      "(ref tbl 1.3)", "b",
+      "(sref tbl 'c \"abc\")", "c",
+      "(ref tbl \"abc\")", "c",
+      "(sref tbl 'd 'sym)", "d",
+      "(ref tbl 'sym)", "d",
+      "(sref tbl 'e '(a b c))", "e",
+      "(ref tbl (list 'a 'b 'c))", "e",
+      "(assign tblf (fn () tblf))", "#<fn:tblf>",
+      "(sref tbl 'f tblf)", "f",
+      "(ref tbl tblf)", "f",
+      "(ref tbl (fn () tblf))", "nil",
+      "(ref tbl 'aaa)", "nil"
+    );
+  });
+
   describe('afn', function() {
     eval_print_eql(
       "((afn (x y) (if (< x 0) (+ x y) (self (- x 1) (- y 1)))) 1 2)", "-1"
@@ -417,70 +452,70 @@ describe('VM eval', function(){
         "(expand-qq (cadr '`(x x '(x ,x) x x)))", "(cons (quote x) (cons (quote x) (cons (cons (quote quote) (cons (cons (quote x) (cons x (quote nil))) (quote nil))) (quote (x x)))))" // (x x (quote (x 2)) x x)
       );
     });
-    describe('expand-macro', function() {
+    describe('macex', function() {
       eval_print_eql(
-        "(expand-macro '(quote (1 2 3)))", "(quote (1 2 3))",
+        "(macex '(quote (1 2 3)))", "(quote (1 2 3))",
 
-        "(expand-macro '(caselet xx yy a 1 b 2 c 3 4))",
+        "(macex '(caselet xx yy a 1 b 2 c 3 4))",
         "(with (xx yy) (%if (is xx (quote a)) 1 (%if (is xx (quote b)) 2 (%if (is xx (quote c)) 3 4))))",
 
-        "(expand-macro '(case (car x) a 1 b 2 c 3 4))",
+        "(macex '(case (car x) a 1 b 2 c 3 4))",
         "(with (%g1 (car x)) (%if (is %g1 (quote a)) 1 (%if (is %g1 (quote b)) 2 (%if (is %g1 (quote c)) 3 4))))",
 
-        "(expand-macro '(reccase (car x) (a (x) (+ x x)) (b (y) (- y y)) (c x)))",
+        "(macex '(reccase (car x) (a (x) (+ x x)) (b (y) (- y y)) (c x)))",
         "(with (%g2 (car (car x))) (%if (is %g2 (quote a)) (apply (fn (x) (+ x x)) (cdr (car x))) (%if (is %g2 (quote b)) (apply (fn (y) (- y y)) (cdr (car x))) (c x))))",
 
-        "(expand-macro '(each a (cdr list) (prn a) (+ 1 p)))",
+        "(macex '(each a (cdr list) (prn a) (+ 1 p)))",
         "((with (%g3 nil) (assign %g3 (fn (%g4) (%if %g4 (do (with (a (car %g4)) (do (prn a) (+ 1 p))) (%g3 (cdr %g4))) nil)))) (cdr list))",
 
-        "(expand-macro '(%shortfn (+ (car _) 10)))",
+        "(macex '(%shortfn (+ (car _) 10)))",
         "(fn (_) (+ (car _) 10))",
 
-        "(expand-macro '(fn (a b . c) a b (list (+ a b) c)))",
+        "(macex '(fn (a b . c) a b (list (+ a b) c)))",
         "(fn (a b . c) (do a b (list (+ a b) c)))",
 
-        "(expand-macro '(rfn y (a b c) (if (< 0 a) (+ a b c) (y (inc a) (inc b) (inc c)))))",
+        "(macex '(rfn y (a b c) (if (< 0 a) (+ a b c) (y (inc a) (inc b) (inc c)))))",
         "(with (y nil) (assign y (fn (a b c) (%if (< 0 a) (+ a b c) (y (inc a) (inc b) (inc c))))))",
 
-        "(expand-macro '((afn (x) (if (< 0 x) (self (dec x)) x)) 10))",
+        "(macex '((afn (x) (if (< 0 x) (self (dec x)) x)) 10))",
         "((with (self nil) (assign self (fn (x) (%if (< 0 x) (self (dec x)) x)))) 10)",
 
-        "(expand-macro '`(a b ,c ,@d e f))",
+        "(macex '`(a b ,c ,@d e f))",
         "(cons (quote a) (cons (quote b) (cons c (+ d (quote (e f))))))",
 
-        "(expand-macro '(if a b))",
+        "(macex '(if a b))",
         "(%if a b nil)",
-        "(expand-macro '(aif a b))",
+        "(macex '(aif a b))",
         "(with (it a) (%if it b nil))",
 
-        "(expand-macro '(if a b c))",
+        "(macex '(if a b c))",
         "(%if a b c)",
-        "(expand-macro '(aif a b c))",
+        "(macex '(aif a b c))",
         "(with (it a) (%if it b c))",
 
-        "(expand-macro '(if a b c d))",
+        "(macex '(if a b c d))",
         "(%if a b (%if c d nil))",
-        "(expand-macro '(aif a b c d))",
+        "(macex '(aif a b c d))",
         "(with (it a) (%if it b (with (it c) (%if it d nil))))",
 
-        "(expand-macro '(if a b c d e))",
+        "(macex '(if a b c d e))",
         "(%if a b (%if c d e))",
-        "(expand-macro '(aif a b c d e))",
+        "(macex '(aif a b c d e))",
         "(with (it a) (%if it b (with (it c) (%if it d e))))",
 
-        "(expand-macro '(and a b c))",
+        "(macex '(and a b c))",
         "(%if a (%if b c nil) nil)",
 
-        "(expand-macro '(or a b c))",
+        "(macex '(or a b c))",
         "(with (%g5 a) (%if %g5 %g5 (with (%g6 b) (%if %g6 %g6 (with (%g7 c) (%if %g7 %g7 nil))))))",
 
-        "(expand-macro '(with (x a y b) x y (+ x y)))",
+        "(macex '(with (x a y b) x y (+ x y)))",
         "(with (x a y b) (do x y (+ x y)))",
 
-        "(expand-macro '(let x y (+ x y) (- x y)))",
+        "(macex '(let x y (+ x y) (- x y)))",
         "(with (x y) (do (+ x y) (- x y)))",
 
-        "(expand-macro '(def f (a . b) (+ a (car b))))",
+        "(macex '(def f (a . b) (+ a (car b))))",
         "(assign f (fn (a . b) (+ a (car b))))"
 
       );

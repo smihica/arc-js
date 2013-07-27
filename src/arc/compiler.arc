@@ -78,121 +78,122 @@
         (qq-pair x))
       (list 'quote x)))
 
-(def expand-macro (x)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(assign %___macros___ (table))
+
+(def macex1 (x)
+  (aif (and (is (type x) 'cons) (ref %___macros___ (car x)))
+       (apply (rep it) (cdr x))
+       x))
+
+(def macex (x)
   (case (type x)
     cons (reccase
            x
-
            (quote body `(quote ,@body))
-
-           (caselet
-             (var expr . args)
-             (expand-macro
-               (let ex (afn (args)
-                         (if (no (cdr args))
-                             (car args)
-                             `(if (is ,var ',(car args))
-                                  ,(cadr args)
-                                  ,(self (cddr args)))))
-                 `(let ,var ,expr ,(ex args)))))
-
-           (case (expr . args)
-             (expand-macro
-               `(caselet ,(uniq) ,expr ,@args)))
-
-           (reccase (expr . pats)
-                    (let plen (- (len pats) 1)
-                      (with (f (firstn plen pats)
-                               l (nthcdr plen pats))
-                        (expand-macro
-                          `(case (car ,expr)
-                             ,@(+ (mappend
-                                    (fn (pat) `(,(car pat) (apply (fn ,@(cdr pat)) (cdr ,expr))))
-                                    f)
-                                  l))))))
-
-           (each (var expr . body)
-               (with (fname (uniq) l (uniq))
-                 (expand-macro
-                   `((rfn ,fname (,l)
-                       (if ,l
-                           (do (let ,var (car ,l) ,@body)
-                               (,fname (cdr ,l)))))
-                     ,expr))))
-
-           ;; TODO:
-           ;; support
-           ;; - _0 ~ _9 (arg)
-           ;; - _* (args-all)
-           ;; - _$ self
-           (%shortfn (body) (expand-macro `(fn (_) ,body)))
-
            (fn (vars . body)
-             `(fn ,vars ,(if (< (len body) 2)
-                             (expand-macro (car body))
-                             (expand-macro `(do ,@body)))))
-
-           (rfn (name vars . body)
-               (expand-macro
-                 `(let ,name nil
-                    (assign ,name (fn ,vars ,@body)))))
-
-           (afn (vars . body)
-             (expand-macro
-               `(rfn self ,vars ,@body)))
-
-           (quasiquote (obj) (expand-macro (expand-qq obj)))
-
-           (if args
-               (expand-macro
-                 ((afn (ps)
-                    (let p (car ps)
-                      (if (is (len p) 2)
-                          `(%if ,(car p) ,(cadr p) ,(self (cdr ps)))
-                          (is (len p) 1) (car p))))
-                  (pair args))))
-
-           (and args
-                (expand-macro
-                  (if (cdr args)
-                      `(if ,(car args) (and ,@(cdr args)))
-                      (or (car args) t))))
-
-           (or args
-               (expand-macro
-                 (and args
-                      (let g (uniq)
-                        `(let ,g ,(car args)
-                           (if ,g ,g (or ,@(cdr args))))))))
-
-           (with (var-val . body)
-             `(with ,(expand-macro var-val)
+             `(fn ,vars
                 ,(if (< (len body) 2)
-                     (expand-macro (car body))
-                     (expand-macro `(do ,@body)))))
-
-           (let (var val . body)
-               (expand-macro
-                 `(with (,var ,val) ,@body)))
-
-           (def (name vars . body)
-               (expand-macro
-                 `(assign ,name (fn ,vars ,@body))))
-
-           (aif args
-                (expand-macro
-                  ((afn (ps)
-                     (let p (car ps)
-                       (if (is (len p) 2)
-                           `(let it ,(car p)
-                              (%if it ,(cadr p)
-                                   ,(self (cdr ps))))
-                           (is (len p) 1) (car p))))
-                   (pair args))))
-
-           (map expand-macro x))
+                     (macex (car body))
+                     (macex `(do ,@body)))))
+           (with (var-val . body)
+             `(with ,(macex var-val)
+                ,(if (< (len body) 2)
+                     (macex (car body))
+                     (macex `(do ,@body)))))
+           (aif (ref %___macros___ (car x))
+                (macex
+                  (apply (rep it) (cdr x)))
+                (map macex x)))
     x))
 
+(mac mac (name vars . body)
+  (if body
+      `(sref %___macros___ (annotate 'mac (fn ,vars ,@body)) ',name)
+      `(annotate 'mac (fn ,name ,@vars))))
+
+(mac caselet (var expr . args)
+  (let ex (afn (args)
+            (if (no (cdr args))
+                (car args)
+                `(if (is ,var ',(car args))
+                     ,(cadr args)
+                     ,(self (cddr args)))))
+    `(let ,var ,expr ,(ex args))))
+
+(mac case (expr . args)
+  `(caselet ,(uniq) ,expr ,@args))
+
+(mac reccase (expr . pats)
+  (let plen (- (len pats) 1)
+    (with (f (firstn plen pats)
+           l (nthcdr plen pats))
+      `(case (car ,expr)
+         ,@(+ (mappend
+                (fn (pat) `(,(car pat) (apply (fn ,@(cdr pat)) (cdr ,expr))))
+                f)
+              l)))))
+
+(mac each (var expr . body)
+  (with (fname (uniq) l (uniq))
+    `((rfn ,fname (,l)
+        (if ,l
+            (do (let ,var (car ,l) ,@body)
+                (,fname (cdr ,l)))))
+      ,expr)))
+
+;; TODO:
+;; support
+;; - _0 ~ _9 (arg)
+;; - _* (args-all)
+;; - _$ self
+(mac %shortfn (body) `(fn (_) ,body))
+
+(mac rfn (name vars . body)
+     `(let ,name nil
+        (assign ,name (fn ,vars ,@body))))
+
+(mac afn (vars . body)
+     `(rfn self ,vars ,@body))
+
+(mac quasiquote (obj)
+     (expand-qq obj))
+
+(mac if args
+  ((afn (ps)
+     (let p (car ps)
+       (if (is (len p) 2)
+           `(%if ,(car p) ,(cadr p) ,(self (cdr ps)))
+           (is (len p) 1) (car p))))
+   (pair args)))
+
+(mac and args
+  (if (cdr args)
+      `(if ,(car args) (and ,@(cdr args)))
+      (or (car args) t)))
+
+(mac or args
+  (and args
+       (let g (uniq)
+         `(let ,g ,(car args)
+            (if ,g ,g (or ,@(cdr args)))))))
+
+(mac let (var val . body)
+  `(with (,var ,val) ,@body))
+
+(mac def (name vars . body)
+  `(assign ,name (fn ,vars ,@body)))
+
+(mac aif args
+  ((afn (ps)
+     (let p (car ps)
+       (if (is (len p) 2)
+           `(let it ,(car p)
+              (%if it ,(cadr p)
+                   ,(self (cdr ps))))
+           (is (len p) 1) (car p))))
+   (pair args)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -561,7 +562,7 @@
 (def do-compile (x)
   (preproc
     (compile
-      (expand-macro x)
+      (macex x)
       '()
       '()
       '(halt))
