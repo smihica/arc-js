@@ -1,4 +1,5 @@
-var vm = new VM();
+var vm = new ArcJS.VM();
+var cadr = ArcJS.cadr;
 
 function compile(expr) {
   var asm = [
@@ -43,7 +44,7 @@ function compile_file(url) {
     var exprs = [];
     while (true) {
       var expr = vm.reader.read();
-      if (expr === Reader.EOF) break;
+      if (expr === ArcJS.Reader.EOF) break;
       exprs.push(expr);
     }
     var ts = new Date();

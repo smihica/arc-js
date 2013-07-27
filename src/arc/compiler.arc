@@ -117,7 +117,7 @@
 
 (mac mac (name vars . body)
   (if body
-      `(sref %___macros___ (annotate 'mac (fn ,vars ,@body)) ',name)
+      `(assign ,name (sref %___macros___ (annotate 'mac (fn ,vars ,@body)) ',name))
       `(annotate 'mac (fn ,name ,@vars))))
 
 (mac caselet (var expr . args)

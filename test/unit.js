@@ -1,5 +1,12 @@
-var vm = new VM();
-var reader = new Reader();
+var vm     = new ArcJS.VM();
+var reader = new ArcJS.Reader();
+var nil       = ArcJS.nil;
+var t         = ArcJS.t;
+var stringify = ArcJS.stringify;
+var type      = ArcJS.type;
+var cons      = ArcJS.cons;
+var car       = ArcJS.car;
+var cdr       = ArcJS.cdr;
 
 var expect = chai.expect;
 
@@ -57,9 +64,9 @@ describe('Reader', function(){
       // rex("1/2+3/4i") // expression
     });
     it('symbol', function() {
-      rex('a').equal(Symbol.get('a'));
-      rex('abcd').equal(Symbol.get('abcd'));
-      rex('u-n.k_o#abc$$%%moemoe').equal(Symbol.get('u-n.k_o#abc$$%%moemoe'));
+      rex('a').equal(ArcJS.Symbol.get('a'));
+      rex('abcd').equal(ArcJS.Symbol.get('abcd'));
+      rex('u-n.k_o#abc$$%%moemoe').equal(ArcJS.Symbol.get('u-n.k_o#abc$$%%moemoe'));
       rex('nil').equal(nil);
       rex('t').equal(t);
     });
@@ -74,12 +81,12 @@ describe('Reader', function(){
       // TODO more escape patterns.
     });
     it('char', function() {
-      function c(x) { return Char.get(x); }
+      function c(x) { return ArcJS.Char.get(x); }
       rex('#\\a').equal(c('a'));
       expect(stringify(reader.read("#\\a"))).to.equal('#\\a');
     });
     it('cons', function() {
-      function s(x) { return Symbol.get(x); }
+      function s(x) { return ArcJS.Symbol.get(x); }
       rex("(a b c)").to.deep.equal(
         cons(s('a'), cons(s('b'), cons(s('c'), nil))));
       rex("(a (b c))").to.deep.equal(
@@ -92,7 +99,7 @@ describe('Reader', function(){
                        cons(s('g'), nil)))));
     });
     it('quote/quasiquote', function() {
-      function s(x) { return Symbol.get(x); }
+      function s(x) { return ArcJS.Symbol.get(x); }
       rex("'a").to.deep.equal({ car: s('quote'),
                                 cdr: { car: s('a'),
                                        cdr: nil}});
@@ -159,7 +166,7 @@ describe('VM eval', function(){
       '"def\\nxyz"',                             "def\nxyz",
       "'(1 2 3)",                                cons(1,cons(2,cons(3,nil))),
       "'(1 . 2)",                                cons(1,2),
-      "'a",                                      Symbol.get('a')
+      "'a",                                      ArcJS.Symbol.get('a')
     );
   });
 
@@ -389,9 +396,12 @@ describe('VM eval', function(){
   describe('mac', function() {
     eval_print_eql(
       "(mac mac-test (x) `(+ ,x ,x))", "#<tagged mac #<fn>>",
+      "mac-test", "#<tagged mac #<fn>>",
       "(mac-test 10)", "20",
       "((fn (mac-test) (mac-test 10)) -)", "-10", // shadowing
-      "(with (mac-test -) (mac-test 10))", "-10" // shadowing
+      "(with (mac-test -) (mac-test 10))", "-10", // shadowing
+      "(mac mac-test2 (x) `(let a 10 ,x))", "#<tagged mac #<fn>>",
+      "(macex1 '(mac-test2 a))", "(let a 10 a)"
     );
   });
 
@@ -642,6 +652,5 @@ describe('VM eval', function(){
         "((frame 52) (constant 1) (argument) (frame 43) (conti 0) (argument) (constant 1) (argument) (close 0 37 1 -1) (frame 10) (constant 3) (argument) (constant 5) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (refer-local 0) (argument) (close 1 17 0 -1) (frame 10) (constant 8) (argument) (constant 3) (argument) (constant 2) (argument) (refer-global *) (indirect) (apply) (argument) (constant 1) (argument) (refer-free 0) (shift 2 1) (apply) (argument) (constant 1) (argument) (refer-global apply) (indirect) (shift 2 2) (apply) (apply) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (halt))"
       );
     });
-
   });
 });
