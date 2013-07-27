@@ -1,10 +1,7 @@
-var Cons = function(car, cdr) {
-  this.car = car; this.cdr = cdr;
-}
 var nil = (function() {
-  var x = new Cons(null, null);
-  x.car = x; x.cdr = x;
-  return x;
+  var n = new Cons(null, null);
+  n.car = n; n.cdr = n;
+  return n;
 })();
 
 var t = true;
@@ -13,6 +10,8 @@ var s_int    = Symbol.get('int');
 var s_num    = Symbol.get('num');
 var s_string = Symbol.get('string');
 var s_sym    = Symbol.get('sym');
+var s_char   = Symbol.get('char');
+var s_table  = Symbol.get('table');
 var s_cons   = Symbol.get('cons');
 var s_fn     = Symbol.get('fn');
 
@@ -38,13 +37,35 @@ var javascript_arr_to_list = function(arr) {
   return rt;
 }
 
+var type = function(x) {
+  if (x === nil || x === t) return s_sym;
+  var type = typeof x;
+  switch (type) {
+  case 'string':
+    return s_string;
+  case 'number':
+    return (!!(x % 1)) ? s_num : s_int;
+  case 'function':
+    return s_fn;
+  case 'object':
+    if (x instanceof Symbol)   return s_sym;
+    if (x instanceof Cons)     return s_cons;
+    if (x instanceof Closure)  return s_fn;
+    if (x instanceof Char)     return s_char;
+    if (x instanceof Table)    return s_table;
+    if (x instanceof Tagged)   return x.tag;
+  default:
+    return Symbol.get('javascript-' + type);
+  }
+};
+
 var stringify = function(x) {
   var type_name = type(x).name;
   switch (type_name) {
   case 'int':
   case 'num':
   case 'string':
-    return JSON.stringify(x);
+    break;
   case 'sym':
     if (x === nil) return 'nil';
     if (x === t) return 't';
@@ -55,8 +76,15 @@ var stringify = function(x) {
     return "#<" + (typeof x === 'function' ?
                    'prim' + (x.prim_name ? (":"+x.prim_name) : "") :
                    'fn' + (x.name ? (":"+x.name) : "")) + ">";
+  case 'char':
+    return "#\\" + x.c;
+  case 'table':
+    return '#<table n=' + x.n + /* ' | ' + x.stringify_content() + */ '>';
   }
-  return x+'';
+  if (x instanceof Tagged) {
+    return '#<tagged ' + type_name + ' ' + stringify(x.obj) + '>';
+  }
+  return JSON.stringify(x);
 }
 
 var stringify_list = function(cons) {
@@ -122,24 +150,7 @@ var primitives = (function() {
       uniq_counter++;
       return rt;
     }],
-    'type': [{dot: -1}, function(x) {
-      if (x === nil || x === t) return s_sym;
-      var type = typeof x;
-      switch (type) {
-      case 'string':
-        return s_string;
-      case 'number':
-        return (!!(x % 1)) ? s_num : s_int;
-      case 'function':
-        return s_fn;
-      case 'object':
-        if (x instanceof Symbol)  return s_sym;
-        if (x instanceof Cons)    return s_cons;
-        if (x instanceof Closure) return s_fn;
-      default:
-        return Symbol.get('javascript-' + type);
-      }
-    }],
+    'type': [{dot: -1}, type],
     'err': [{dot: 0}, function($$) {
       throw new Error(
         ('error: ' +
@@ -283,7 +294,43 @@ var primitives = (function() {
         if (narr.indexOf(arr[i]) < 0) narr.push(arr[i]);
       }
       return javascript_arr_to_list(narr);
-    }]
+    }],
+    'table': [{dot: -1}, function() {
+      return new Table();
+    }],
+    'ref': [{dot: -1}, function(obj, idx) {
+      var val;
+      switch (type(obj).name) {
+      case 'string':
+      case 'cons':
+        throw new Error('todo');
+        break;
+      case 'table':
+        val = obj.get(idx);
+        break;
+      }
+      return val;
+    }],
+    'sref': [{dot: -1}, function(obj, val, idx) {
+      switch (type(obj).name) {
+      case 'string':
+      case 'cons':
+        throw new Error('todo');
+        break;
+      case 'table':
+        obj.put(idx, val);
+        break;
+      }
+      return val;
+    }],
+    'annotate': [{dot: -1}, function(tag, obj) {
+      if (type(tag).name !== 'sym')
+        throw new Error("First argument must be a symbol " + stringify(tag));
+      return new Tagged(tag, obj);
+    }],
+    'rep': [{dot: -1}, function(tagged) {
+      return tagged.obj;
+    }],
   };
   for (var n in rt) {
     var f = rt[n];
@@ -315,5 +362,4 @@ var cdr   = primitives.cdr;
 var caar  = primitives.caar;
 var cadr  = primitives.cadr;
 var cddr  = primitives.cddr;
-var type  = primitives.type;
 var nreverse = primitives.nrev;
