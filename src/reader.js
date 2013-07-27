@@ -43,8 +43,11 @@ var Reader = classify("Reader", {
     },
 
     read_reader_macro: function(c) {
+      if (c === '\\') {
+        if (this.i < this.slen) return Char.get(this.str[this.i++]);
+      }
       var tok = this.read_thing();
-      if (tok.length === 0) throw new Error("unexpected nd-of-file while reading macro-char");
+      if (tok.length === 0) throw new Error("unexpected end-of-file while reading macro-char #" + c);
       switch (c) {
       case 'x':
         return parseInt(tok, 16);
@@ -54,8 +57,6 @@ var Reader = classify("Reader", {
         return parseInt(tok, 8);
       case 'b':
         return parseInt(tok, 2);
-      case '\\':
-        return tok; //TODO read char
       }
     },
 
