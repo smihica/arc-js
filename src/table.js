@@ -39,11 +39,20 @@ var Table = classify("Table", {
     },
     put: function(key, val) {
       key = Table.keying(key);
+      if (!(key in this.src)) this.n++;
       this.src[key] = val;
     },
     get: function(key) {
       key = Table.keying(key);
       return this.src[key] || nil;
+    },
+    rem: function(key) {
+      key = Table.keying(key);
+      if (key in this.src) {
+        this.n--;
+        delete this.src[key];
+      }
+      return nil;
     },
     stringify_content: function() {
       return '()'; // TODO: mendokuse.

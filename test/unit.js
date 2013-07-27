@@ -386,6 +386,15 @@ describe('VM eval', function(){
     );
   });
 
+  describe('mac', function() {
+    eval_print_eql(
+      "(mac mac-test (x) `(+ ,x ,x))", "#<tagged mac #<fn>>",
+      "(mac-test 10)", "20",
+      "((fn (mac-test) (mac-test 10)) -)", "-10", // shadowing
+      "(with (mac-test -) (mac-test 10))", "-10" // shadowing
+    );
+  });
+
   describe('afn', function() {
     eval_print_eql(
       "((afn (x y) (if (< x 0) (+ x y) (self (- x 1) (- y 1)))) 1 2)", "-1"

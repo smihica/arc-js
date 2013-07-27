@@ -105,11 +105,11 @@ var primitives = (function() {
     }],
     'car':  [{dot: -1}, function(x) {
       if (x instanceof Cons) return x.car;
-      else throw new Error(x + ' is not cons type.');
+      else throw new Error(stringify(x) + ' is not cons type.');
     }],
     'cdr': [{dot: -1}, function(x) {
       if (x instanceof Cons) return x.cdr;
-      else throw new Error(x + ' is not cons type.');
+      else throw new Error(stringify(x) + ' is not cons type.');
     }],
     'caar': [{dot: -1}, function(x) { return car(car(x)); }],
     'cadr': [{dot: -1}, function(x) { return car(cdr(x)); }],
@@ -185,7 +185,7 @@ var primitives = (function() {
     '-': [{dot: 1}, function(x, $$) {
       for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
         rt -= arguments[i];
-      return rt;
+      return (l === 1) ? (-rt) : rt;
     }],
     '*': [{dot: 0}, function($$) {
       for (var i=0, l=arguments.length, rt = 1; i<l; i++)

@@ -87,7 +87,7 @@
        (apply (rep it) (cdr x))
        x))
 
-(def macex (x)
+(def %macex (x e)
   (case (type x)
     cons (reccase
            x
@@ -95,18 +95,25 @@
            (fn (vars . body)
              `(fn ,vars
                 ,(if (< (len body) 2)
-                     (macex (car body))
-                     (macex `(do ,@body)))))
+                     (%macex (car body) (union is (dotted-to-proper vars) e))
+                     (%macex `(do ,@body) (union is (dotted-to-proper vars) e)))))
            (with (var-val . body)
-             `(with ,(macex var-val)
-                ,(if (< (len body) 2)
-                     (macex (car body))
-                     (macex `(do ,@body)))))
-           (aif (ref %___macros___ (car x))
-                (macex
-                  (apply (rep it) (cdr x)))
-                (map macex x)))
+             (let var-val (pair var-val)
+               (let vars (map car var-val)
+                 `(with ,(mappend (fn (p) (list (car p) (%macex (cadr p) e))) var-val)
+                    ,(if (< (len body) 2)
+                         (%macex (car body) (union is vars e))
+                         (%macex `(do ,@body) (union is vars e)))))))
+           (aif (let top (car x)
+                  (and (is (type top) 'sym)
+                       (no (mem top e))
+                       (ref %___macros___ top)))
+                (%macex
+                  (apply (rep it) (cdr x)) e)
+                (map (%shortfn (%macex _ e)) x)))
     x))
+
+(def macex (x) (%macex x nil))
 
 (mac mac (name vars . body)
   (if body
@@ -562,7 +569,7 @@
 (def do-compile (x)
   (preproc
     (compile
-      (macex x)
+      (%macex x nil)
       '()
       '()
       '(halt))
