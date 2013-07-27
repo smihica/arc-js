@@ -8,11 +8,12 @@ __An Arc implementation in web browser__
 - Self-hosting compiler
 - First-class continuations (not to be used with try-catch)
 - Tail call optimization
+- mac macro
+- user tagged objects (annotate)
 
 ### Not Yet (going to support)
 
 - some useful primitives
-- mac macro
 - symbol macro
 - debugger
 - repl
