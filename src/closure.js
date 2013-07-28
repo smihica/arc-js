@@ -21,3 +21,4 @@ var Closure = classify('Closure', {
     }
   }
 });
+ArcJS.Closure = Closure;

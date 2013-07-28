@@ -167,7 +167,7 @@
            (mac (name vars . body)
                (expand-macro
                  (if body
-                     `(sref %___macros___ (annotate 'mac (fn ,vars ,@body)) ',name)
+                     `(assign ,name (sref %___macros___ (annotate 'mac (fn ,vars ,@body)) ',name))
                      `(annotate 'mac (fn ,name ,@vars)))))
 
            (map expand-macro x))

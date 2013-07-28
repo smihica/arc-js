@@ -248,3 +248,4 @@ var Reader = classify("Reader", {
     }
   }
 });
+ArcJS.Reader = Reader;

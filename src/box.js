@@ -18,3 +18,4 @@ var Box = classify('Box', {
     }
   }
 });
+ArcJS.Box = Box;

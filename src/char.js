@@ -17,3 +17,4 @@ var Char = classify("Char", {
     }
   }
 });
+ArcJS.Char = Char;

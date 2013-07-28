@@ -1,4 +1,10 @@
 var VM = classify("VM", {
+  static: {
+    operators: ['frame', 'close', 'test', 'conti', 'shift', 'constant', 'argument',
+                'refer-let', 'refer-local', 'refer-free', 'refer-global',
+                'refer-nil', 'refer-t', 'enter-let', 'exit-let', 'assign-let', 'assign-local', 'assign-global',
+                'box', 'indirect', 'apply', 'return', 'halt']
+  },
   property: {
     x: null,
     p: 0,
@@ -21,10 +27,7 @@ var VM = classify("VM", {
       this.init_def();
     },
     init_def: function() {
-      var ops = ['frame', 'close', 'test', 'conti', 'shift', 'constant', 'argument',
-                 'refer-let', 'refer-local', 'refer-free', 'refer-global',
-                 'refer-nil', 'refer-t', 'enter-let', 'exit-let', 'assign-let', 'assign-local', 'assign-global',
-                 'box', 'indirect', 'apply', 'return', 'halt'];
+      var ops = VM.operators;
       for (var i=0,l=preload.length; i<l; i++) (function(i) {
         var asm = [], line = preload[i];
         for (var k=0,m=line.length; k<m; k++) {
@@ -363,3 +366,4 @@ var VM = classify("VM", {
     }
   }
 });
+ArcJS.VM = VM;

@@ -354,7 +354,6 @@ var primitives = (function() {
   return rt;
 })();
 
-
 var cons  = primitives.cons;
 var list  = primitives.list;
 var car   = primitives.car;
@@ -363,3 +362,17 @@ var caar  = primitives.caar;
 var cadr  = primitives.cadr;
 var cddr  = primitives.cddr;
 var nreverse = primitives.nrev;
+
+ArcJS.nil = nil;
+ArcJS.t = t;
+ArcJS.type = type;
+ArcJS.stringify = stringify;
+ArcJS.cons = cons;
+ArcJS.list = list;
+ArcJS.car = car;
+ArcJS.cdr = cdr;
+ArcJS.cadr = cadr;
+ArcJS.cddr = cddr;
+ArcJS.nreverse = nreverse;
+ArcJS.list_to_javascript_arr = list_to_javascript_arr;
+ArcJS.javascript_arr_to_list = javascript_arr_to_list;

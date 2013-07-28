@@ -7,3 +7,4 @@ var Tagged = classify('Tagged', {
     }
   }
 });
+ArcJS.Tagged = Tagged;

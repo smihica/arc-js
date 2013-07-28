@@ -16,3 +16,4 @@ var Continuation = classify('Continuation', {
     }
   }
 });
+ArcJS.Continuation = Continuation;

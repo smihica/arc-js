@@ -59,3 +59,4 @@ var Table = classify("Table", {
     }
   }
 });
+ArcJS.Table = Table;

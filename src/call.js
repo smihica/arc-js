@@ -38,3 +38,4 @@ var Call = classify("Call", {
     }
   }
 });
+ArcJS.Call = Call;

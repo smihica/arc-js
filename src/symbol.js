@@ -16,6 +16,7 @@ var Symbol = classify("Symbol", {
   method: {
     init: function(n) {
       this.name = n;
-    },
+    }
   }
 });
+ArcJS.Symbol = Symbol;

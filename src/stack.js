@@ -40,3 +40,4 @@ var Stack = classify("Stack", {
     }
   }
 });
+ArcJS.Stack = Stack;
