@@ -10,15 +10,16 @@ __An Arc implementation in web browser__
 - Tail call optimization
 - mac macro
 - user tagged objects (annotate)
+- REPL
+- regexp (#/exp/)
 
 ### Not Yet (going to support)
 
 - some useful primitives
 - symbol macro
 - debugger
-- repl
 - package system
-- regexp
+
 - defgeneric (object system)
 - ...etc
 

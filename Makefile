@@ -14,13 +14,13 @@ auto:
 		make
 		./tools/update-watcher src/*.js src/arc/*.arc -- make
 
-arc.js:		src/*.js src/compiler.fasl src/core.fasl arc.fasl
+arc.js:		src/*.js src/compiler.fasl src/core.fasl
 	        $(CONSTRUCT) -o arc.js src/arc.js
 
 arc.min.js:	arc.js
 		$(COMPRESS) --unsafe -nc -o arc.min.js arc.js
 
-arc.fasl:	src/arc/arc.arc
+arc:		src/arc/arc.arc
 		$(COMPILE_ARC) -o src/arc.fasl src/arc/arc.arc
 
 compiler:       src/arc/compiler.arc src/arc/core.arc

@@ -684,6 +684,26 @@ describe('VM eval', function(){
       eval_print_eql('(coerce \'asym \'string)', '"asym"');
       eval_print_eql('(coerce \'bsym \'sym)', 'bsym');
     });
+    describe('bound', function() {
+      eval_print_eql('(bound \'xxxx)', 'nil');
+      eval_print_eql('(bound \'bound)', 't');
+      eval_print_eql('(do (assign xxxx \'a) (bound \'xxxx))', 't');
+    });
+    describe('exact', function() {
+      eval_print_eql('(exact 10)', 't');
+      eval_print_eql('(exact 2.45)', 'nil');
+      eval_print_eql('(exact \'a)', 'nil');
+    });
+    describe('newstring', function() {
+      eval_print_eql('(newstring 5 #\\a)', '"aaaaa"');
+    });
+    describe('scar/scdr', function() {
+      eval_print_eql('(assign x \'(n b))', '(n b)');
+      eval_print_eql('(scar x \'a)', 'a');
+      eval_print_eql('x', '(a b)');
+      eval_print_eql('(scdr x \'b)', 'b');
+      eval_print_eql('x', '(a . b)');
+    });
   });
 
 });

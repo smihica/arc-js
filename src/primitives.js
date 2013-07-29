@@ -185,11 +185,19 @@ var primitives = (function() {
     }],
     'car':  [{dot: -1}, function(x) {
       if (x instanceof Cons) return x.car;
-      else throw new Error(stringify(x) + ' is not cons type.');
+      throw new Error(stringify(x) + ' is not cons type.');
+    }],
+    'scar': [{dot: -1}, function(x, v) {
+      if (x instanceof Cons) return (x.car = v);
+      throw new Error(stringify(x) + ' is not cons type.');
     }],
     'cdr': [{dot: -1}, function(x) {
       if (x instanceof Cons) return x.cdr;
-      else throw new Error(stringify(x) + ' is not cons type.');
+      throw new Error(stringify(x) + ' is not cons type.');
+    }],
+    'scdr': [{dot: -1}, function(x, v) {
+      if (x instanceof Cons) return (x.cdr = v);
+      throw new Error(stringify(x) + ' is not cons type.');
     }],
     'caar': [{dot: -1}, function(x) { return car(car(x)); }],
     'cadr': [{dot: -1}, function(x) { return car(cdr(x)); }],
@@ -411,7 +419,19 @@ var primitives = (function() {
     'rep': [{dot: -1}, function(tagged) {
       return tagged.obj;
     }],
-    'coerce': [{dot: 2}, coerce]
+    'coerce': [{dot: 2}, coerce],
+    'bound': [{dot: -1}, function(symbol) {
+      return (symbol.name in this.global) ? t : nil;
+    }],
+    'newstring': [{dot: -1}, function(n, c) {
+      var nt = type(n).name, ct = type(c).name;
+      if ((nt === 'int' || nt === 'num') && ct === 'char') {
+        var rt = '';
+        for (;0<n;n--) rt += c.c;
+        return rt;
+      }
+      throw new Error('newstring requires int, char.');
+    }]
   };
   for (var n in rt) {
     var f = rt[n];
@@ -438,7 +458,9 @@ var primitives = (function() {
 var cons  = primitives.cons;
 var list  = primitives.list;
 var car   = primitives.car;
+var scar  = primitives.scar;
 var cdr   = primitives.cdr;
+var scdr  = primitives.scdr;
 var caar  = primitives.caar;
 var cadr  = primitives.cadr;
 var cddr  = primitives.cddr;

@@ -46,6 +46,9 @@ var Reader = classify("Reader", {
       if (c === '\\') {
         if (this.i < this.slen) return Char.get(this.str[this.i++]);
       }
+      if (c === '/') {
+        if (this.i < this.slen) return this.read_regexp();
+      }
       var tok = this.read_thing();
       if (tok.length === 0) throw new Error("unexpected end-of-file while reading macro-char #" + c);
       switch (c) {
@@ -145,7 +148,9 @@ var Reader = classify("Reader", {
       return Symbol.get(tok);
     },
 
-    read_string: function() {
+    read_string: function(delimiter, type) {
+      delimiter = delimiter || '"';
+      type = type || 'string';
       var str = '', esc = false;
       while(this.i < this.slen) {
         var c = this.str[this.i++];
@@ -160,7 +165,7 @@ var Reader = classify("Reader", {
           case '\\':
             esc = true;
             continue;
-          case '"':
+          case delimiter:
             return str;
           default:
             str += c;
@@ -168,7 +173,12 @@ var Reader = classify("Reader", {
           }
         }
       }
-      throw new Error("unexpected end-of-file while reading string");
+      throw new Error("unexpected end-of-file while reading " + type);
+    },
+
+    read_regexp: function() {
+      var str = this.read_string('/', 'regexp');
+      return list(Symbol.get('annotate'), list(Symbol.get('quote'), Symbol.get('regexp')), str);
     },
 
     read_token: function() {

@@ -322,7 +322,7 @@ var VM = classify("VM", {
             this.f = this.s;
             this.l = this.s;
           } else {
-            this.a = this.a.apply(nil, this.stack.range_get(this.s - 1 - vlen, this.s - 2));
+            this.a = this.a.apply(this, this.stack.range_get(this.s - 1 - vlen, this.s - 2));
             if (this.a instanceof Call) {
               var code = this.a.codegen();
               this.s -= (vlen + 1);
