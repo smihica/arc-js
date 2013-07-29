@@ -24,7 +24,7 @@ __An Arc implementation in web browser__
 
 ### demo
 
-- [stack visualizer](http://smihica.com/arc-js/stack-visualizer.html)
+- [stack visualizer](http://smihica.com/arc-js/stack_visualizer.html)
 - [test runner](http://smihica.com/arc-js/test/unit.html)
 - [compiling compiler](http://smihica.com/arc-js/test/compiling-compiler.html)
 
