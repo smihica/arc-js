@@ -1,6 +1,6 @@
 var ArcJS = (function() {
   var ArcJS = this;
-  include("../lib/classify.js");
+  include("../lib/classify.min.js");
   include("stack.js");
   include("symbol.js");
   include("cons.js");
