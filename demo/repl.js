@@ -58,7 +58,7 @@ $(function() {
 
   function onenter(code) {
     var expr = null, res = null, result = '', err = false;
-    var read_time, compile_time, eval_time;
+    var read_time = 0, compile_time = 0, eval_time = 0;
     if (code.match(/^\s*$/g)) return;
     try {
       var s = new Date();
@@ -72,8 +72,8 @@ $(function() {
       }
       else { /* ignore */ return; }
     }
+    cm.setValue('');
     if (!err) {
-      cm.setValue('');
       try {
         var s = new Date();
         var compiled = compile(expr);

@@ -37,6 +37,86 @@ var javascript_arr_to_list = function(arr) {
   return rt;
 }
 
+var coerce = function(obj, to_type, args) {
+  /*
+    A char can be coerced to int, string, or sym.
+    A number can be coerced to int, char, or string (of specified base).
+    A string can be coerced to sym, cons (char list), or int (of specified base).
+    A list of characters can be coerced to a string.
+    A symbol can be coerced to a string.
+  */
+  to_type = to_type.name;
+  var from_type = type(obj).name;
+  switch(from_type) {
+  case 'char':
+    switch(to_type) {
+    case 'int':
+    case 'num':
+      return obj.c.charCodeAt(0);
+    case 'sym':
+      return Symbol.get(obj.c);
+    case 'char':
+      return obj;
+    }
+    break;
+  case 'num':
+  case 'int':
+    switch(to_type) {
+    case 'char':
+      return Char.get(String.fromCharCode(obj));
+    case 'string':
+      return (obj).toString(arguments[2] || 10);
+    case 'int':
+      return (obj | 0);
+    case 'num':
+      return obj;
+    }
+    break;
+  case 'string':
+    switch(to_type) {
+    case 'sym':
+      return Symbol.get(obj);
+    case 'cons':
+      var lis = [];
+      for (var i = 0, l = obj.length; i<l; i++)
+        lis.push(Char.get(obj[i]));
+      return javascript_arr_to_list(lis);
+    case 'int':
+      return (parseInt(obj, arguments[2] || 10) | 0);
+    case 'num':
+      return parseFloat(obj);
+    case 'string':
+      return obj;
+    }
+    break;
+  case 'cons':
+    switch(to_type) {
+    case 'string':
+      var rt = '';
+      while (obj !== nil) {
+        var c = car(obj);
+        if(type(c).name !== 'char')
+          throw new Error('coerce of cons->string requires a proper list of Chars.');
+        rt += c.c;
+        obj = cdr(obj);
+      }
+      return rt;
+    case 'cons':
+      return obj;
+    }
+    break;
+  case 'sym':
+    switch(to_type) {
+    case 'string':
+      return obj.name;
+    case 'sym':
+      return obj;
+    }
+    break;
+  }
+  throw new Error("Can't coerce " + obj + " to " + to_type);
+}
+
 var type = function(x) {
   if (x === nil || x === t) return s_sym;
   var type = typeof x;
@@ -331,6 +411,7 @@ var primitives = (function() {
     'rep': [{dot: -1}, function(tagged) {
       return tagged.obj;
     }],
+    'coerce': [{dot: 2}, coerce]
   };
   for (var n in rt) {
     var f = rt[n];

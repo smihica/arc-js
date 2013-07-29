@@ -14,13 +14,16 @@ auto:
 		make
 		./tools/update-watcher src/*.js src/arc/*.arc -- make
 
-arc.js:		src/*.js src/compiler.fasl src/core.fasl
+arc.js:		src/*.js src/compiler.fasl src/core.fasl arc.fasl
 	        $(CONSTRUCT) -o arc.js src/arc.js
 
 arc.min.js:	arc.js
 		$(COMPRESS) --unsafe -nc -o arc.min.js arc.js
 
-fasl:           src/arc/compiler.arc src/arc/core.arc
+arc.fasl:	src/arc/arc.arc
+		$(COMPILE_ARC) -o src/arc.fasl src/arc/arc.arc
+
+compiler:       src/arc/compiler.arc src/arc/core.arc
 		mkdir -p backup
 		cp src/compiler.fasl backup/$(DATETIME).compiler.fasl
 		cp src/core.fasl backup/$(DATETIME).core.fasl
@@ -28,7 +31,7 @@ fasl:           src/arc/compiler.arc src/arc/core.arc
 		$(COMPILE_ARC) -o src/core.fasl src/arc/core.arc
 		make
 
-restore_fasl:
+restore_compiler:
 		mv $(shell ls backup/*.compiler.fasl | sort -r | sed '1!d') src/compiler.fasl
 		mv $(shell ls backup/*.core.fasl | sort -r | sed '1!d') src/core.fasl
 		make

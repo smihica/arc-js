@@ -653,4 +653,37 @@ describe('VM eval', function(){
       );
     });
   });
+
+  describe('arc', function() {
+    describe('coerce', function() {
+      // char to
+      eval_print_eql('(coerce #\\A \'int)', '65');
+      eval_print_eql('(coerce #\\B \'num)', '66');
+      eval_print_eql('(coerce #\\C \'sym)', 'C');
+      eval_print_eql('(coerce #\\D \'char)', '#\\D');
+      // int to
+      eval_print_eql('(coerce 65 \'char)', '#\\A');
+      eval_print_eql('(coerce 66 \'string 16)', '"42"');
+      eval_print_eql('(coerce 67 \'int)', '67');
+      eval_print_eql('(coerce 68 \'num)', '68');
+      // num to
+      eval_print_eql('(coerce 68.4 \'char)', '#\\D');
+      eval_print_eql('(coerce 67.2 \'string 10)', '"67.2"');
+      eval_print_eql('(coerce 65.5 \'int)', '65');
+      eval_print_eql('(coerce 66.7 \'num)', '66.7');
+      // string to
+      eval_print_eql('(coerce "ABC" \'sym)', 'ABC');
+      eval_print_eql('(coerce "abc" \'cons)', '(#\\a #\\b #\\c)');
+      eval_print_eql('(coerce "0101001" \'int 2)', '41');
+      eval_print_eql('(coerce "23.45" \'num)', '23.45');
+      eval_print_eql('(coerce "string" \'string)', '"string"');
+      // cons to
+      eval_print_eql('(coerce \'(#\\A #\\b #\\() \'string)', '"Ab("');
+      eval_print_eql('(coerce \'(1 2 3) \'cons)', '(1 2 3)');
+      // sym to
+      eval_print_eql('(coerce \'asym \'string)', '"asym"');
+      eval_print_eql('(coerce \'bsym \'sym)', 'bsym');
+    });
+  });
+
 });

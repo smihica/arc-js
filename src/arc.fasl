@@ -1,0 +1,5 @@
+// This is an auto generated file.
+// Compiled from ['/Users/smihica/code/arc-js/src/arc/compiler.arc'].
+// DON'T EDIT !!!
+preload.push.apply(preload, [
+]);
