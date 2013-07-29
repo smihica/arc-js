@@ -1,5 +1,6 @@
 $(function() {
   var vm = new ArcJS.VM();
+  var stringify = ArcJS.stringify;
 
   function compile_srv() {
     $.ajax({
