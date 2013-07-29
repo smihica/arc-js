@@ -6,7 +6,7 @@ __An Arc implementation in web browser__
 
 - Stack based vm
 - Self-hosting compiler
-- First-class continuations (not to be used with try-catch)
+- First-class continuations
 - Tail call optimization
 - mac macro
 - user tagged objects (annotate)
@@ -24,8 +24,9 @@ __An Arc implementation in web browser__
 
 ### demo
 
-- [stack visualizer](http://smihica.com/arc-js/)
-- [test runner](http://smihica.com/arc-js/test.html)
+- [stack visualizer](http://smihica.com/arc-js/stack-visualizer.html)
+- [test runner](http://smihica.com/arc-js/test/unit.html)
+- [compiling compiler](http://smihica.com/arc-js/test/compiling-compiler.html)
 
 ### referred to
 

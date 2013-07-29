@@ -55,7 +55,7 @@ function compile_file(url) {
         var s = new Date();
         compile(exprs[i]);
         var e = new Date();
-        pr('compile ' + cadr(exprs[i]).name + '... passed ' + (e - s) + ' ms.');
+        pr('COMPILED: ' + cadr(exprs[i]).name + ' ... passed ' + (e - s) + ' ms.');
         pr('');
         i++;
         setTimeout(compile1, 0);
