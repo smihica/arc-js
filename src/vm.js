@@ -200,8 +200,11 @@ var VM = classify("VM", {
           this.p++;
           break;
         case 'refer-global':
-          var name = op[1]; // symbol
-          this.a = this.global[name];
+          var name = op[1]; // symbol name
+          var value;
+          if ((value = this.global[name]) === void(0))
+            throw new Error('Unbound variable "' + name + '"');
+          this.a = value;
           this.p++;
           break;
         case 'refer-nil':
