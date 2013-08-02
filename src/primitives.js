@@ -431,6 +431,18 @@ var primitives = (function() {
         return rt;
       }
       throw new Error('newstring requires int, char.');
+    }],
+    'in-ns': [{dot: -1}, function(n) {
+      NameSpace.push(this.namespace);
+      this.namespace = this.namespace.extend(n.name);
+      this.global = this.namespace.vars;
+      return nil;
+    }],
+    'exit-ns': [{dot: -1}, function() {
+      this.namespace = NameSpace.pop();
+      if (!this.namespace) return nil; // throw new Error('this is root ns.');
+      this.global = this.namespace.vars;
+      return nil;
     }]
   };
   for (var n in rt) {

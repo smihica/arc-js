@@ -173,16 +173,18 @@ var Closure = classify('Closure', {
     pc:   0,
     arglen: 0,
     dotpos: 0,
-    closings: []
+    closings: [],
+    namespace: null
   },
   method: {
-    init: function(body, pc, closinglen, arglen, dotpos, stack, stack_pointer) {
+    init: function(body, pc, closinglen, arglen, dotpos, stack, stack_pointer, namespace) {
       this.body = body;
       this.pc   = pc;
       this.arglen = arglen;
       this.dotpos = dotpos;
       for (var i = 0; i<closinglen; i++)
         this.closings.push(stack.index(stack_pointer, i));
+      this.namespace = namespace;
     },
     index: function(idx) {
       return this.closings[idx];
@@ -238,7 +240,7 @@ ArcJS.Call = Call;
 var Continuation = classify('Continuation', {
   parent: Closure,
   method: {
-    init: function(stack, shift_num, stack_pointer) {
+    init: function(stack, shift_num, stack_pointer, namespace) {
       Closure.prototype.init.call(
         this,
         [['refer-local', 0],
@@ -249,7 +251,8 @@ var Continuation = classify('Continuation', {
         1,
         -1,
         stack,
-        0);
+        0,
+        namespace);
     }
   }
 });
@@ -724,6 +727,18 @@ var primitives = (function() {
         return rt;
       }
       throw new Error('newstring requires int, char.');
+    }],
+    'in-ns': [{dot: -1}, function(n) {
+      NameSpace.push(this.namespace);
+      this.namespace = this.namespace.extend(n.name);
+      this.global = this.namespace.vars;
+      return nil;
+    }],
+    'exit-ns': [{dot: -1}, function() {
+      this.namespace = NameSpace.pop();
+      if (!this.namespace) return nil; // throw new Error('this is root ns.');
+      this.global = this.namespace.vars;
+      return nil;
     }]
   };
   for (var n in rt) {
@@ -1104,7 +1119,62 @@ preload.push.apply(preload, [
 ]);/** @} */
 // arclib
 /** @file arc.fasl { */
+// This is an auto generated file.
+// Compiled from ['/Users/smihica/code/arc-js/src/arc/compiler.arc'].
+// DON'T EDIT !!!
+preload.push.apply(preload, [
+[1,0,23,1,-1,0,17,0,8,8,0,6,5,"1",6,10,"type",19,20,6,5,"int",6,5,"2",6,10,"is",19,20,2,3,12,21,2,11,21,2,17,"exact",22],
+[0,130,10,"%___macros___",19,6,0,118,5,"mac",6,1,0,109,2,1,0,6,5,"0",6,10,"uniq",19,20,6,13,5,"let",6,0,91,7,0,0,6,0,82,0,55,5,"do",6,0,46,0,37,5,"in-ns",6,0,28,0,19,5,"quote",6,0,10,8,1,6,11,6,5,"2",6,10,"cons",19,20,6,5,"2",6,10,"cons",19,20,6,11,6,5,"2",6,10,"cons",19,20,6,5,"2",6,10,"cons",19,20,6,8,0,6,5,"2",6,10,"cons",19,20,6,5,"2",6,10,"cons",19,20,6,0,19,5,"(exit-ns)",6,0,10,7,0,0,6,11,6,5,"2",6,10,"cons",19,20,6,5,"2",6,10,"cons",19,20,6,5,"2",6,10,"cons",19,20,6,5,"2",6,10,"cons",19,20,6,5,"2",6,10,"cons",19,4,3,5,20,6,5,"2",6,10,"annotate",19,20,6,5,"ns",6,5,"3",6,10,"sref",19,20,17,"ns",22],
+]);/** @} */
 /** @} */
+/** @file namespace.js { */
+var NameSpace = classify('NameSpace', {
+  property: {
+    name:   null,
+    upper:  null,
+    lowers: null,
+    vars:   null
+  },
+  static: {
+    root: null,
+    stack: [null],
+    push: function(x) {
+      this.stack.push(x);
+      return x;
+    },
+    pop: function() {
+      return this.stack.pop();
+    }
+  },
+  method: {
+    init: function(name, upper) {
+      this.name = name;
+      this.upper = upper;
+      this.vars = {};
+      this.lowers = {};
+    },
+    extend: function(name) {
+      if (!this.lowers[name])
+        this.lowers[name] = new NameSpace(name, this);
+      return this.lowers[name];
+    },
+    down: function(name) {
+      return this.lowers[name];
+    },
+    up: function() {
+      return this.upper;
+    },
+    clear_lower: function(name) {
+      if (name) {
+        delete this.lowers[name];
+      } else {
+        this.lowers = {};
+      }
+    }
+  }
+});
+NameSpace.root = new NameSpace('%ROOT', null);
+ArcJS.NameSpace = NameSpace;
 /** @} */
 /** @file vm.js { */
 var VM = classify("VM", {
@@ -1124,11 +1194,14 @@ var VM = classify("VM", {
     s: 0,
     count: 0,
     stack: null,
-    global: {},
-    reader: null
+    global: null,
+    reader: null,
+    namespace: null,
   },
   method: {
     init: function() {
+      this.namespace = NameSpace.root;
+      this.global = this.namespace.vars;
       for (var p in primitives) {
         this.global[p] = new Box(primitives[p]);
       }
@@ -1256,7 +1329,9 @@ var VM = classify("VM", {
       this.stack = new Stack();
       if (globalp) {
         this.x = null;
-        this.global = {};
+        NameSpace.root = new NameSpace('%ROOT', null);
+        this.namespace = NameSpace.root;
+        this.global = NameSpace.root.vars;
         for (var p in primitives) {
           this.global[p] = new Box(primitives[p]);
         }
@@ -1310,9 +1385,19 @@ var VM = classify("VM", {
           break;
         case 'refer-global':
           var name = op[1]; // symbol name
-          var value;
-          if ((value = this.global[name]) === void(0))
-            throw new Error('Unbound variable "' + name + '"');
+          var value = void(0);
+          var ns = this.namespace;
+          var vars = this.global;
+          while (value === void(0)) {
+            value = vars[name];
+            if (ns.upper === null) {
+              if (value === void(0))
+                throw new Error('Unbound variable "' + name + '"');
+              else break;
+            }
+            ns = ns.upper;
+            vars = ns.vars;
+          }
           this.a = value;
           this.p++;
           break;
@@ -1338,7 +1423,7 @@ var VM = classify("VM", {
           b = op[2];
           v = op[3];
           d = op[4];
-          this.a = new Closure(this.x, this.p + 1, n, v, d, this.stack, this.s);
+          this.a = new Closure(this.x, this.p + 1, n, v, d, this.stack, this.s, this.namespace);
           this.p += b;
           this.s -= n;
           break;
@@ -1395,10 +1480,12 @@ var VM = classify("VM", {
           this.s = this.stack.push(this.a, this.s);
           this.p++;
           break;
-        case 'shift':
+        case 'shift': // for tail-call only.
           n = op[1];
           m = op[2];
           this.s = this.stack.shift(n, m, this.s);
+          this.namespace = NameSpace.pop();
+          this.global = this.namespace.vars;
           this.p++;
           break;
         case 'apply':
@@ -1417,6 +1504,10 @@ var VM = classify("VM", {
             this.x = fn.body;
             this.p = fn.pc;
             this.c = fn;
+            NameSpace.push(this.namespace);
+            this.namespace = fn.namespace;
+            this.global = this.namespace.vars;
+            // console.log(NameSpace.stack.map(function(n){return (n) ? n.name : 'null';}));
             if (-1 < dotpos) {
               var lis = nil;
               for (var i = 0, l = (vlen - dotpos); i < l; i++) {
@@ -1459,10 +1550,12 @@ var VM = classify("VM", {
           this.l = this.stack.index(ns, 2);
           this.c = this.stack.index(ns, 3);
           this.s = ns - 4;
+          this.namespace = NameSpace.pop();
+          this.global = this.namespace.vars;
           break;
         case 'conti':
           n = op[1];
-          this.a = new Continuation(this.stack, n, this.s);
+          this.a = new Continuation(this.stack, n, this.s, this.namespace);
           this.p++;
           break;
         case 'nuate':

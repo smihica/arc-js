@@ -76,7 +76,9 @@ $(function() {
     if (!err) {
       try {
         var s = new Date();
+        // console.log(vm.namespace);
         var compiled = compile(expr);
+        // console.log(vm.namespace);
         var e = new Date();
         compile_time = e - s;
         vm.cleanup();
@@ -86,6 +88,7 @@ $(function() {
         var e = new Date();
         eval_time = e - s;
         result = ArcJS.stringify(res);
+        // console.log(ArcJS.NameSpace.stack);
       } catch (e) {
         result = e.toString();
         err = true;
@@ -105,16 +108,29 @@ $(function() {
         return (err) ? '<span class="error">' + r + '</span>' : r;
       })(result_list.join('<br>'));
 
-    txt.html(org + _new + '<br>arc&gt;<br>');
+    var ns = vm.namespace;
+    var nss = '';
+    while (ns !== ArcJS.NameSpace.root) {
+      nss = '::' + ns.name + nss;
+      ns = ns.upper;
+    }
+    txt.html(org + _new + '<br>arc' + nss + '&gt;<br>');
     var pos = holder.position();
-    holder.css('top', pos.top + ((line_len + 1 + 1) * 22));
+    holder.css({
+      'top': pos.top + ((line_len + 1 + 1) * 22),
+      'left': 50 + (nss.length * 10)
+    });
   }
 
   var last_len = 0;
-  cm.on('change', function() {
+  cm.on('change', function onchange() {
     var v = cm.getValue();
     var len = v.length;
-    if (last_len < len && v[len-1] === '\n') onenter(v);
+    if (last_len < len && v[len-1] === '\n') {
+      cm.off('change', onchange);
+      onenter(v);
+      cm.on('change', onchange);
+    }
     last_len = len;
   });
 

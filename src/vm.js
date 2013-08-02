@@ -15,11 +15,14 @@ var VM = classify("VM", {
     s: 0,
     count: 0,
     stack: null,
-    global: {},
-    reader: null
+    global: null,
+    reader: null,
+    namespace: null,
   },
   method: {
     init: function() {
+      this.namespace = NameSpace.root;
+      this.global = this.namespace.vars;
       for (var p in primitives) {
         this.global[p] = new Box(primitives[p]);
       }
@@ -147,7 +150,9 @@ var VM = classify("VM", {
       this.stack = new Stack();
       if (globalp) {
         this.x = null;
-        this.global = {};
+        NameSpace.root = new NameSpace('%ROOT', null);
+        this.namespace = NameSpace.root;
+        this.global = NameSpace.root.vars;
         for (var p in primitives) {
           this.global[p] = new Box(primitives[p]);
         }
@@ -201,9 +206,19 @@ var VM = classify("VM", {
           break;
         case 'refer-global':
           var name = op[1]; // symbol name
-          var value;
-          if ((value = this.global[name]) === void(0))
-            throw new Error('Unbound variable "' + name + '"');
+          var value = void(0);
+          var ns = this.namespace;
+          var vars = this.global;
+          while (value === void(0)) {
+            value = vars[name];
+            if (ns.upper === null) {
+              if (value === void(0))
+                throw new Error('Unbound variable "' + name + '"');
+              else break;
+            }
+            ns = ns.upper;
+            vars = ns.vars;
+          }
           this.a = value;
           this.p++;
           break;
@@ -229,7 +244,7 @@ var VM = classify("VM", {
           b = op[2];
           v = op[3];
           d = op[4];
-          this.a = new Closure(this.x, this.p + 1, n, v, d, this.stack, this.s);
+          this.a = new Closure(this.x, this.p + 1, n, v, d, this.stack, this.s, this.namespace);
           this.p += b;
           this.s -= n;
           break;
@@ -286,10 +301,12 @@ var VM = classify("VM", {
           this.s = this.stack.push(this.a, this.s);
           this.p++;
           break;
-        case 'shift':
+        case 'shift': // for tail-call only.
           n = op[1];
           m = op[2];
           this.s = this.stack.shift(n, m, this.s);
+          this.namespace = NameSpace.pop();
+          this.global = this.namespace.vars;
           this.p++;
           break;
         case 'apply':
@@ -308,6 +325,10 @@ var VM = classify("VM", {
             this.x = fn.body;
             this.p = fn.pc;
             this.c = fn;
+            NameSpace.push(this.namespace);
+            this.namespace = fn.namespace;
+            this.global = this.namespace.vars;
+            // console.log(NameSpace.stack.map(function(n){return (n) ? n.name : 'null';}));
             if (-1 < dotpos) {
               var lis = nil;
               for (var i = 0, l = (vlen - dotpos); i < l; i++) {
@@ -350,10 +371,12 @@ var VM = classify("VM", {
           this.l = this.stack.index(ns, 2);
           this.c = this.stack.index(ns, 3);
           this.s = ns - 4;
+          this.namespace = NameSpace.pop();
+          this.global = this.namespace.vars;
           break;
         case 'conti':
           n = op[1];
-          this.a = new Continuation(this.stack, n, this.s);
+          this.a = new Continuation(this.stack, n, this.s, this.namespace);
           this.p++;
           break;
         case 'nuate':

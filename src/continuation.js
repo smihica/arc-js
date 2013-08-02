@@ -1,7 +1,7 @@
 var Continuation = classify('Continuation', {
   parent: Closure,
   method: {
-    init: function(stack, shift_num, stack_pointer) {
+    init: function(stack, shift_num, stack_pointer, namespace) {
       Closure.prototype.init.call(
         this,
         [['refer-local', 0],
@@ -12,7 +12,8 @@ var Continuation = classify('Continuation', {
         1,
         -1,
         stack,
-        0);
+        0,
+        namespace);
     }
   }
 });

@@ -15,6 +15,7 @@ var ArcJS = (function() {
   include("primitives.js");
   include("reader.js");
   include("preload.js");
+  include("namespace.js");
   include("vm.js");
   return ArcJS;
 }).call(typeof exports !== 'undefined' ? exports : {});
