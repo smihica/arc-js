@@ -19,9 +19,7 @@ __An Arc implementation in web browser__
 - symbol macro
 - debugger
 - package system
-
 - defgeneric (object system)
-- ...etc
 
 ### demo
 
