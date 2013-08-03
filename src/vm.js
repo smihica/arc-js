@@ -24,7 +24,7 @@ var VM = classify("VM", {
       for (var p in primitives) {
         this.global[p] = new Box(primitives[p]);
       }
-      this.reader = new Reader();
+      this.reader = new Reader(this);
       this.init_def();
     },
     init_def: function() {
@@ -160,6 +160,18 @@ var VM = classify("VM", {
     },
     step: function() {
       return this.run(false, false, true);
+    },
+    arc_apply: function(fn, args) {
+      var asm = [['frame', 0]];
+      args.push(args.length);
+      args.forEach(function(a) {
+        asm.push.apply(asm, [['constant', a], ['argument']]);
+      });
+      asm.push.apply(asm, [['constant', fn], ['apply'], ['halt']]);
+      asm[0][1] = asm.length - 1;
+      this.cleanup();
+      this.set_asm(asm);
+      return this.run();
     },
     run: function(asm_string, clean_all, step) {
       if (!step) this.cleanup(clean_all);

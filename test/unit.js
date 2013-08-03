@@ -1,5 +1,5 @@
 var vm     = new ArcJS.VM();
-var reader = new ArcJS.Reader();
+var reader = vm.reader;
 var nil       = ArcJS.nil;
 var t         = ArcJS.t;
 var stringify = ArcJS.stringify;
@@ -7,6 +7,7 @@ var type      = ArcJS.type;
 var cons      = ArcJS.cons;
 var car       = ArcJS.car;
 var cdr       = ArcJS.cdr;
+var rep       = ArcJS.rep;
 
 var expect = chai.expect;
 
@@ -66,11 +67,15 @@ describe('Reader', function(){
     it('symbol', function() {
       rex('a').equal(ArcJS.Symbol.get('a'));
       rex('abcd').equal(ArcJS.Symbol.get('abcd'));
-      rex('u-n.k_o#abc$$%%moemoe').equal(ArcJS.Symbol.get('u-n.k_o#abc$$%%moemoe'));
+      rex('u-nk_~o#abc$$%%moemoe').equal(ArcJS.Symbol.get('u-nk_~o#abc$$%%moemoe'));
       rex('nil').equal(nil);
       rex('t').equal(t);
     });
-    // it('character', function() {});
+    it('character', function() {
+      rex('#\\a').equal(ArcJS.Char.get('a'));
+      rex('#\\(').equal(ArcJS.Char.get('('));
+      rex('#\\あ').equal(ArcJS.Char.get('あ'));
+    });
     it('string', function() {
       rex('"abc"').equal("abc");
       rex('"ab\\"cd"').equal('ab"cd');
@@ -116,6 +121,18 @@ describe('Reader', function(){
     });
     it('shortfn', function() {
       expect(stringify(reader.read("[car _]"))).to.equal('(%shortfn (car _))');
+      expect(stringify(reader.read("[car ([car _] _)]"))).to.equal('(%shortfn (car ((%shortfn (car _)) _)))');
+    });
+    it('regexp', function() {
+      expect(car(cdr(cdr(reader.read("#/abc\\ndef/"))))).to.equal('abc\ndef');
+      expect(car(cdr(cdr(reader.read("#/\\/\\/\\~/"))))).to.equal('//\\~');
+      expect(car(cdr(cdr(reader.read("#/\\/\\/\\.\\t/"))))).to.equal('//\\.\t');
+    });
+    it('special-syntax', function() {
+      expect(stringify(reader.read("car:car:cdr:cdr"))).to.equal('(compose (compose (compose car car) cdr) cdr)');
+      expect(stringify(reader.read("~abc"))).to.equal('(%shortfn (no (abc _)))');
+      expect(stringify(reader.read("abc.def.ghi"))).to.equal('((abc def) ghi)');
+      expect(stringify(reader.read("abc!def!ghi"))).to.equal("((abc (quote def)) (quote ghi))");
     });
   });
 });

@@ -99,7 +99,7 @@
                      (%macex `(do ,@body) (union is (dotted-to-proper vars) e)))))
            (with (var-val . body)
              (let var-val (pair var-val)
-               (let vars (map car var-val)
+               (let vars (map1 car var-val)
                  `(with ,(mappend (fn (p) (list (car p) (%macex (cadr p) e))) var-val)
                     ,(if (< (len body) 2)
                          (%macex (car body) (union is vars e))
@@ -110,7 +110,7 @@
                        (ref %___macros___ top)))
                 (%macex
                   (apply (rep it) (cdr x)) e)
-                (map (%shortfn (%macex _ e)) x)))
+                (map1 [%macex _ e] x)))
     x))
 
 (def macex (x) (%macex x nil))
@@ -202,6 +202,50 @@
            (is (len p) 1) (car p))))
    (pair args)))
 
+(mac withs (parms . body)
+  (if (no parms)
+      `(do ,@body)
+      `(let ,(car parms) ,(cadr parms)
+         (withs ,(cddr parms) ,@body))))
+
+(mac w/uniq (names . body)
+  (if (acons names)
+    `(with ,(apply + nil
+                   (map1 (fn (n) `(,n (uniq ',n))) names))
+       ,@body)
+    `(let ,names (uniq ',names) ,@body)))
+
+(mac compose args
+  (w/uniq g
+    `(fn ,g
+       ,((afn (fs)
+           (if (cdr fs)
+               (list (car fs) (self (cdr fs)))
+               `(apply ,(if (car fs) (car fs) 'idfn) ,g)))
+         args))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(assign %___special_syntax___ (table))
+
+(mac defss (name regex vars . body)
+  `(assign ,name
+           (sref %___special_syntax___
+                 (annotate 'special-syntax (cons ,regex (fn ,vars ,@body)))
+                 ',name)))
+
+(defss compose-ss #/^(.*[^:]):([^:].*)$/ (a b)
+       (+ "(compose " a " " b ")"))
+
+(defss invert-ss #/^\~(.*)$/ (a)
+       (+ "[no (" a " _)]"))
+
+(defss ssyntax-ss #/^(.*)\.(.*)$/ (a b)
+       (+ "(" a " " b ")"))
+
+(defss ssyntax-with-quote-ss #/^(.*)\!(.*)$/ (a b)
+       (+ "(" a " '" b ")"))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -246,17 +290,17 @@
              (find-free body (union is (dotted-to-proper vars) b)))
 
            (with (var-vals body)
-             (with (vars (map car  (pair var-vals))
-                         vals (map cadr (pair var-vals)))
+             (with (vars (map1 car  (pair var-vals))
+                         vals (map1 cadr (pair var-vals)))
                (union is
-                      (dedup (flat (map (%shortfn (find-free _ b)) vals)))
+                      (dedup (flat (map1 [find-free _ b] vals)))
                       (find-free body (union is vars b)))))
 
            (do body
-               (dedup (flat (map (%shortfn (find-free _ b)) body))))
+               (dedup (flat (map1 [find-free _ b] body))))
 
            (%if test-then-else
-                (dedup (flat (map (%shortfn (find-free _ b)) test-then-else))))
+                (dedup (flat (map1 [find-free _ b] test-then-else))))
 
            (assign (var exp)
                    (union is
@@ -265,7 +309,7 @@
 
            (ccc (exp) (find-free exp b))
 
-           (dedup (flat (map (%shortfn (find-free _ b)) x)))
+           (dedup (flat (map1 [find-free _ b] x)))
 
            )))
 
@@ -279,17 +323,17 @@
              (find-sets body (set-minus v (dotted-to-proper vars))))
 
            (with (var-vals body)
-             (with (vars (map car  (pair var-vals))
-                         vals (map cadr (pair var-vals)))
+             (with (vars (map1 car  (pair var-vals))
+                         vals (map1 cadr (pair var-vals)))
                (union is
-                      (dedup (flat (map (%shortfn (find-sets _ v)) vals)))
+                      (dedup (flat (map1 [find-sets _ v] vals)))
                       (find-sets body (set-minus v vars)))))
 
            (do body
-               (dedup (flat (map (%shortfn (find-sets _ v)) body))))
+               (dedup (flat (map1 [find-sets _ v] body))))
 
            (%if test-then-else
-                (dedup (flat (map (%shortfn (find-sets _ v)) test-then-else))))
+                (dedup (flat (map1 [find-sets _ v] test-then-else))))
 
            (assign (var x)
                    (union is
@@ -298,7 +342,7 @@
 
            (ccc (exp) (find-sets exp v))
 
-           (dedup (flat (map (%shortfn (find-sets _ v)) x))))))
+           (dedup (flat (map1 [find-sets _ v] x))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -374,8 +418,8 @@
                              ,next))))))
 
            (with (var-vals body)
-             (with (vars (map car  (pair var-vals))
-                    vals (map cadr (pair var-vals)))
+             (with (vars (map1 car  (pair var-vals))
+                    vals (map1 cadr (pair var-vals)))
                ((afn (args c)
                   (if (no args)
                       c

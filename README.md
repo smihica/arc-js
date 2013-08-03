@@ -12,13 +12,14 @@ __An Arc implementation in web browser__
 - user tagged objects (annotate)
 - REPL
 - regexp (#/exp/)
+- special syntax (:~.!)
+- user defined special syntax (defss)
+- namespace (ns)
 
 ### Not Yet (going to support)
 
 - some useful primitives
-- symbol macro
 - debugger
-- package system
 - defgeneric (object system)
 
 ### demo

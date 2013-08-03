@@ -5,3 +5,7 @@
     `(let ,x (do (in-ns ',name) ,@body)
        (exit-ns)
        ,x)))
+
+(mac compose (a b)
+  (let x (uniq)
+    `(fn (,x) (,a (,b ,x)))))

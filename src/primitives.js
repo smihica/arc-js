@@ -237,8 +237,12 @@ var primitives = (function() {
       }
       return r;
     }],
-    'uniq': [{dot: -1}, function() {
-      var rt = Symbol.get('%g'+uniq_counter);
+    'uniq': [{dot: 0}, function($$) {
+      var u = '%g'+uniq_counter;
+      if (0 < arguments.length) {
+        u += ('-' + arguments[0].name);
+      }
+      var rt = Symbol.get(u);
       uniq_counter++;
       return rt;
     }],
@@ -253,10 +257,11 @@ var primitives = (function() {
     }],
     '+': [{dot: 0}, function($$) {
       var l = arguments.length;
-      if (0 < l && (arguments[0] === nil || type(arguments[0]) === s_cons))
+      if (l < 1) return 0;
+      if (arguments[0] === nil || type(arguments[0]) === s_cons)
         return primitives['%list-append'].apply(this, arguments);
-      for (var i=0, rt = 0; i<l; i++)
-        rt += arguments[i];
+      var rt = (typeof arguments[0] === 'string') ? '' : 0;
+      for (var i=0; i<l; i++) rt += arguments[i];
       return rt;
     }],
     '%list-append': [{dot: 0}, function($$) {
@@ -447,7 +452,14 @@ var primitives = (function() {
       if (!this.namespace) return nil; // throw new Error('this is root ns.');
       this.global = this.namespace.vars;
       return nil;
-    }]
+    }],
+    'isa': [{dot: -1}, function(x, typ) {
+      return (type(x) === typ) ? t : nil;
+    }],
+    'acons': [{dot: -1}, function(x) {
+      return (type(x) === s_cons) ? t : nil;
+    }],
+    'idfn': [{dot: -1}, function(x) { return x; }]
   };
   for (var n in rt) {
     var f = rt[n];
@@ -481,6 +493,8 @@ var caar  = primitives.caar;
 var cadr  = primitives.cadr;
 var cddr  = primitives.cddr;
 var nreverse = primitives.nrev;
+var rep = primitives.rep;
+var annotate = primitives.annotate;
 
 ArcJS.nil = nil;
 ArcJS.t = t;
@@ -493,5 +507,7 @@ ArcJS.cdr = cdr;
 ArcJS.cadr = cadr;
 ArcJS.cddr = cddr;
 ArcJS.nreverse = nreverse;
+ArcJS.rep = rep;
+ArcJS.annotate = annotate;
 ArcJS.list_to_javascript_arr = list_to_javascript_arr;
 ArcJS.javascript_arr_to_list = javascript_arr_to_list;

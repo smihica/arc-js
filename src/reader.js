@@ -16,10 +16,22 @@ var Reader = classify("Reader", {
   property: {
     str: '',
     i: 0,
-    slen: 0
+    slen: 0,
+    subreader: null,
+    vm: null
   },
 
   method: {
+    init: function(vm) {
+      this.vm = vm;
+    },
+
+    get_subreader: function() {
+      if (this.subreader) return this.subreader;
+      this.subreader = new Reader(this.vm);
+      return this.subreader;
+    },
+
     load_source: function(str) {
       this.str = str;
       this.slen = str.length;
@@ -80,7 +92,7 @@ var Reader = classify("Reader", {
           continue;
         }
         if (token === Reader.LBRACK) {
-          lis = cons(this.read_list(true), lis);
+          lis = cons(this.read_blist(), lis);
           continue;
         }
         if (token === Reader.DOT) {
@@ -104,6 +116,11 @@ var Reader = classify("Reader", {
         lis = cons(token, lis);
       }
       throw new Error("unexpected end-of-file while reading list");
+    },
+
+    read_blist: function() {
+      var body = this.read_list(true);
+      return cons(Symbol.get('%shortfn'), cons(body, nil));
     },
 
     read_thing: function() {
@@ -139,6 +156,18 @@ var Reader = classify("Reader", {
     read_symbol: function() {
       var tok = this.read_thing();
       if (tok.length === 0) return Reader.EOF;
+      var ss = this.vm.global['%___special_syntax___'];
+      if (ss) {
+        var ss = ss.v.src;
+        for (var s in ss) {
+          var def = rep(ss[s]);
+          var m = tok.match(new RegExp(rep(car(def))));
+          if (m) {
+            var expanded = this.vm.arc_apply(cdr(def), m.slice(1));
+            return this.get_subreader().read(expanded);
+          }
+        }
+      }
       return this.make_symbol(tok);
     },
 
@@ -148,7 +177,7 @@ var Reader = classify("Reader", {
       return Symbol.get(tok);
     },
 
-    read_string: function(delimiter, type) {
+    read_string: function(delimiter, type, escape_only_delimiter) {
       delimiter = delimiter || '"';
       type = type || 'string';
       var str = '', esc = false;
@@ -156,9 +185,13 @@ var Reader = classify("Reader", {
         var c = this.str[this.i++];
         // TODO more Escape patterns.
         if (esc) {
-          c = (({n: '\n', r: '\r', s: '\s', t: '\t'})[c]) || c;
           esc = false;
-          str += c;
+          var escaped_char = (({n: '\n', r: '\r', s: '\s', t: '\t'})[c]);
+          if (escape_only_delimiter && !escaped_char && c !== delimiter) {
+            str += '\\' + c;
+          } else {
+            str += escaped_char || c;
+          }
           continue;
         } else {
           switch(c) {
@@ -177,7 +210,7 @@ var Reader = classify("Reader", {
     },
 
     read_regexp: function() {
-      var str = this.read_string('/', 'regexp');
+      var str = this.read_string('/', 'regexp', true);
       return list(Symbol.get('annotate'), list(Symbol.get('quote'), Symbol.get('regexp')), str);
     },
 
@@ -245,10 +278,7 @@ var Reader = classify("Reader", {
       if (token === Reader.RPAREN) throw new Error("unexpected closing parenthesis");
       if (token === Reader.RBRACK) throw new Error("unexpected closing bracket");
       if (token === Reader.LPAREN) return this.read_list();
-      if (token === Reader.LBRACK) {
-        var body = this.read_list(true);
-        return cons(Symbol.get('%shortfn'), cons(body, nil))
-      }
+      if (token === Reader.LBRACK) return this.read_blist();
       return token;
     },
 

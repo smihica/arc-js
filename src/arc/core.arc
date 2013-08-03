@@ -29,14 +29,35 @@
       lis                   (cons lis nil)))
 
 (def keep (f lis)
-  (mappend (%shortfn (if (f _) (cons _ nil))) lis))
+  (mappend [if (f _) (cons _ nil)] lis))
 
-(def map (f lis)
+(def map1 (f lis)
   ((afn (lis acc)
      (if lis
          (self (cdr lis) (cons (f (car lis)) acc))
          (nrev acc)))
    lis nil))
+
+(def map (f . seqs)
+  (if (mem [isa _ 'string] seqs)
+      (withs (n   (apply min (map len seqs))
+              new (newstring n))
+        ((afn (i)
+           (if (is i n)
+               new
+               (do (sref new (apply f (map [_ i] seqs)) i)
+                   (self (+ i 1)))))
+         0))
+
+      (no (cdr seqs))
+      (map1 f (car seqs))
+
+      ((afn (seqs)
+         (if (mem no seqs)
+             nil
+             (cons (apply f (map1 car seqs))
+                   (self (map1 cdr seqs)))))
+       seqs)))
 
 (def mappend (f lis)
   (let mapped
