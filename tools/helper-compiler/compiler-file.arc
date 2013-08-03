@@ -4,7 +4,7 @@
    '(frame close test conti shift constant argument
      refer-let refer-local refer-free refer-global
      refer-nil refer-t enter-let exit-let assign-let assign-local assign-global
-     box indirect apply return halt))
+     box indirect apply return continue-return halt))
 
 (mac _wrap body
   `(do (write (pos top ops))

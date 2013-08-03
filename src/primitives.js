@@ -139,6 +139,8 @@ var type = function(x) {
   }
 };
 
+// use decycle from https://raw.github.com/douglascrockford/JSON-js/master/cycle.js
+include("../lib/json/cycle.js");
 var stringify = function(x) {
   var type_name = type(x).name;
   switch (type_name) {
@@ -164,7 +166,9 @@ var stringify = function(x) {
   if (x instanceof Tagged) {
     return '#<tagged ' + type_name + ' ' + stringify(x.obj) + '>';
   }
-  return JSON.stringify(x);
+  if (x instanceof Box)
+    return '#<%boxing ' + stringify(x.unbox()) + '>';
+  return JSON.stringify(JSON.decycle(x));
 }
 
 var stringify_list = function(cons) {

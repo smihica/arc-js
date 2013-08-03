@@ -6,6 +6,7 @@ var fs = require('fs');
 function main(inputs, out) {
   var ArcJS = require('../arc.min.js');
   var vm = new ArcJS.VM();
+  var operators = [];
 
   function compile(expr) {
     var asm = [
@@ -44,7 +45,7 @@ function main(inputs, out) {
     while(code !== ArcJS.nil) {
       var c = ArcJS.list_to_javascript_arr(ArcJS.car(code));
       var op = c[0];
-      var op_pos = ArcJS.VM.operators.indexOf(op.name);
+      var op_pos = operators.indexOf(op.name);
       if (op_pos < 0) throw new Error('Unknown op ' + op.name);
       asm.push(op_pos);
       switch (op.name) {
@@ -56,6 +57,7 @@ function main(inputs, out) {
       case 'assign-free':
       case 'frame':
       case 'return':
+      case 'continue-return':
       case 'exit-let':
       case 'conti':
         asm.push(c[1]|0);
@@ -107,13 +109,21 @@ function main(inputs, out) {
     });
   }
 
+  function init_operators(after) {
+    fs.readFile(require('path').dirname(require.main.filename) + '/../src/operators.js', 'utf8', function(err, data) {
+      if (err) throw new Error(err);
+      operators = JSON.parse(data);
+      after();
+    });
+  }
+
   out.write(
     ('// This is an auto generated file.\n' +
      "// Compiled from ['/Users/smihica/code/arc-js/src/arc/compiler.arc'].\n" +
      "// DON'T EDIT !!!\n" +
      "preload.push.apply(preload, [\n"));
 
-  processing();
+  init_operators(processing);
 
 }
 

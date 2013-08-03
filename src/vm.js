@@ -1,9 +1,7 @@
 var VM = classify("VM", {
   static: {
-    operators: ['frame', 'close', 'test', 'conti', 'shift', 'constant', 'argument',
-                'refer-let', 'refer-local', 'refer-free', 'refer-global',
-                'refer-nil', 'refer-t', 'enter-let', 'exit-let', 'assign-let', 'assign-local', 'assign-global',
-                'box', 'indirect', 'apply', 'return', 'halt']
+    operators:
+    include("operators.js");
   },
   property: {
     x: null,
@@ -44,6 +42,7 @@ var VM = classify("VM", {
           case 'assign-free':
           case 'frame':
           case 'return':
+          case 'continue-return':
           case 'exit-let':
           case 'conti':
             asm.push([op, line[++k]|0]);
@@ -98,6 +97,7 @@ var VM = classify("VM", {
         case 'assign-free':
         case 'frame':
         case 'return':
+        case 'continue-return':
         case 'exit-let':
         case 'conti':
           c[1] = (c[1]|0);
@@ -328,7 +328,6 @@ var VM = classify("VM", {
             NameSpace.push(this.namespace);
             this.namespace = fn.namespace;
             this.global = this.namespace.vars;
-            // console.log(NameSpace.stack.map(function(n){return (n) ? n.name : 'null';}));
             if (-1 < dotpos) {
               var lis = nil;
               for (var i = 0, l = (vlen - dotpos); i < l; i++) {
@@ -362,6 +361,10 @@ var VM = classify("VM", {
           }
           break;
         case 'return':
+          this.namespace = NameSpace.pop();
+          this.global = this.namespace.vars;
+          // don't break !!
+        case 'continue-return':
           var n  = op[1];
           var ns = this.s - n;
           var xp = this.stack.index(ns, 0);
@@ -371,8 +374,6 @@ var VM = classify("VM", {
           this.l = this.stack.index(ns, 2);
           this.c = this.stack.index(ns, 3);
           this.s = ns - 4;
-          this.namespace = NameSpace.pop();
-          this.global = this.namespace.vars;
           break;
         case 'conti':
           n = op[1];

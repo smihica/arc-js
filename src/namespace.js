@@ -2,8 +2,8 @@ var NameSpace = classify('NameSpace', {
   property: {
     name:   null,
     upper:  null,
-    lowers: null,
-    vars:   null
+    lowers: {},
+    vars:   {}
   },
   static: {
     root: null,
@@ -20,12 +20,9 @@ var NameSpace = classify('NameSpace', {
     init: function(name, upper) {
       this.name = name;
       this.upper = upper;
-      this.vars = {};
-      this.lowers = {};
     },
     extend: function(name) {
-      if (!this.lowers[name])
-        this.lowers[name] = new NameSpace(name, this);
+      if (!this.lowers[name]) this.lowers[name] = new NameSpace(name, this);
       return this.lowers[name];
     },
     down: function(name) {

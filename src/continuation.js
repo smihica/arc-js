@@ -6,7 +6,7 @@ var Continuation = classify('Continuation', {
         this,
         [['refer-local', 0],
          ['nuate', stack.save(stack_pointer)], // stack restore
-         ['return', shift_num]], // return to outer frame.
+         ['continue-return', shift_num]], // return to outer frame.
         0,
         0,
         1,
