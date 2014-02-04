@@ -1,0 +1,68 @@
+#!/usr/bin/env node
+var term = 'arc> ';
+var readline = require('readline');
+var ArcJS = require('./arc.min.js');
+var vm = new ArcJS.VM();
+
+var rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  terminal: false
+});
+
+function compile(expr) {
+  var asm = [
+    ['frame', 8],
+    ['constant', expr],
+    ['argument'],
+    ['constant', 1],
+    ['argument'],
+    ['refer-global', 'do-compile'],
+    ['indirect'],
+    ['apply'],
+    ['halt']
+  ];
+  vm.cleanup();
+  vm.set_asm(asm);
+  return vm.run();
+}
+
+var code_hist = '';
+function onenter(code) {
+  var expr = null, res = null, result = '', err = false;
+  if (code.match(/^\s*$/g)) return false;
+  try {
+    expr = vm.reader.read(code_hist + code);
+  } catch (e) {
+    if (vm.reader.i < vm.reader.slen) {
+      result = e.toString();
+      err = true;
+    }
+    else { /* Not closed yet. ignore.*/
+      code_hist += code;
+      return true;
+    }
+  }
+  if (!err) {
+    try {
+      var compiled = compile(expr);
+      vm.cleanup();
+      vm.load(compiled);
+      res =  vm.run();
+      result = ArcJS.stringify(res);
+    } catch (e) {
+      result = e.toString();
+      err = true;
+    }
+  }
+  process.stdout.write(result + "\n");
+  code_hist = '';
+  return false;
+}
+
+rl.on('line', function (code) {
+  var continue_flag = onenter(code);
+  if (!continue_flag) process.stdout.write(term);
+});
+
+process.stdout.write(term);
