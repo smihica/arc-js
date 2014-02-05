@@ -55,6 +55,8 @@ var coerce = function(obj, to_type, args) {
       return obj.c.charCodeAt(0);
     case 'sym':
       return Symbol.get(obj.c);
+    case 'string':
+      return obj.c[0];
     case 'char':
       return obj;
     }
@@ -114,7 +116,7 @@ var coerce = function(obj, to_type, args) {
     }
     break;
   }
-  throw new Error("Can't coerce " + obj + " to " + to_type);
+  throw new Error("Can't coerce " + from_type + " to " + to_type);
 }
 
 var type = function(x) {

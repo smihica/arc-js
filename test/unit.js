@@ -677,7 +677,8 @@ describe('VM eval', function(){
       eval_print_eql('(coerce #\\A \'int)', '65');
       eval_print_eql('(coerce #\\B \'num)', '66');
       eval_print_eql('(coerce #\\C \'sym)', 'C');
-      eval_print_eql('(coerce #\\D \'char)', '#\\D');
+      eval_print_eql('(coerce #\\D \'string)', '"D"');
+      eval_print_eql('(coerce #\\E \'char)', '#\\E');
       // int to
       eval_print_eql('(coerce 65 \'char)', '#\\A');
       eval_print_eql('(coerce 66 \'string 16)', '"42"');
