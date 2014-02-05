@@ -97,9 +97,12 @@ var coerce = function(obj, to_type, args) {
       var rt = '';
       while (obj !== nil) {
         var c = car(obj);
-        if(type(c).name !== 'char')
-          throw new Error('coerce of cons->string requires a proper list of Chars.');
-        rt += c.c;
+        if(type(c).name === 'char') {
+          rt += c.c;
+        } else {
+          // throw new Error('coerce of cons->string requires a proper list of Chars.');
+          rt += coerce(c, s_string);
+        }
         obj = cdr(obj);
       }
       return rt;
@@ -110,6 +113,8 @@ var coerce = function(obj, to_type, args) {
   case 'sym':
     switch(to_type) {
     case 'string':
+      if (obj === nil) return "nil";
+      if (obj === t)   return "t";
       return obj.name;
     case 'sym':
       return obj;
@@ -258,11 +263,18 @@ var primitives = (function() {
          ).join(' ') + '.'));
     }],
     '+': [{dot: 0}, function($$) {
-      var l = arguments.length;
+      var l = arguments.length, rt = 0;
+      for (var i=l-1; 0<=i; i--) {
+        if (typeof arguments[i] === 'string') {
+          var rts = '';
+          for (var i=l-1; 0<=i; i--)
+            rts = coerce(arguments[i], s_string) + rts;
+          return rts;
+        }
+      }
       if (l < 1) return 0;
       if (arguments[0] === nil || type(arguments[0]) === s_cons)
         return primitives['%list-append'].apply(this, arguments);
-      var rt = (typeof arguments[0] === 'string') ? '' : 0;
       for (var i=0; i<l; i++) rt += arguments[i];
       return rt;
     }],

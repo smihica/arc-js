@@ -701,6 +701,14 @@ describe('VM eval', function(){
       // sym to
       eval_print_eql('(coerce \'asym \'string)', '"asym"');
       eval_print_eql('(coerce \'bsym \'sym)', 'bsym');
+      eval_print_eql('(coerce nil \'string)', '"nil"');
+      eval_print_eql('(coerce t \'string)', '"t"');
+    });
+    describe('+', function() {
+      eval_print_eql('(+ 1 2 3)', '6');
+      eval_print_eql('(+ 1 2.256)', '3.256');
+      eval_print_eql('(+ \'(a b c) "xyz")', '"abcxyz"');
+      eval_print_eql('(+ 1 "abc" 2 \'(b 3 #\\x "xy" (z a)) \'z nil)', '"1abc2b3xxyzaznil"');
     });
     describe('bound', function() {
       eval_print_eql('(bound \'xxxx)', 'nil');
