@@ -24,6 +24,15 @@
          (self (cdr l) (+ n 1))))
    lis 0))
 
+(def zip (lis1 lis2 . longest-p)
+  (if (or (and (and (acons longest-p) (car longest-p)) (or lis1 lis2))
+          (and lis1 lis2))
+      (cons (car lis1) (cons (car lis2) (zip (cdr lis1) (cdr lis2) (car longest-p))))))
+
+(def dotted (l) (if (acons l) (dotted (cdr l)) l t))
+(def dottify (l) (if (no (cdr l)) (car l) (cons (car l) (dottify (cdr l)))))
+(def undottify (l) (if (acons l) (cons (car l) (undottify (cdr l))) l (cons l nil)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def find-qq-eval (x)
@@ -93,17 +102,34 @@
            x
            (quote body `(quote ,@body))
            (fn (vars . body)
-             `(fn ,vars
-                ,(if (< (len body) 2)
-                     (%macex (car body) (union is (dotted-to-proper vars) e))
-                     (%macex `(do ,@body) (union is (dotted-to-proper vars) e)))))
+             (if (%complex-args? vars)
+                 (let dot-p (dotted vars)
+                   (let vars (if dot-p (undottify vars) vars)
+                     (let uniqs (map1 [uniq] vars)
+                       (%macex
+                         `(fn ,(if dot-p (dottify uniqs) uniqs)
+                            (with ,(%complex-args vars uniqs)
+                              ,@body))
+                         e))))
+                 `(fn ,vars
+                    ,(if (< (len body) 2)
+                         (%macex (car body) (union is (dotted-to-proper vars) e))
+                         (%macex `(do ,@body) (union is (dotted-to-proper vars) e))))))
            (with (var-val . body)
              (let var-val (pair var-val)
                (let vars (map1 car var-val)
-                 `(with ,(mappend (fn (p) (list (car p) (%macex (cadr p) e))) var-val)
-                    ,(if (< (len body) 2)
-                         (%macex (car body) (union is vars e))
-                         (%macex `(do ,@body) (union is vars e)))))))
+                 (if (%complex-args? vars)
+                     (let vals (map1 cadr var-val)
+                       (let uniqs (map1 [uniq] vals)
+                         (%macex
+                           `(with ,(zip uniqs vals)
+                              (with ,(%complex-args vars uniqs)
+                                ,@body))
+                           e)))
+                     `(with ,(mappend (fn (p) (list (car p) (%macex (cadr p) e))) var-val)
+                        ,(if (< (len body) 2)
+                             (%macex (car body) (union is vars e))
+                             (%macex `(do ,@body) (union is vars e))))))))
            (aif (let top (car x)
                   (and (is (type top) 'sym)
                        (no (mem top e))
@@ -114,6 +140,47 @@
     x))
 
 (def macex (x) (%macex x nil))
+
+(def %%complex-args (args ra)
+  (if args
+      (case (type args)
+        sym  `(,args ,ra)
+        cons
+        (let x
+            (if (and (acons (car args))
+                     (is (caar args) 'o))
+                `(,(cadar args)
+                  (if (acons ,ra) (car ,ra)
+                      ,(if (acons (cddar args)) (caddar args))))
+                (%%complex-args
+                  (car args)
+                  `(car ,ra)))
+          (let v (car x)
+            (+ x (%%complex-args
+                   (cdr args)
+                   `(cdr ,ra)))))
+        (err (+ "Can't understand vars list" args)))))
+
+(def %complex-args (args-lis ra-lis)
+  (mappend (fn (x) (%%complex-args (car x) (cadr x)))
+           (map (fn (a b) (list a b)) args-lis ra-lis)))
+
+(def %complex-args? (args)
+  (if (and (acons args) (is (type (car args)) 'sym))
+      (%complex-args? (cdr args))
+      (and args (no (is (type args) 'sym)))))
+
+(def %complex-args-get-var (args)
+  (if args
+      (case (type args)
+        sym  (list args)
+        cons
+        (let xs (let a (car args)
+                  (if (and (acons a) (is (car a) 'o))
+                      (list (cadr a))
+                      (%complex-args-get-var a)))
+          (+ (%complex-args-get-var (cdr args)) xs))
+        (err (+ "Can't understand vars list" args)))))
 
 (mac mac (name vars . body)
   (if body

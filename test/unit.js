@@ -488,6 +488,38 @@ describe('VM eval', function(){
         "(expand-qq (cadr '`(x x '(x ,x) x x)))", "(cons (quote x) (cons (quote x) (cons (cons (quote quote) (cons (cons (quote x) (cons x (quote nil))) (quote nil))) (quote (x x)))))" // (x x (quote (x 2)) x x)
       );
     });
+    describe('complex-args', function() {
+      eval_print_eql(
+        "(%complex-args-get-var '(a b c d))",
+        "(d c b a)",
+        "(%complex-args-get-var '(a (x y z) b c d))",
+        "(d c b z y x a)",
+        "(%complex-args-get-var '(a (x y z . a) b c d))",
+        "(d c b a z y x a)",
+        "(%complex-args-get-var '(a (x y z . m) b (o xxx 10) (x1 x2) d . f))",
+        "(f d x2 x1 xxx b m z y x a)",
+        "(%complex-args-get-var '(o p q))",
+        "(q p o)",
+        "(%complex-args? nil)",
+        "nil",
+        "(%complex-args? '(x y z))",
+        "nil",
+        "(%complex-args? '(x y z . a))",
+        "nil",
+        "(%complex-args? '(x y z (a b) . a))",
+        "t",
+        "(%complex-args? '(x y z (o x 0) . a))",
+        "t",
+        "(%complex-args '(x) '(y))",
+        "(x y)",
+        "(%complex-args '(x (a b c)) '(y z))",
+        "(x y a (car z) b (car (cdr z)) c (car (cdr (cdr z))))",
+        "(%complex-args '(x (a b (o c 'x))) '(y z))",
+        "(x y a (car z) b (car (cdr z)) c (if (acons (cdr (cdr z))) (car (cdr (cdr z))) (quote x)))",
+        "(%complex-args '(x (a b c) (o a b)) '(y z k))",
+        "(x y a (car z) b (car (cdr z)) c (car (cdr (cdr z))) o (car k) a (car (cdr k)) b (car (cdr (cdr k))))"
+      );
+    });
     describe('macex', function() {
       eval_print_eql(
         "(macex '(quote (1 2 3)))", "(quote (1 2 3))",
@@ -578,7 +610,6 @@ describe('VM eval', function(){
         "(refer-global x (indirect (halt)))"
       );
     });
-
     describe('find-free', function() {
       eval_print_eql(
         "(find-free '(fn (a b c) ((fn (x y) (+ a b c d (- x y))) y z)) '())",
@@ -669,6 +700,36 @@ describe('VM eval', function(){
         "((frame 52) (constant 1) (argument) (frame 43) (conti 0) (argument) (constant 1) (argument) (close 0 37 1 -1) (frame 10) (constant 3) (argument) (constant 5) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (refer-local 0) (argument) (close 1 17 0 -1) (frame 10) (constant 8) (argument) (constant 3) (argument) (constant 2) (argument) (refer-global *) (indirect) (apply) (argument) (constant 1) (argument) (refer-free 0) (shift 2 1) (apply) (argument) (constant 1) (argument) (refer-global apply) (indirect) (shift 2 2) (apply) (apply) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (halt))"
       );
     });
+  });
+
+  describe('complex args (with / let / fn)', function(){
+
+    eval_eql(
+      '(with ((a b c) \'(1 2 3)) (+ a b c))',   6,
+      '(let (a b c) \'(1 2 3) (+ a b c))',      6,
+      '(let (a b c . d) \'(1 2 3 . 4) d)',      4,
+      '(let ((a b c) d (e f) (o g 10)) \'((1 2 3) 4 (5 6) 7) (+ a b c d e f g))', 28,
+      '(let ((a b c) d (e f (g)) (o h 100)) \'((1 2 3) 4 (5 6 (7)) 8) (+ a b c d e f g h))', 36,
+      '(let (a (o b 10)) \'(1) (+ a b))',       11,
+      '(let (o a (o b 3)) \'(1 2) (+ o a b))',  6,
+      '((fn (a b c) a) 1 2 3)',                 1,
+      '((fn (a b . c) (+ a b (car c))) 1 2 3)', 6,
+      '((fn ((a) b . c) (+ a b (car c))) \'(1) 2 3)', 6,
+      '((fn (a b)' +
+      ' (with ((x y) (list (+ a b) (- a b)))' +
+      '   (with (z (/ x y))' +
+      '     (- a b x y z))))' +
+      ' 3 5)',             -4
+    );
+
+    eval_print_eql(
+      ('(def nth3 (n lis)' +
+       '  (with ((x . next) lis)' +
+       '    (if (< n 1) x (nth3 (- n 1) next))))'),
+      "#<fn:nth3>",
+      '(nth3 3 \'(1 2 3 4 5))', '4'
+    );
+
   });
 
   describe('arc', function() {

@@ -210,9 +210,47 @@ var primitives = (function() {
       if (x instanceof Cons) return (x.cdr = v);
       throw new Error(stringify(x) + ' is not cons type.');
     }],
+
+    /* c...r code generator
+      (pr ((afn (d cs)
+         (if (< 0 d)
+             (+ (self (- d 1) (cons 'a cs)) (self (- d 1) (cons 'd cs)))
+             (+ "'c" cs "r': [{dot: -1}, function(x) { return c"
+                (intersperse "r(c" cs) "r(x" (n-of (len cs) ")")
+                "; }],\n" )))
+       4 nil))
+    */
     'caar': [{dot: -1}, function(x) { return car(car(x)); }],
+    'cdar': [{dot: -1}, function(x) { return cdr(car(x)); }],
     'cadr': [{dot: -1}, function(x) { return car(cdr(x)); }],
     'cddr': [{dot: -1}, function(x) { return cdr(cdr(x)); }],
+
+    'caaar': [{dot: -1}, function(x) { return car(car(car(x))); }],
+    'cdaar': [{dot: -1}, function(x) { return cdr(car(car(x))); }],
+    'cadar': [{dot: -1}, function(x) { return car(cdr(car(x))); }],
+    'cddar': [{dot: -1}, function(x) { return cdr(cdr(car(x))); }],
+    'caadr': [{dot: -1}, function(x) { return car(car(cdr(x))); }],
+    'cdadr': [{dot: -1}, function(x) { return cdr(car(cdr(x))); }],
+    'caddr': [{dot: -1}, function(x) { return car(cdr(cdr(x))); }],
+    'cdddr': [{dot: -1}, function(x) { return cdr(cdr(cdr(x))); }],
+
+    'caaaar': [{dot: -1}, function(x) { return car(car(car(car(x)))); }],
+    'cdaaar': [{dot: -1}, function(x) { return cdr(car(car(car(x)))); }],
+    'cadaar': [{dot: -1}, function(x) { return car(cdr(car(car(x)))); }],
+    'cddaar': [{dot: -1}, function(x) { return cdr(cdr(car(car(x)))); }],
+    'caadar': [{dot: -1}, function(x) { return car(car(cdr(car(x)))); }],
+    'cdadar': [{dot: -1}, function(x) { return cdr(car(cdr(car(x)))); }],
+    'caddar': [{dot: -1}, function(x) { return car(cdr(cdr(car(x)))); }],
+    'cdddar': [{dot: -1}, function(x) { return cdr(cdr(cdr(car(x)))); }],
+    'caaadr': [{dot: -1}, function(x) { return car(car(car(cdr(x)))); }],
+    'cdaadr': [{dot: -1}, function(x) { return cdr(car(car(cdr(x)))); }],
+    'cadadr': [{dot: -1}, function(x) { return car(cdr(car(cdr(x)))); }],
+    'cddadr': [{dot: -1}, function(x) { return cdr(cdr(car(cdr(x)))); }],
+    'caaddr': [{dot: -1}, function(x) { return car(car(cdr(cdr(x)))); }],
+    'cdaddr': [{dot: -1}, function(x) { return cdr(car(cdr(cdr(x)))); }],
+    'cadddr': [{dot: -1}, function(x) { return car(cdr(cdr(cdr(x)))); }],
+    'cddddr': [{dot: -1}, function(x) { return cdr(cdr(cdr(cdr(x)))); }],
+
     'list': [{dot: 0}, function($$) {
       for (var i=arguments.length-1, rt=nil; -1<i; i--)
         rt = cons(arguments[i], rt);
