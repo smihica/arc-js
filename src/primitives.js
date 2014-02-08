@@ -14,6 +14,7 @@ var s_char   = Symbol.get('char');
 var s_table  = Symbol.get('table');
 var s_cons   = Symbol.get('cons');
 var s_fn     = Symbol.get('fn');
+var s_mac    = Symbol.get('mac');
 
 var list_to_javascript_arr = function(lis) {
   if (lis !== nil && type(lis).name !== 'cons') return [lis];

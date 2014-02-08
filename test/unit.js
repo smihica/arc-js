@@ -412,12 +412,12 @@ describe('VM eval', function(){
 
   describe('mac', function() {
     eval_print_eql(
-      "(mac mac-test (x) `(+ ,x ,x))", "#<tagged mac #<fn>>",
-      "mac-test", "#<tagged mac #<fn>>",
+      "(mac mac-test (x) `(+ ,x ,x))", "#<tagged mac #<fn:mac-test>>",
+      "mac-test", "#<tagged mac #<fn:mac-test>>",
       "(mac-test 10)", "20",
       "((fn (mac-test) (mac-test 10)) -)", "-10", // shadowing
       "(with (mac-test -) (mac-test 10))", "-10", // shadowing
-      "(mac mac-test2 (x) `(let a 10 ,x))", "#<tagged mac #<fn>>",
+      "(mac mac-test2 (x) `(let a 10 ,x))", "#<tagged mac #<fn:mac-test2>>",
       "(macex1 '(mac-test2 a))", "(let a 10 a)"
     );
   });

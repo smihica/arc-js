@@ -292,6 +292,7 @@ var VM = classify("VM", {
           var name = op[1];
           var box = this.global[name] || new Box(this.a);
           if (this.a instanceof Closure) this.a.name = name;
+          else if (this.a instanceof Tagged && this.a.tag == s_mac) this.a.obj.name = name;
           box.setbox(this.a);
           this.global[name] = box;
           this.p++;

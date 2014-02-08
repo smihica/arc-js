@@ -310,6 +310,7 @@ var s_char   = Symbol.get('char');
 var s_table  = Symbol.get('table');
 var s_cons   = Symbol.get('cons');
 var s_fn     = Symbol.get('fn');
+var s_mac    = Symbol.get('mac');
 
 var list_to_javascript_arr = function(lis) {
   if (lis !== nil && type(lis).name !== 'cons') return [lis];
@@ -1787,6 +1788,7 @@ var VM = classify("VM", {
           var name = op[1];
           var box = this.global[name] || new Box(this.a);
           if (this.a instanceof Closure) this.a.name = name;
+          else if (this.a instanceof Tagged && this.a.tag == s_mac) this.a.obj.name = name;
           box.setbox(this.a);
           this.global[name] = box;
           this.p++;
