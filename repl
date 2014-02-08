@@ -44,6 +44,7 @@ function onenter(code) {
     }
   }
   if (!err) {
+    var called_ns = vm.namespace;
     try {
       var compiled = compile(expr);
       vm.cleanup();
@@ -52,11 +53,21 @@ function onenter(code) {
       result = ArcJS.stringify(res);
     } catch (e) {
       result = e.toString();
+      vm.namespace = called_ns;
       err = true;
     }
   }
   process.stdout.write(result + "\n");
   code_hist = '';
+
+  var ns = vm.namespace;
+  var nss = '';
+  while (ns !== ArcJS.NameSpace.root) {
+    nss = '::' + ns.name + nss;
+    ns = ns.upper;
+  }
+  term = 'arc' + nss + '> ';
+
   return false;
 }
 
