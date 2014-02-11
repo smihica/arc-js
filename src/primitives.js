@@ -407,8 +407,9 @@ var primitives = (function() {
       return (type(x).name === 'cons') ? nil : t;
     }],
     'apply': [{dot: 1}, function(fn, $$) {
-      for (var i=1, l=arguments.length, args=[]; i<l; i++)
-        args = args.concat(list_to_javascript_arr(arguments[i]));
+      for (var i=1, l=arguments.length-1, args=[]; i<l; i++)
+        args[i-1] = arguments[i];
+      if (0 < l) args = args.concat(list_to_javascript_arr(arguments[l]));
       return new Call(fn, args);
     }],
     'pair': [{dot: -1}, function(lis) {

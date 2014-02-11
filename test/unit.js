@@ -791,6 +791,16 @@ describe('VM eval', function(){
       eval_print_eql('(scdr x \'b)', 'b');
       eval_print_eql('x', '(a . b)');
     });
+    describe('apply', function() {
+      eval_print_eql("(apply list)",             "nil");
+      eval_print_eql("(apply list nil)",         "nil");
+      eval_print_eql("(apply list 'x)",          "(x)");  // is this ok? anarki raises an error but this is more convenient.
+      eval_print_eql("(apply list '(b c) '(d))", "((b c) d)");
+      eval_print_eql("(apply list 'x '(a))",     "(x a)");
+      eval_print_eql("(apply list 'x 'y)",       "(x y)");
+      eval_print_eql("(apply list 'x 'y nil)",   "(x y)");
+    });
+
   });
 
 });
