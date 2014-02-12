@@ -4,6 +4,7 @@ var nil = (function() {
   return n;
 })();
 
+var is_nodejs = (typeof module !== 'undefined' && module.exports);
 var t = true;
 
 var s_int    = Symbol.get('int');
@@ -513,7 +514,41 @@ var primitives = (function() {
     'acons': [{dot: -1}, function(x) {
       return (type(x) === s_cons) ? t : nil;
     }],
-    'idfn': [{dot: -1}, function(x) { return x; }]
+    'idfn': [{dot: -1}, function(x) { return x; }],
+    'disp': [{dot: 1}, function(item, $$) {
+      if (!is_nodejs) { throw new Error("'disp' is not supported in Browser."); }
+      var stream = process.stdout;
+      var l = arguments.length;
+      if (0 < l) {
+        if (1 < l) {
+          stream = arguments[1];
+        }
+        stream.write(stringify(item));
+      }
+      return nil;
+    }],
+    'pr': [{dot: 0}, function($$) {
+      if (!is_nodejs) { throw new Error("'pr' is not supported in Browser."); }
+      for (var i = 0, l = arguments.length; i < l; i++) {
+        process.stdout.write(stringify(arguments[i]));
+      }
+      return (0 < l) ? arguments[0] : nil;
+    }],
+    'prt': [{dot: 0}, function($$) {
+      if (!is_nodejs) { throw new Error("'prt' is not supported in Browser."); }
+      for (var i = 0, l = arguments.length; i < l; i++) {
+        if (arguments[i] !== nil) process.stdout.write(stringify(arguments[i]));
+      }
+      return (0 < l) ? arguments[0] : nil;
+    }],
+    'prn': [{dot: 0}, function($$) {
+      if (0 < arguments.length) {
+        var arr = Array.prototype.map.call(arguments, stringify);
+        console.log.call(null, arr.join(''));
+        return arguments[0];
+      }
+      return nil;
+    }],
   };
   for (var n in rt) {
     var f = rt[n];
