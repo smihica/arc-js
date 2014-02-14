@@ -53,6 +53,7 @@ function main(inputs, out) {
       case 'refer-free':
       case 'box':
       case 'test':
+      case 'jump':
       case 'assign-local':
       case 'assign-free':
       case 'frame':

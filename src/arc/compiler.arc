@@ -103,20 +103,18 @@
            (quote body `(quote ,@body))
            (fn (vars . body)
              (if (%complex-args? vars)
-                 (let dot-p (dotted vars)
-                   (let vars (if dot-p (undottify vars) vars)
-                     (let uniqs (map1 [uniq] vars)
-                       (%macex
-                         `(fn ,(if dot-p (dottify uniqs) uniqs)
-                            (with ,(%complex-args vars uniqs)
-                              ,@body))
-                         e))))
+                 (%macex
+                   (w/uniq (arg)
+                     `(fn ,arg
+                        (with ,(%complex-args (list vars) (list arg))
+                          ,@body)))
+                   e)
                  `(fn ,vars
                     ,(if (< (len body) 2)
                          (%macex (car body) (union is (dotted-to-proper vars) e))
                          (%macex `(do ,@body) (union is (dotted-to-proper vars) e))))))
            (with (var-val . body)
-             (let var-val (pair var-val)
+             (let var-val (%pair var-val)
                (let vars (map1 car var-val)
                  (if (%complex-args? vars)
                      (let vals (map1 cadr var-val)
@@ -240,7 +238,7 @@
        (if (is (len p) 2)
            `(%if ,(car p) ,(cadr p) ,(self (cdr ps)))
            (is (len p) 1) (car p))))
-   (pair args)))
+   (%pair args)))
 
 (mac and args
   (if (cdr args)
@@ -267,7 +265,7 @@
               (%if it ,(cadr p)
                    ,(self (cdr ps))))
            (is (len p) 1) (car p))))
-   (pair args)))
+   (%pair args)))
 
 (mac withs (parms . body)
   (if (no parms)
@@ -291,6 +289,8 @@
                `(apply ,(if (car fs) (car fs) 'idfn) ,g)))
          args))))
 
+(def complement (f) (fn args (no (apply f args))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (assign %___special_syntax___ (table))
@@ -304,8 +304,8 @@
 (defss compose-ss #/^(.*[^:]):([^:].*)$/ (a b)
        (+ "(compose " a " " b ")"))
 
-(defss invert-ss #/^\~(.*)$/ (a)
-       (+ "[no (" a " _)]"))
+(defss complement-ss #/^\~(.*)$/ (a)
+       (+ "(complement " a ")"))
 
 (defss ssyntax-ss #/^(.*)\.(.*)$/ (a b)
        (+ "(" a " " b ")"))
@@ -317,7 +317,6 @@
        (+ "(ns " a " " b ")"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 (def compile-lookup-let (x let-e n return-let)
   (if let-e
@@ -360,8 +359,8 @@
              (find-free body (union is (dotted-to-proper vars) b)))
 
            (with (var-vals body)
-             (with (vars (map1 car  (pair var-vals))
-                         vals (map1 cadr (pair var-vals)))
+             (with (vars (map1 car  (%pair var-vals))
+                         vals (map1 cadr (%pair var-vals)))
                (union is
                       (dedup (flat (map1 [find-free _ b] vals)))
                       (find-free body (union is vars b)))))
@@ -393,8 +392,8 @@
              (find-sets body (set-minus v (dotted-to-proper vars))))
 
            (with (var-vals body)
-             (with (vars (map1 car  (pair var-vals))
-                         vals (map1 cadr (pair var-vals)))
+             (with (vars (map1 car  (%pair var-vals))
+                         vals (map1 cadr (%pair var-vals)))
                (union is
                       (dedup (flat (map1 [find-sets _ v] vals)))
                       (find-sets body (set-minus v vars)))))
@@ -427,13 +426,21 @@
    vars 0))
 
 (def tailp (next)
-  (if (is (car next) 'return)
+  (if (is (car next) 'ignore)
+      (tailp (cadr next))
+      (is (car next) 'return)
       (cadr next)
       (and (is (car next) 'exit-let)
            (is (caar (cddr next)) 'return))
       (+ (cadr next) (cadr (car (cddr next))))))
 
-(def nest-exit-p (next) (is (car next) 'exit-let))
+(def reduce-nest-exit (next)
+  (let a (car next)
+    (if (is a 'exit-let)
+        (list (cadr next) (caddr next))
+        ;(and (is a 'ignore) (is (car (cadr next)) 'exit-let))
+        ;(list (cadr (cadr next)) (list 'ignore (caddr (cadr next))))
+        (list 0 next))))
 
 (def collect-free (vars e next)
   (if (no vars)
@@ -488,8 +495,8 @@
                              ,next))))))
 
            (with (var-vals body)
-             (with (vars (map1 car  (pair var-vals))
-                    vals (map1 cadr (pair var-vals)))
+             (with (vars (map1 car  (%pair var-vals))
+                    vals (map1 cadr (%pair var-vals)))
                ((afn (args c)
                   (if (no args)
                       c
@@ -500,7 +507,7 @@
                                      `(argument ,c)))))
                 (rev vals)
                 (with (e    (cons (cons (rev vars) (car e)) (cdr e))
-                       nep  (nest-exit-p next)
+                       rne  (reduce-nest-exit next)
                        sets (find-sets body vars)
                        free (remove-globs (find-free body vars) e))
                   `(enter-let
@@ -512,8 +519,8 @@
                           (union is
                                  sets
                                  (set-intersect s free))
-                          `(exit-let ,(+ (len vars) 1 (if nep (cadr next) 0))
-                                     ,(if nep (cadr (cdr next)) next)))))))))
+                          `(exit-let ,(+ (len vars) 1 (car rne))
+                                     ,(cadr rne)))))))))
 
            (do body
                ((afn (body next)
@@ -524,9 +531,9 @@
                 next))
 
            (%if (test then else)
-                (with (thenc (compile then e s next)
-                             elsec (compile else e s next))
-                  (compile test e s `(test ,thenc ,elsec))))
+                (with (thenc (compile then e s `(ignore ,next))
+                       elsec (compile else e s `(ignore ,next)))
+                  (compile test e s `(test ,thenc ,elsec ,next))))
 
            (assign (var x)
                    (compile-lookup
@@ -596,11 +603,16 @@
                ,@body
                ,@(preproc x (+ i (len body) 1)))))
 
-    (test (th else)
+    (test (th el x)
           (let then (preproc th (+ i 1))
-            `((test ,(+ (len then) 1))
-              ,@then
-              ,@(preproc else (+ i (len then) 1)))))
+            (let thenl (len then)
+              (let else (preproc el (+ i thenl 2))
+                (let elsel (len else)
+                  `((test ,(+ thenl 2))
+                    ,@then
+                    (jump ,(+ elsel 1))
+                    ,@else
+                    ,@(preproc x (+ i thenl elsel 2))))))))
 
     (conti (shift-num x)
            `((conti ,shift-num) ,@(preproc x (+ i 1))))
@@ -677,6 +689,8 @@
     (return (x) `((return ,x)))
 
     (halt ()  `((halt)))
+
+    (ignore (x) nil)
 
     nil))
 

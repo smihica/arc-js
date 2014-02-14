@@ -189,6 +189,10 @@ var stringify_list = function(cons) {
      ' . ' + stringify(d));
 };
 
+var stringify_for_disp = function(x) {
+  return (type(x).name === 'string') ? x : stringify(x);
+}
+
 var uniq_counter = 0;
 
 var primitives = (function() {
@@ -372,6 +376,12 @@ var primitives = (function() {
       }
       return t;
     }],
+    'odd': [{dot: -1}, function(x) {
+      return (x % 2) ? t : nil;
+    }],
+    'even': [{dot: -1}, function(x) {
+      return (x % 2) ? nil : t;
+    }],
     'no': [{dot: -1}, function(x) {
       return (x === nil) ? t : nil;
     }],
@@ -413,7 +423,7 @@ var primitives = (function() {
       if (0 < l) args = args.concat(list_to_javascript_arr(arguments[l]));
       return new Call(fn, args);
     }],
-    'pair': [{dot: -1}, function(lis) {
+    '%pair': [{dot: -1}, function(lis) {
       var rt = nil, toggle = true;
       while (lis !== nil) {
         if (toggle) {
@@ -523,28 +533,28 @@ var primitives = (function() {
         if (1 < l) {
           stream = arguments[1];
         }
-        stream.write(stringify(item));
+        stream.write(stringify_for_disp(item));
       }
       return nil;
     }],
     'pr': [{dot: 0}, function($$) {
       if (!is_nodejs) { throw new Error("'pr' is not supported in Browser."); }
       for (var i = 0, l = arguments.length; i < l; i++) {
-        process.stdout.write(stringify(arguments[i]));
+        process.stdout.write(stringify_for_disp(arguments[i]));
       }
       return (0 < l) ? arguments[0] : nil;
     }],
     'prt': [{dot: 0}, function($$) {
       if (!is_nodejs) { throw new Error("'prt' is not supported in Browser."); }
       for (var i = 0, l = arguments.length; i < l; i++) {
-        if (arguments[i] !== nil) process.stdout.write(stringify(arguments[i]));
+        if (arguments[i] !== nil) process.stdout.write(stringify_for_disp(arguments[i]));
       }
       return (0 < l) ? arguments[0] : nil;
     }],
     'prn': [{dot: 0}, function($$) {
       if (0 < arguments.length) {
-        var arr = Array.prototype.map.call(arguments, stringify);
-        console.log.call(null, arr.join(''));
+        var arr = Array.prototype.map.call(arguments, stringify_for_disp);
+        console.log(arr.join(''));
         return arguments[0];
       }
       return nil;

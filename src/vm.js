@@ -38,6 +38,7 @@ var VM = classify("VM", {
           case 'refer-free':
           case 'box':
           case 'test':
+          case 'jump':
           case 'assign-local':
           case 'assign-free':
           case 'frame':
@@ -93,6 +94,7 @@ var VM = classify("VM", {
         case 'refer-free':
         case 'box':
         case 'test':
+        case 'jump':
         case 'assign-local':
         case 'assign-free':
         case 'frame':
@@ -181,6 +183,7 @@ var VM = classify("VM", {
       v = v | 0; d = d | 0;
       m = m | 0; l = l | 0;
       var repeat = !step;
+      // var _nest = [];
       do {
         var op = this.x[this.p];
         var code = op[0];
@@ -270,6 +273,10 @@ var VM = classify("VM", {
           if (this.a !== nil) this.p++;
           else                this.p += n;
           break;
+        case 'jump':
+          n = op[1];
+          this.p += n;
+          break;
         case 'assign-let':
           n = op[1];
           m = op[2];
@@ -324,6 +331,8 @@ var VM = classify("VM", {
           break;
         case 'apply':
           var fn = this.a;
+          // _nest.push('  ');
+          // console.log(_nest.join('') + "apply: " + stringify(fn));
           var vlen = this.stack.index(this.s, 0);
           var closurep = (fn instanceof Closure);
           var dotpos = fn.dotpos;
@@ -376,6 +385,7 @@ var VM = classify("VM", {
         case 'return':
           this.namespace = NameSpace.pop();
           this.global = this.namespace.vars;
+          // _nest.pop();
           // don't break !!
         case 'continue-return':
           var n  = op[1];

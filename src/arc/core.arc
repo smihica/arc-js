@@ -70,3 +70,13 @@
 
 (def inc (i) (+ i 1))
 (def dec (i) (- i 1))
+
+(def pair (xs (o f list))
+  (if (is f list) (%pair xs)
+      ((afn (xs f)
+         (if (no xs) nil
+             (no cdr.xs) (list (list car.xs))
+             (cons (f car.xs cadr.xs)
+                   (self cddr.xs f))))
+       xs f)))
+

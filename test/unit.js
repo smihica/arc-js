@@ -130,7 +130,7 @@ describe('Reader', function(){
     });
     it('special-syntax', function() {
       expect(stringify(reader.read("car:car:cdr:cdr"))).to.equal('(compose (compose (compose car car) cdr) cdr)');
-      expect(stringify(reader.read("~abc"))).to.equal('(%shortfn (no (abc _)))');
+      expect(stringify(reader.read("~abc"))).to.equal('(complement abc)');
       expect(stringify(reader.read("abc.def.ghi"))).to.equal('((abc def) ghi)');
       expect(stringify(reader.read("abc!def!ghi"))).to.equal("((abc (quote def)) (quote ghi))");
     });
@@ -679,7 +679,7 @@ describe('VM eval', function(){
         "((frame 19) (constant 10) (argument) (constant 20) (argument) (constant 2) (argument) (close 0 11 2 -1) (refer-local 1) (argument) (refer-local 0) (argument) (constant 2) (argument) (refer-global +) (indirect) (shift 3 3) (apply) (apply) (halt))",
 
         "(do-compile '(if 'a 1 2))",
-        "((constant a) (test 3) (constant 1) (halt) (constant 2) (halt))",
+        "((constant a) (test 3) (constant 1) (jump 2) (constant 2) (halt))",
 
         "(do-compile '((fn (c d) (* c ((fn (a b) (+ (- d c) a b d)) d (+ d d)))) 10 3))",
         "((frame 63) (constant 10) (argument) (constant 3) (argument) (constant 2) (argument) (close 0 55 2 -1) (refer-local 1) (argument) (frame 45) (refer-local 0) (argument) (frame 10) (refer-local 0) (argument) (refer-local 0) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (argument) (constant 2) (argument) (refer-local 1) (argument) (refer-local 0) (argument) (close 2 24 2 -1) (frame 10) (refer-free 0) (argument) (refer-free 1) (argument) (constant 2) (argument) (refer-global -) (indirect) (apply) (argument) (refer-local 1) (argument) (refer-local 0) (argument) (refer-free 0) (argument) (constant 4) (argument) (refer-global +) (indirect) (shift 5 3) (apply) (apply) (argument) (constant 2) (argument) (refer-global *) (indirect) (shift 3 3) (apply) (apply) (halt))",
@@ -694,7 +694,7 @@ describe('VM eval', function(){
         "((constant 10) (argument) (enter-let) (refer-let 0 0) (exit-let 2) (halt))",
 
         "(do-compile '(def fib (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))",
-        "((close 0 56 1 -1) (frame 10) (refer-local 0) (argument) (constant 2) (argument) (constant 2) (argument) (refer-global <) (indirect) (apply) (test 3) (refer-local 0) (return 2) (frame 17) (frame 10) (refer-local 0) (argument) (constant 1) (argument) (constant 2) (argument) (refer-global -) (indirect) (apply) (argument) (constant 1) (argument) (refer-global fib) (indirect) (apply) (argument) (frame 17) (frame 10) (refer-local 0) (argument) (constant 2) (argument) (constant 2) (argument) (refer-global -) (indirect) (apply) (argument) (constant 1) (argument) (refer-global fib) (indirect) (apply) (argument) (constant 2) (argument) (refer-global +) (indirect) (shift 3 2) (apply) (assign-global fib) (halt))",
+        "((close 0 57 1 -1) (frame 10) (refer-local 0) (argument) (constant 2) (argument) (constant 2) (argument) (refer-global <) (indirect) (apply) (test 3) (refer-local 0) (jump 43) (frame 17) (frame 10) (refer-local 0) (argument) (constant 1) (argument) (constant 2) (argument) (refer-global -) (indirect) (apply) (argument) (constant 1) (argument) (refer-global fib) (indirect) (apply) (argument) (frame 17) (frame 10) (refer-local 0) (argument) (constant 2) (argument) (constant 2) (argument) (refer-global -) (indirect) (apply) (argument) (constant 1) (argument) (refer-global fib) (indirect) (apply) (argument) (constant 2) (argument) (refer-global +) (indirect) (shift 3 2) (apply) (return 2) (assign-global fib) (halt))",
 
         "(do-compile '(+ 1 (ccc (fn (c) (+ 3 5) (apply (fn () (c (* 8 3))))))))",
         "((frame 52) (constant 1) (argument) (frame 43) (conti 0) (argument) (constant 1) (argument) (close 0 37 1 -1) (frame 10) (constant 3) (argument) (constant 5) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (refer-local 0) (argument) (close 1 17 0 -1) (frame 10) (constant 8) (argument) (constant 3) (argument) (constant 2) (argument) (refer-global *) (indirect) (apply) (argument) (constant 1) (argument) (refer-free 0) (shift 2 1) (apply) (argument) (constant 1) (argument) (refer-global apply) (indirect) (shift 2 2) (apply) (apply) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (halt))"
@@ -719,7 +719,8 @@ describe('VM eval', function(){
       ' (with ((x y) (list (+ a b) (- a b)))' +
       '   (with (z (/ x y))' +
       '     (- a b x y z))))' +
-      ' 3 5)',             -4
+      ' 3 5)',             -4,
+      '((fn (a (o b 10)) (+ a b)) 1)', 11
     );
 
     eval_print_eql(
