@@ -32,6 +32,14 @@ function main(inputs, out) {
     return vm.run();
   }
 
+  function compile_with_evaluate(expr) {
+    var compiled = compile(expr);
+    vm.cleanup();
+    vm.load(compiled);
+    vm.run();
+    return compiled;
+  }
+
   function evaluate_code(code) {
     return evaluate(vm.reader.read(code));
   }
@@ -101,7 +109,8 @@ function main(inputs, out) {
         exprs.push(expr);
       }
       exprs.forEach(function(expr) {
-        var arr = code_list_to_js_arr(compile(expr));
+        process.stderr.write("COMPILING ... " + ArcJS.stringify(expr) + "\n");
+        var arr = code_list_to_js_arr(compile_with_evaluate(expr));
         out.write(JSON.stringify(arr) + ',\n');
       });
       i++;

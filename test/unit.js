@@ -451,11 +451,11 @@ describe('VM eval', function(){
         "(mappend (fn (x) (list (+ 1 x))) '(1 2 3))", "(2 3 4)",
         "(len '(1 2 3))", "3",
         "(uniq)", "%g0",
-        "(pair '())", "nil",
-        "(pair '(a))", "((a))",
-        "(pair '(a b))", "((a b))",
-        "(pair '(a b c))", "((a b) (c))",
-        "(pair '(a b c d))", "((a b) (c d))",
+        "(%pair '())", "nil",
+        "(%pair '(a))", "((a))",
+        "(%pair '(a b))", "((a b))",
+        "(%pair '(a b c))", "((a b) (c))",
+        "(%pair '(a b c d))", "((a b) (c d))",
         "(union is '(a b c) '(b c d))", "(a b c d)",
         "(union is '(a a a b c) '(b c d))", "(a a a b c d)", // true ??
 
@@ -776,11 +776,6 @@ describe('VM eval', function(){
       eval_print_eql('(bound \'xxxx)', 'nil');
       eval_print_eql('(bound \'bound)', 't');
       eval_print_eql('(do (assign xxxx \'a) (bound \'xxxx))', 't');
-    });
-    describe('exact', function() {
-      eval_print_eql('(exact 10)', 't');
-      eval_print_eql('(exact 2.45)', 'nil');
-      eval_print_eql('(exact \'a)', 'nil');
     });
     describe('newstring', function() {
       eval_print_eql('(newstring 5 #\\a)', '"aaaaa"');

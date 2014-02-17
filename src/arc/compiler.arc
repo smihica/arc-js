@@ -1,39 +1,116 @@
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; util
+;;;;;;;;;;;;;;;;;;;;; layer 0
 
-(def set-minus (s1 s2)
-  (if s1
-      (if (mem (car s1) s2)
-          (set-minus (cdr s1) s2)
-          (cons (car s1) (set-minus (cdr s1) s2)))))
+(assign %___macros___ (table))
+(assign %___special_syntax___ (table))
 
-(def set-intersect (s1 s2)
-  (if s1
-      (if (mem (car s1) s2)
-          (cons (car s1) (set-intersect (cdr s1) s2))
-          (set-intersect (cdr s1) s2))))
+;(mac mac (name vars . body)
+;(if body
+;      `(assign ,name (sref %___macros___ (annotate 'mac (fn ,vars ,@body)) ',name))
+;      `(annotate 'mac (fn ,name ,@vars))))
 
-(def dotted-to-proper (l)
-  (if (no l) nil
-      (atom l) (cons l nil)
-      (cons (car l) (dotted-to-proper (cdr l)))))
+(assign mac
+        (sref %___macros___
+              (annotate 'mac
+                        (fn (name vars . body)
+                          (%if body
+                               (list 'assign name (list 'sref '%___macros___ (list 'annotate ''mac (+ (list 'fn vars) body)) (list 'quote name)))
+                               (list 'annotate ''mac (+ (list 'fn name) vars)))))
+              'mac))
 
-(def dotted-pos (lis)
-  ((afn (l n)
-     (if (no l) -1
-         (atom l) n
-         (self (cdr l) (+ n 1))))
-   lis 0))
+;; TODO:
+;; support
+;; - _0 ~ _9 (arg)
+;; - _* (args-all)
+;; - _$ self
+(mac %shortfn (body) (list 'fn (list '_) body))
 
-(def zip (lis1 lis2 . longest-p)
-  (if (or (and (and (acons longest-p) (car longest-p)) (or lis1 lis2))
-          (and lis1 lis2))
-      (cons (car lis1) (cons (car lis2) (zip (cdr lis1) (cdr lis2) (car longest-p))))))
+(mac rfn (name vars . body)
+  (list 'with (list name nil)
+        (list 'assign name (+ (list 'fn vars) body))))
 
-(def dotted (l) (if (acons l) (dotted (cdr l)) l t))
-(def dottify (l) (if (no (cdr l)) (car l) (cons (car l) (dottify (cdr l)))))
-(def undottify (l) (if (acons l) (cons (car l) (undottify (cdr l))) l (cons l nil)))
+(mac afn (vars . body)
+  (+ (list 'rfn 'self vars) body))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(mac if args
+  ((afn (ps)
+     (with (p (car ps))
+       (%if (is (len p) 2)
+            (list '%if (car p) (cadr p) (self (cdr ps)))
+            (%if (is (len p) 1)
+                 (car p)
+                 nil))))
+   (%pair args)))
+
+;; (and 1 nil)
+;; (and nil 1)
+(mac and args
+  (%if (cdr args)
+       (list '%if (car args) (+ (list 'and) (cdr args)) nil)
+       (with (x (car args)) (%if x x nil))))
+
+(mac or args
+  (and args
+       (with (g (uniq))
+         (list 'with (list g (car args))
+               (list '%if g g (+ (list 'or) (cdr args)))))))
+
+(mac let (var val . body)
+  (+ (list 'with (list var val)) body))
+
+(mac def (name vars . body)
+  (list 'assign name (+ (list 'fn vars) body)))
+
+(mac aif args
+  ((afn (ps)
+     (let p (car ps)
+       (if (is (len p) 2)
+           (list 'let 'it (car p)
+                 (list '%if 'it (cadr p)
+                       (self (cdr ps))))
+           (is (len p) 1)
+           (car p))))
+   (%pair args)))
+
+;;;;;;;;;;;;;;;;;;;;; layer 1
+
+(mac caselet (var expr . args)
+  (let ex (afn (args)
+            (if (no (cdr args))
+                (car args)
+                (list 'if (list 'is var (list 'quote (car args)))
+                      (cadr args)
+                      (self (cddr args)))))
+    (list 'let var expr (ex args))))
+
+(mac case (expr . args)
+  (+ (list 'caselet (uniq) expr) args))
+
+(mac reccase (expr . pats)
+  (let plen (- (len pats) 1)
+    (with (f (firstn plen pats)
+           l (nthcdr plen pats))
+      (cons (quote case)
+            (cons (cons (quote car)
+                        (cons expr (quote nil)))
+                  (+
+                    (apply + nil
+                           (map1 (fn (pat)
+                                   (cons (car pat)
+                                         (cons (cons (quote apply)
+                                                     (cons (cons (quote fn) (cdr pat))
+                                                           (cons (cons (quote cdr) (cons expr (quote nil)))
+                                                                 (quote nil))))
+                                               (quote nil))))
+                                 f))
+                    l))))))
+
+(mac each (var expr . body)
+  (with (fname (uniq) l (uniq))
+    (list (list 'rfn fname (list l)
+                (list 'if l
+                      (list 'do (+ (list 'let var (list 'car l)) body)
+                            (list fname (list 'cdr l)))))
+          expr)))
 
 (def find-qq-eval (x)
   (ccc
@@ -87,9 +164,153 @@
         (qq-pair x))
       (list 'quote x)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(mac quasiquote (obj) (expand-qq obj))
 
-(assign %___macros___ (table))
+;;;;;;;;;;;;;;;;;;;;; layer 2 (able to use qq)
+
+(def map1 (f lis)
+  ((afn (lis acc)
+     (if lis
+         (self (cdr lis) (cons (f (car lis)) acc))
+         (nrev acc)))
+   lis nil))
+
+(mac withs (parms . body)
+  (if (no parms)
+      `(do ,@body)
+      `(let ,(car parms) ,(cadr parms)
+         (withs ,(cddr parms) ,@body))))
+
+(mac w/uniq (names . body)
+  (if (acons names)
+    `(with ,(apply + nil
+                   (map1 (fn (n) `(,n (uniq ',n))) names))
+       ,@body)
+    `(let ,names (uniq ',names) ,@body)))
+
+(mac compose args
+  (w/uniq g
+    `(fn ,g
+       ,((afn (fs)
+           (if (cdr fs)
+               (list (car fs) (self (cdr fs)))
+               `(apply ,(if (car fs) (car fs) 'idfn) ,g)))
+         args))))
+
+(def complement (f) (fn args (no (apply f args))))
+
+;; special syntaxes.
+(mac defss (name regex vars . body)
+  `(assign ,name
+           (sref %___special_syntax___
+                 (annotate 'special-syntax (cons ,regex (fn ,vars ,@body)))
+                 ',name)))
+
+(defss compose-ss #/^(.*[^:]):([^:].*)$/ (a b)
+       (+ "(compose " a " " b ")"))
+
+(defss complement-ss #/^\~(.*)$/ (a)
+       (+ "(complement " a ")"))
+
+(defss ssyntax-ss #/^(.*)\.(.*)$/ (a b)
+       (+ "(" a " " b ")"))
+
+(defss ssyntax-with-quote-ss #/^(.*)\!(.*)$/ (a b)
+       (+ "(" a " '" b ")"))
+
+(defss namespace #/^(.*?)::(.*)$/ (a b)
+       (+ "(ns " a " " b ")"))
+
+;; util fns
+(def mem (test seq)
+  (if (isa test 'fn)
+      ((afn (seq)
+         (if seq
+             (if (test (car seq)) seq
+                 (self (cdr seq)))))
+       seq)
+      (%mem test seq)))
+
+(def pos (test seq)
+  (if (isa test 'fn)
+      ((afn (seq i)
+         (if seq
+             (if (test (car seq)) i
+                 (self (cdr seq) (+ i 1)))))
+       seq 0)
+      (%pos test seq)))
+
+(def union (test lis1 lis2)
+  (if (is test is) (%union test lis1 lis2)
+      t nil ;;;;;;;;;;; TODO !!!!!!!!!!!!!!!
+      ))
+
+(def map (f . seqs)
+  (if (mem [isa _ 'string] seqs)
+      (withs (n   (apply min (map len seqs))
+              new (newstring n))
+        ((afn (i)
+           (if (is i n)
+               new
+               (do (sref new (apply f (map [_ i] seqs)) i)
+                   (self (+ i 1)))))
+         0))
+
+      (no (cdr seqs))
+      (map1 f (car seqs))
+
+      ((afn (seqs)
+         (if (mem no seqs)
+             nil
+             (cons (apply f (map1 car seqs))
+                   (self (map1 cdr seqs)))))
+       seqs)))
+
+(def mappend (f . args) (apply + nil (apply map f args)))
+
+(def flat (lis)
+  (if (is (type lis) 'cons) (mappend flat lis)
+      lis                   (cons lis nil)))
+
+(def keep (f lis)
+  (mappend [if (f _) (cons _ nil)] lis))
+
+;;;;;;;;;;;;;;;;;;;;; layer 3
+
+(def set-minus (s1 s2)
+  (if s1
+      (if (%mem (car s1) s2)
+          (set-minus (cdr s1) s2)
+          (cons (car s1) (set-minus (cdr s1) s2)))))
+
+(def set-intersect (s1 s2)
+  (if s1
+      (if (%mem (car s1) s2)
+          (cons (car s1) (set-intersect (cdr s1) s2))
+          (set-intersect (cdr s1) s2))))
+
+(def dotted-to-proper (l)
+  (if (no l) nil
+      (atom l) (cons l nil)
+      (cons (car l) (dotted-to-proper (cdr l)))))
+
+(def dotted-pos (lis)
+  ((afn (l n)
+     (if (no l) -1
+         (atom l) n
+         (self (cdr l) (+ n 1))))
+   lis 0))
+
+(def zip (lis1 lis2 . longest-p)
+  (if (or (and (and (acons longest-p) (car longest-p)) (or lis1 lis2))
+          (and lis1 lis2))
+      (cons (car lis1) (cons (car lis2) (zip (cdr lis1) (cdr lis2) (car longest-p))))))
+
+(def dotted (l) (if (acons l) (dotted (cdr l)) l t))
+(def dottify (l) (if (no (cdr l)) (car l) (cons (car l) (dottify (cdr l)))))
+(def undottify (l) (if (acons l) (cons (car l) (undottify (cdr l))) l (cons l nil)))
+
+;;;;;;;;;;;;;;;;;;;;; layer 4
 
 (def macex1 (x)
   (aif (and (is (type x) 'cons) (ref %___macros___ (car x)))
@@ -137,7 +358,7 @@
                 (map1 [%macex _ e] x)))
     x))
 
-(def macex (x) (%macex x nil))
+(def macex (x . igns) (%macex x igns))
 
 (def %%complex-args (args ra)
   (if args
@@ -180,143 +401,6 @@
           (+ (%complex-args-get-var (cdr args)) xs))
         (err (+ "Can't understand vars list" args)))))
 
-(mac mac (name vars . body)
-  (if body
-      `(assign ,name (sref %___macros___ (annotate 'mac (fn ,vars ,@body)) ',name))
-      `(annotate 'mac (fn ,name ,@vars))))
-
-(mac caselet (var expr . args)
-  (let ex (afn (args)
-            (if (no (cdr args))
-                (car args)
-                `(if (is ,var ',(car args))
-                     ,(cadr args)
-                     ,(self (cddr args)))))
-    `(let ,var ,expr ,(ex args))))
-
-(mac case (expr . args)
-  `(caselet ,(uniq) ,expr ,@args))
-
-(mac reccase (expr . pats)
-  (let plen (- (len pats) 1)
-    (with (f (firstn plen pats)
-           l (nthcdr plen pats))
-      `(case (car ,expr)
-         ,@(+ (mappend
-                (fn (pat) `(,(car pat) (apply (fn ,@(cdr pat)) (cdr ,expr))))
-                f)
-              l)))))
-
-(mac each (var expr . body)
-  (with (fname (uniq) l (uniq))
-    `((rfn ,fname (,l)
-        (if ,l
-            (do (let ,var (car ,l) ,@body)
-                (,fname (cdr ,l)))))
-      ,expr)))
-
-;; TODO:
-;; support
-;; - _0 ~ _9 (arg)
-;; - _* (args-all)
-;; - _$ self
-(mac %shortfn (body) `(fn (_) ,body))
-
-(mac rfn (name vars . body)
-     `(let ,name nil
-        (assign ,name (fn ,vars ,@body))))
-
-(mac afn (vars . body)
-     `(rfn self ,vars ,@body))
-
-(mac quasiquote (obj)
-     (expand-qq obj))
-
-(mac if args
-  ((afn (ps)
-     (let p (car ps)
-       (if (is (len p) 2)
-           `(%if ,(car p) ,(cadr p) ,(self (cdr ps)))
-           (is (len p) 1) (car p))))
-   (%pair args)))
-
-(mac and args
-  (if (cdr args)
-      `(if ,(car args) (and ,@(cdr args)))
-      (or (car args) t)))
-
-(mac or args
-  (and args
-       (let g (uniq)
-         `(let ,g ,(car args)
-            (if ,g ,g (or ,@(cdr args)))))))
-
-(mac let (var val . body)
-  `(with (,var ,val) ,@body))
-
-(mac def (name vars . body)
-  `(assign ,name (fn ,vars ,@body)))
-
-(mac aif args
-  ((afn (ps)
-     (let p (car ps)
-       (if (is (len p) 2)
-           `(let it ,(car p)
-              (%if it ,(cadr p)
-                   ,(self (cdr ps))))
-           (is (len p) 1) (car p))))
-   (%pair args)))
-
-(mac withs (parms . body)
-  (if (no parms)
-      `(do ,@body)
-      `(let ,(car parms) ,(cadr parms)
-         (withs ,(cddr parms) ,@body))))
-
-(mac w/uniq (names . body)
-  (if (acons names)
-    `(with ,(apply + nil
-                   (map1 (fn (n) `(,n (uniq ',n))) names))
-       ,@body)
-    `(let ,names (uniq ',names) ,@body)))
-
-(mac compose args
-  (w/uniq g
-    `(fn ,g
-       ,((afn (fs)
-           (if (cdr fs)
-               (list (car fs) (self (cdr fs)))
-               `(apply ,(if (car fs) (car fs) 'idfn) ,g)))
-         args))))
-
-(def complement (f) (fn args (no (apply f args))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(assign %___special_syntax___ (table))
-
-(mac defss (name regex vars . body)
-  `(assign ,name
-           (sref %___special_syntax___
-                 (annotate 'special-syntax (cons ,regex (fn ,vars ,@body)))
-                 ',name)))
-
-(defss compose-ss #/^(.*[^:]):([^:].*)$/ (a b)
-       (+ "(compose " a " " b ")"))
-
-(defss complement-ss #/^\~(.*)$/ (a)
-       (+ "(complement " a ")"))
-
-(defss ssyntax-ss #/^(.*)\.(.*)$/ (a b)
-       (+ "(" a " " b ")"))
-
-(defss ssyntax-with-quote-ss #/^(.*)\!(.*)$/ (a b)
-       (+ "(" a " '" b ")"))
-
-(defss namespace #/^(.*?)::(.*)$/ (a b)
-       (+ "(ns " a " " b ")"))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def compile-lookup-let (x let-e n return-let)
   (if let-e

@@ -32,27 +32,47 @@ var Table = classify("Table", {
       return type_name + ':' + key;
     }
   },
-  property: { src: null, n: 0 },
+  property: { src: null, key_src: null, n: 0 },
   method: {
     init: function() {
       this.src = {};
+      this.key_src = {};
     },
     put: function(key, val) {
-      key = Table.keying(key);
-      if (!(key in this.src)) this.n++;
-      this.src[key] = val;
+      var skey = Table.keying(key);
+      if (!(skey in this.src)) this.n++;
+      this.src[skey] = val;
+      this.key_src[skey] = key;
     },
     get: function(key) {
-      key = Table.keying(key);
-      return this.src[key] || nil;
+      var skey = Table.keying(key);
+      return this.src[skey] || nil;
     },
     rem: function(key) {
-      key = Table.keying(key);
-      if (key in this.src) {
+      var skey = Table.keying(key);
+      if (skey in this.src) {
         this.n--;
-        delete this.src[key];
+        delete this.src[skey];
+        delete this.key_src[skey];
       }
       return nil;
+    },
+    dump_to_list: function() {
+      var rt = nil;
+      for (var k in this.src) {
+        var key = this.key_src[k];
+        var val = this.src[k];
+        rt = cons(cons(key, cons(val, nil)), rt);
+      }
+      return rt;
+    },
+    load_from_list: function(l) {
+      while (l !== nil) {
+        var c = car(l);
+        this.put(car(c), cadr(c));
+        l = cdr(l);
+      }
+      return this;
     },
     stringify_content: function() {
       return '()'; // TODO: mendokuse.

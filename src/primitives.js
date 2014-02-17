@@ -110,6 +110,9 @@ var coerce = function(obj, to_type, args) {
       return rt;
     case 'cons':
       return obj;
+    case 'table':
+      var rt = new Table();
+      return rt.load_from_list(obj);
     }
     break;
   case 'sym':
@@ -120,6 +123,12 @@ var coerce = function(obj, to_type, args) {
       return obj.name;
     case 'sym':
       return obj;
+    }
+    break;
+  case 'table':
+    switch(to_type) {
+    case 'cons':
+      return obj.dump_to_list();
     }
     break;
   }
@@ -262,7 +271,24 @@ var primitives = (function() {
         rt = cons(arguments[i], rt);
       return rt;
     }],
+    'nthcdr': [{dot: -1}, function(n, lis) {
+      for (;0 < n;n--) lis = cdr(lis);
+      return lis;
+    }],
+    'consif': [{dot: -1}, function(n, lis) {
+      return (n === nil) ? lis : cons(n, lis);
+    }],
+    'firstn': [{dot: -1}, function(n, lis) {
+      var rt = nil;
+      while (lis !== nil && 0 < n) {
+        rt = cons(car(lis), rt);
+        lis = cdr(lis);
+        n--;
+      }
+      return nreverse(rt)
+    }],
     'len': [{dot: -1}, function(lis) {
+      if (typeof lis === 'string') return lis.length;
       var i = 0;
       while (lis !== nil) {
         i++; lis = cdr(lis);
@@ -320,6 +346,16 @@ var primitives = (function() {
       if (arguments[0] === nil || type(arguments[0]) === s_cons)
         return primitives['%list-append'].apply(this, arguments);
       for (var i=0; i<l; i++) rt += arguments[i];
+      return rt;
+    }],
+    'min': [{dot: 0}, function($$) {
+      var l = arguments.length, rt = Infinity;
+      for (var i=l-1; 0<=i; i--) rt = Math.min(rt, arguments[i]);
+      return rt;
+    }],
+    'max': [{dot: 0}, function($$) {
+      var l = arguments.length, rt = -Infinity;
+      for (var i=l-1; 0<=i; i--) rt = Math.max(rt, arguments[i]);
       return rt;
     }],
     '%list-append': [{dot: 0}, function($$) {
@@ -382,37 +418,30 @@ var primitives = (function() {
     'even': [{dot: -1}, function(x) {
       return (x % 2) ? nil : t;
     }],
+    'mod': [{dot: -1}, function(x, y) {
+      return (x % y);
+    }],
     'no': [{dot: -1}, function(x) {
       return (x === nil) ? t : nil;
     }],
     'is': [{dot: -1}, function(a, b) {
       return (a === b) ? t : nil;
     }],
-    'mem': [{dot: -1}, function(test, lis) {
-      if (lis === nil) return nil;
-      if (type(test).name === 'fn') {
-        return new Call('%mem-fn', [test, lis]);
-      } else {
-        while (lis !== nil) {
-          if (car(lis) === test) return lis;
-          lis = cdr(lis);
-        }
-        return nil;
+    '%mem': [{dot: -1}, function(test, lis) {
+      while (lis !== nil) {
+        if (car(lis) === test) return lis;
+        lis = cdr(lis);
       }
+      return nil;
     }],
-    'pos': [{dot: -1}, function(test, lis) {
-      if (lis === nil) return nil;
-      if (type(test).name === 'fn') {
-        return new Call('%pos-fn', [test, lis]);
-      } else {
-        var i = 0;
-        while (lis !== nil) {
-          if (car(lis) === test) return i;
-          lis = cdr(lis);
-          i++;
-        }
-        return nil;
+    '%pos': [{dot: -1}, function(test, lis) {
+      var i = 0;
+      while (lis !== nil) {
+        if (car(lis) === test) return i;
+        lis = cdr(lis);
+        i++;
       }
+      return nil;
     }],
     'atom': [{dot: -1}, function(x) {
       return (type(x).name === 'cons') ? nil : t;
@@ -436,18 +465,14 @@ var primitives = (function() {
       }
       return nreverse(rt);
     }],
-    'union': [{dot: -1}, function(test, lis1, lis2) {
-      if (test === primitives['is']) {
-        var arr = list_to_javascript_arr(lis1);
-        while (lis2 !== nil) {
-          var ca = car(lis2);
-          if (arr.indexOf(ca) < 0) arr.push(ca);
-          lis2 = cdr(lis2);
-        }
-        return javascript_arr_to_list(arr);
-      } else {
-        return new Call('%union-fn', [test, lis1, lis2]);
+    '%union': [{dot: -1}, function(test, lis1, lis2) {
+      var arr = list_to_javascript_arr(lis1);
+      while (lis2 !== nil) {
+        var ca = car(lis2);
+        if (arr.indexOf(ca) < 0) arr.push(ca);
+        lis2 = cdr(lis2);
       }
+      return javascript_arr_to_list(arr);
     }],
     'dedup': [{dot: -1}, function(lis) {
       var arr = list_to_javascript_arr(lis);
