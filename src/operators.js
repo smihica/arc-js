@@ -16,6 +16,7 @@
  "exit-let",
  "assign-let",
  "assign-local",
+ "assign-free",
  "assign-global",
  "box",
  "indirect",

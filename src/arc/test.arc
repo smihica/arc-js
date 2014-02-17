@@ -22,8 +22,8 @@
   ((compose car cdr) '(a b))          'b
   (assoc 'a '((b a) (c d) (a b)))     '(a b)
   (assoc 'x '((a b) (2 10) ("x" y)))  nil
-  (alref 'a '((b a) (c d) (a b)))     'b
-  (alref 'x '((a b) (2 10) ("x" y)))  nil
+  (alref '((b a) (c d) (a b)) 'a)     'b
+  (alref '((a b) (2 10) ("x" y)) 'x)  nil
   (join '(a b) nil '(c d))            '(a b c d)
   (join nil)                          nil
   (join)                              nil
