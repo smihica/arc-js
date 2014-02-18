@@ -294,3 +294,35 @@
 
       (forlen i seq
               (func seq.i))))
+
+(mac each (var expr . body)
+  `(walk ,expr (fn (,var) ,@body)))
+
+; ; old definition of 'each. possibly faster, but not extendable.
+; (mac each (var expr . body)
+;   (w/uniq (gseq gf gv)
+;     `(let ,gseq ,expr
+;        (if (alist ,gseq)
+;             ((rfn ,gf (,gv)
+;                (when (acons ,gv)
+;                  (let ,var (car ,gv) ,@body)
+;                  (,gf (cdr ,gv))))
+;              ,gseq)
+;            (isa ,gseq 'table)
+;             (maptable (fn ,var ,@body)
+;                       ,gseq)
+;             (for ,gv 0 (- (len ,gseq) 1)
+;               (let ,var (,gseq ,gv) ,@body))))))
+
+; (nthcdr x y) = (cut y x).
+
+(def cut (seq start (o end))
+  (let end (if (no end)   (len seq)
+               (< end 0)  (+ (len seq) end)
+               end)
+    (if (isa seq 'string)
+      (let s2 (newstring (- end start))
+        (for i 0 (- end start 1)
+          (= (s2 i) (seq (+ start i))))
+        s2)
+      (firstn (- end start) (nthcdr start seq)))))

@@ -331,14 +331,32 @@ var VM = classify("VM", {
           break;
         case 'apply':
           var fn = this.a;
-          // _nest.push('  ');
-          // console.log(_nest.join('') + "apply: " + stringify(fn));
+          var fn_type = type(fn);
+          if (fn_type !== s_fn) {
+            var tfs = this.global['%___type_functions___'];
+            var tfn;
+            if (tfs && (tfn = tfs.v.get(fn_type)) !== nil) {
+              tfn = rep(tfn);
+              // get original args len from the top of the stack..
+              var vlen = this.stack.index(this.s, 0);
+              // added fn as an argument.
+              for (var k=0; k<vlen; k++) {
+                this.stack.index_set(this.s, k, this.stack.index(this.s, k+1));
+              }
+              this.stack.index_set(this.s, k, fn);
+              // restore args len + 1 into the top of the stack.
+              this.s = this.stack.push(vlen + 1, this.s);
+              fn = tfn;
+            } else {
+              throw new Error('Cannot invoke the type "' + fn_type.name + '". Please define the type function.');
+            }
+          }
           var vlen = this.stack.index(this.s, 0);
           var closurep = (fn instanceof Closure);
           var dotpos = fn.dotpos;
           // checking arglen.
           if ((dotpos < 0 && fn.arglen !== vlen) || (vlen < dotpos)) {
-            throw new Error('error: ' + (closurep ? fn.name || 'nameless' : fn.prim_name) + ': arity mismatch;\n' +
+            throw new Error((closurep ? fn.name || 'nameless' : fn.prim_name) + ': arity mismatch;\n' +
                             'the expected number of arguments does not match the given number\n' +
                             'expected: ' + ((-1 < dotpos) ? ('>= ' + dotpos) : fn.arglen) + '\n' +
                             'given: ' + vlen);
@@ -364,7 +382,7 @@ var VM = classify("VM", {
             this.f = this.s;
             this.l = this.s;
           } else {
-            this.a = this.a.apply(this, this.stack.range_get(this.s - 1 - vlen, this.s - 2));
+            this.a = fn.apply(this, this.stack.range_get(this.s - 1 - vlen, this.s - 2));
             if (this.a instanceof Call) {
               var code = this.a.codegen();
               this.s -= (vlen + 1);

@@ -272,7 +272,7 @@ var primitives = (function() {
       return rt;
     }],
     'nthcdr': [{dot: -1}, function(n, lis) {
-      for (;0 < n;n--) lis = cdr(lis);
+      for (;0 < n && lis !== nil;n--) lis = cdr(lis);
       return lis;
     }],
     'consif': [{dot: -1}, function(n, lis) {
@@ -486,29 +486,40 @@ var primitives = (function() {
       return new Table();
     }],
     'ref': [{dot: -1}, function(obj, idx) {
-      var val;
-      switch (type(obj).name) {
+      var val, typename = type(obj).name;
+      switch (typename) {
       case 'string':
+        if (idx < 0 || (obj.length - 1) < idx)
+          throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
+        return new Char(obj[idx]);
       case 'cons':
-        throw new Error('todo');
-        break;
+        for (var iter = obj, i = idx; 0 < i; i--) {
+          if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
+          iter = cdr(iter);
+        }
+        return car(iter);
       case 'table':
-        val = obj.get(idx);
-        break;
+        return obj.get(idx);
       }
-      return val;
+      throw new Error('(ref obj idx) supports only cons or string or table. but ' + typename + ' given.');
     }],
     'sref': [{dot: -1}, function(obj, val, idx) {
       switch (type(obj).name) {
       case 'string':
+        throw new Error('TODO: mutable string is not supported yet.');
+        return val;
       case 'cons':
-        throw new Error('todo');
-        break;
+        for (var iter = obj, i = idx; 0 < i; i--) {
+          if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
+          iter = cdr(iter);
+        }
+        scar(iter, val);
+        return val;
       case 'table':
         obj.put(idx, val);
-        break;
+        return val;
       }
-      return val;
+      throw new Error('(sref obj val idx) supports only cons or string or table. but ' + typename + ' given.');
     }],
     'annotate': [{dot: -1}, function(tag, obj) {
       if (type(tag).name !== 'sym')
@@ -522,7 +533,9 @@ var primitives = (function() {
     'bound': [{dot: -1}, function(symbol) {
       return (symbol.name in this.global) ? t : nil;
     }],
-    'newstring': [{dot: -1}, function(n, c) {
+    'newstring': [{dot: 1}, function(n, $$) {
+      var c = new Char("\u0000");
+      if (1 < arguments.length) c = arguments[1];
       var nt = type(n).name, ct = type(c).name;
       if ((nt === 'int' || nt === 'num') && ct === 'char') {
         var rt = '';
@@ -607,17 +620,18 @@ var primitives = (function() {
   return rt;
 })();
 
-var cons  = primitives.cons;
-var list  = primitives.list;
-var car   = primitives.car;
-var scar  = primitives.scar;
-var cdr   = primitives.cdr;
-var scdr  = primitives.scdr;
-var caar  = primitives.caar;
-var cadr  = primitives.cadr;
-var cddr  = primitives.cddr;
+var cons     = primitives.cons;
+var list     = primitives.list;
+var car      = primitives.car;
+var scar     = primitives.scar;
+var cdr      = primitives.cdr;
+var scdr     = primitives.scdr;
+var caar     = primitives.caar;
+var cadr     = primitives.cadr;
+var cddr     = primitives.cddr;
+var nthcdr   = primitives.nthcdr;
 var nreverse = primitives.nrev;
-var rep = primitives.rep;
+var rep      = primitives.rep;
 var annotate = primitives.annotate;
 
 ArcJS.nil = nil;

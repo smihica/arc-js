@@ -181,16 +181,28 @@ var Reader = classify("Reader", {
       delimiter = delimiter || '"';
       type = type || 'string';
       var str = '', esc = false;
+      var escaped_char_tbl = {n: '\n', r: '\r', s: '\s', t: '\t'};
       while(this.i < this.slen) {
         var c = this.str[this.i++];
         // TODO more Escape patterns.
         if (esc) {
           esc = false;
-          var escaped_char = (({n: '\n', r: '\r', s: '\s', t: '\t'})[c]);
+          var escaped_char = ((escaped_char_tbl)[c]);
           if (escape_only_delimiter && !escaped_char && c !== delimiter) {
             str += '\\' + c;
           } else {
-            str += escaped_char || c;
+            if (escaped_char) {
+              str += escaped_char;
+            } else if (c === 'u' &&
+                       this.i + 3 < this.slen &&
+                       this.str.slice(this.i, this.i + 4).match(/^([0-9a-fA-F]{4})$/))
+            {
+              var n = parseInt(RegExp.$1, 16);
+              str += String.fromCharCode(n);
+              this.i += 4;
+            } else {
+              str += c;
+            }
           }
           continue;
         } else {

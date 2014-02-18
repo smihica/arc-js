@@ -2,6 +2,7 @@
 
 (assign %___macros___ (table))
 (assign %___special_syntax___ (table))
+(assign %___type_functions___ (table))
 
 ;(mac mac (name vars . body)
 ;(if body
@@ -104,14 +105,6 @@
                                  f))
                     l))))))
 
-(mac each (var expr . body)
-  (with (fname (uniq) l (uniq))
-    (list (list 'rfn fname (list l)
-                (list 'if l
-                      (list 'do (+ (list 'let var (list 'car l)) body)
-                            (list fname (list 'cdr l)))))
-          expr)))
-
 (def find-qq-eval (x)
   (ccc
     (fn (c)
@@ -121,7 +114,7 @@
                   x
                   (unquote (obj) (c t))
                   (unquote-splicing (obj) (c t))
-                  (each x1 x (self x1)))))
+                  (do (map1 self x) nil))))
        x))))
 
 (def qq-pair (x)
@@ -199,7 +192,7 @@
 
 (def complement (f) (fn args (no (apply f args))))
 
-;; special syntaxes.
+;; special syntax.
 (mac defss (name regex vars . body)
   `(assign ,name
            (sref %___special_syntax___
@@ -220,6 +213,17 @@
 
 (defss namespace #/^(.*?)::(.*)$/ (a b)
        (+ "(ns " a " " b ")"))
+
+;; type functions.
+(mac deftf (type vars . body)
+  `(assign ,(coerce (+ "%___" (coerce type 'string) "_type_fn___") 'sym)
+           (sref %___type_functions___
+                 (annotate 'type-function (fn ,vars ,@body))
+                 ',type)))
+
+(deftf cons   (c n)   (ref c n))
+(deftf table  (tbl k) (ref tbl k))
+(deftf string (str n) (ref str n))
 
 ;; util fns
 (def mem (test seq)

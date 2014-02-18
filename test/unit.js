@@ -83,6 +83,7 @@ describe('Reader', function(){
       rex('"ab\\rcd"').equal('ab\rcd');
       rex('"ab\\scd"').equal('ab\scd');
       rex('"ab\\tcd"').equal('ab\tcd');
+      rex('"\\u000A"').equal('\n');
       // TODO more escape patterns.
     });
     it('char', function() {
@@ -533,8 +534,8 @@ describe('VM eval', function(){
         "(macex '(reccase (car x) (a (x) (+ x x)) (b (y) (- y y)) (c x)))",
         "(with (%g2 (car (car x))) (%if (is %g2 (quote a)) (apply (fn (x) (+ x x)) (cdr (car x))) (%if (is %g2 (quote b)) (apply (fn (y) (- y y)) (cdr (car x))) (c x))))",
 
-        "(macex '(each a (cdr list) (prn a) (+ 1 p)))",
-        "((with (%g3 nil) (assign %g3 (fn (%g4) (%if %g4 (do (with (a (car %g4)) (do (prn a) (+ 1 p))) (%g3 (cdr %g4))) nil)))) (cdr list))",
+//        "(macex '(each a (cdr list) (prn a) (+ 1 p)))",
+//        "((with (%g3 nil) (assign %g3 (fn (%g4) (%if %g4 (do (with (a (car %g4)) (do (prn a) (+ 1 p))) (%g3 (cdr %g4))) nil)))) (cdr list))",
 
         "(macex '(%shortfn (+ (car _) 10)))",
         "(fn (_) (+ (car _) 10))",
@@ -575,7 +576,7 @@ describe('VM eval', function(){
         "(%if a (%if b c nil) nil)",
 
         "(macex '(or a b c))",
-        "(with (%g5 a) (%if %g5 %g5 (with (%g6 b) (%if %g6 %g6 (with (%g7 c) (%if %g7 %g7 nil))))))",
+        "(with (%g3 a) (%if %g3 %g3 (with (%g4 b) (%if %g4 %g4 (with (%g5 c) (%if %g5 %g5 nil))))))",
 
         "(macex '(with (x a y b) x y (+ x y)))",
         "(with (x a y b) (do x y (+ x y)))",
