@@ -15,7 +15,7 @@ __An Arc implementation in web browser__
 - special syntax (:~.!)
 - user defined special syntax (defss)
 - namespace (ns)
-- object default function (...)
+- type default function (deftf)
 - complex-args
 
 ### Not Yet (going to support)
