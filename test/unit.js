@@ -429,6 +429,15 @@ describe('VM eval', function(){
     );
   });
 
+  describe('type-functions', function() {
+    eval_print_eql(
+      "('(1 2 3) 1)", "2",
+      "(\"abcd\" 0)", "#\\a",
+      "((let tbl (table) (sref tbl 'v 'k) tbl) 'k)", "v",
+      "((let tbl (table) (sref tbl 'v 'k) tbl) 'x)", "nil"
+    );
+  });
+
   describe('compiler', function() {
     describe('micro utils', function() {
       eval_print_eql(
