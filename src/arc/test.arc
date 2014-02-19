@@ -123,5 +123,72 @@
   (let s '(1 2 3) (swap (s 0) (s 2)) s) '(3 2 1)
   (let s '(1 2 3) (rotate (s 0) (s 1) (s 2)) s) '(2 3 1)
   (let s '(1 2 3) (list (pop s) s)) '(1 (2 3))
+  (adjoin 'x '(a b c)) '(x a b c)
+  (adjoin 'x '(a b c x)) '(a b c x)
+  (adjoin '(a b c) '((d e f) g)) '((a b c) (d e f) g)
+  (adjoin '(a b c) '((d e f) g (a b c))) '((d e f) g (a b c))
+  (adjoin 'a nil) '(a)
+  (let s '(a b c) (pushnew 'd s) s) '(d a b c)
+  (let s '(a b c) (pushnew 'b s) s) '(a b c)
+  (let s '((a) (b) (c)) (pushnew '(b) s is) s) '((b) (a) (b) (c))
+  (let s '(a b c) (pull 'b s) s) '(a c)
+  (let s '(a b c) (pull 'x s) s) '(a b c)
+  (let s '(a b c) (togglemem 'x s) s) '(x a b c)
+  (let s '(a b c) (togglemem 'a s) s) '(b c)
+  (let x '(0) (++ (car x)) x) '(1)
+  (with (x 0 y '(1 2)) (++ x) (++ x) (++ (cadr y)) (++ (cadr y)) (list x y)) '(2 (1 4))
+  (let x 1 (zap + x 1) (zap + x 1) x) 3
+  (let x '(1) (zap + (car x) 1) (zap + (car x) 1) x) '(3)
+  (do (wipe x y z) (list x y z)) '(nil nil nil)
+  (do (set x y z) (list x y z)) '(t t t)
+  (let s '(nil nil 1) (iflet x (s 0) (+ x 1) (s 1) (+ x 1) (s 2) (+ x 1))) 2
+  (whenlet x 1 (+ x x)) 2
+  (awhen (+ 1 1) it) 2
+  (with (s '(1 2 3) r nil) (whilet x s (push x r) (= s (cdr x))) r) '((3) (2 3) (1 2 3))
+  (aand (+ 1 1) (+ 1 it) (+ 1 it)) 4
+  (aand (+ 1 1) (+ 1 it) (+ 1 it) (is it 10)) nil
+  (accum acc (for i 0 5 (acc i))) '(0 1 2 3 4 5)
+  (let x 256 (drain (= x (/ x 2)) 1)) '(128 64 32 16 8 4 2)
+
+  ;; primitives
+  (nconc '(1 2 3) '(2 3 4)) '(1 2 3 2 3 4)
+  (with (x '(1 2 3) y '(4 5 6)) (list (is (nconc x y) x) x)) '(t (1 2 3 4 5 6))
+  (nconc '(1 2) nil '(3 4)) '(1 2 3 4)
+  (nconc nil) nil
+  (nconc nil nil nil) nil
+  (nconc) nil
+  (nconc nil '(1 2)) '(1 2)
+  (nconc nil '(1 2) nil '(3 4)) '(1 2 3 4)
+  (with (x '(1) y '(2) z '(3)) (list (nconc nil x nil y nil z) x y z)) '((1 2 3) (1 2 3) (2 3) (3))
+
+  (flat '(1 2 (3 4 nil (5 6 7) ((8))) 9))    '(1 2 3 4 5 6 7 8 9)
+  (flat '(1 2 (3 4 nil (5 6 7) ((8))) 9) 10) '(1 2 3 4 5 6 7 8 9)
+  (flat '(1 2 (3 4 nil (5 6 7) ((8))) 9) 3)  '(1 2 3 4 5 6 7 8 9)
+  (flat '(1 2 (3 4 nil (5 6 7) ((8))) 9) 2)  '(1 2 3 4 5 6 7 (8) 9)
+  (flat '(1 2 (3 4 nil (5 6 7) ((8))) 9) 1)  '(1 2 3 4 nil (5 6 7) ((8)) 9)
+  (flat '(1 2 (3 4 nil (5 6 7) ((8))) 9) 0)  '(1 2 (3 4 nil (5 6 7) ((8))) 9)
+  (flat '(nil 1 2 nil 3 ((nil))))            '(1 2 3)
+  (flat '((((((nil)))))))                    nil
+  (flat nil)                                 nil
+  (flat 'a)                                  '(a)
+
+  ;(rand-string 10)
+  ;(rand-string 20 "abc")
+  ;(rand-string 0) ""
+
+  (let s nil (on x '(1 2 3) (push (list index x) s)) s) '((2 3) (1 2) (0 1))
+  (let s nil (on x "abc" (push (list index x) s)) s)    '((2 #\c) (1 #\b) (0 #\a))
+  (best > '(3 1 5 2 4))                                 5
+  (most len '("hoge" "fuga" "moemoe"))                  "moemoe"
+
+  (insert-sorted > 5 '(10 3 1))                         '(10 5 3 1)
+  (insert-sorted > 5 '(10 5 1))                         '(10 5 5 1)
+
+  (let x '(2 4 6) (insort < 3 x) x)                     '(2 3 4 6)
+
+  (reinsert-sorted > 5 '(10 3 1))                       '(10 5 3 1)
+  (reinsert-sorted > 5 '(10 5 1))                       '(10 5 1)
+
+  (let x '(2 4 6) (insortnew < 3 x) x)                  '(2 3 4 6)
 
   )

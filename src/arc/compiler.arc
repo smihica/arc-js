@@ -235,15 +235,6 @@
        seq)
       (%mem test seq)))
 
-(def pos (test seq)
-  (if (isa test 'fn)
-      ((afn (seq i)
-         (if seq
-             (if (test (car seq)) i
-                 (self (cdr seq) (+ i 1)))))
-       seq 0)
-      (%pos test seq)))
-
 (def union (test lis1 lis2)
   (if (is test is) (%union test lis1 lis2)
       t nil ;;;;;;;;;;; TODO !!!!!!!!!!!!!!!
@@ -269,10 +260,6 @@
        seqs)))
 
 (def mappend (f . args) (apply + nil (apply map f args)))
-
-(def flat (lis)
-  (if (is (type lis) 'cons) (mappend flat lis)
-      lis                   (cons lis nil)))
 
 (def keep (f lis)
   (mappend [if (f _) (cons _ nil)] lis))
@@ -407,16 +394,16 @@
 (def compile-lookup-let (x let-e n return-let)
   (if let-e
       (let l (car let-e)
-        (aif (pos x l)
+        (aif (%pos x l)
              (return-let n it)
              (compile-lookup-let x (cdr let-e) (+ 1 n) return-let)))))
 
 (def compile-lookup (x e next return-let return-local return-free return-global)
   (aif (compile-lookup-let x (car e) 0 return-let)
        it
-       (aif (pos x (cadr e))
+       (aif (%pos x (cadr e))
             (return-local it)
-            (aif (pos x (cddr e))
+            (aif (%pos x (cddr e))
                  (return-free it)
                  (return-global x)))))
 

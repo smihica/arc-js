@@ -138,15 +138,20 @@ var Reader = classify("Reader", {
 
     read_number: function() {
       var tok = this.read_thing();
+      var p;
       if (tok.length === 0) return Reader.EOF;
       if (tok === '.') return Reader.DOT;
-      if (tok === '+' || tok === '-') return this.make_symbol(tok);
+      if (tok === '+' || tok === '-')
+        return this.make_symbol(tok);
+      if ((p = (tok[0] === '+')) || tok[0] === '-') {
+        var body = tok.slice(1);
+        if (body === 'inf.0') return p ? Infinity : -Infinity;
+        if (body.match(/[^0-9i.]/)) return this.make_symbol(tok);
+      }
       return this.make_number(tok);
     },
 
     make_number: function(tok) {
-      if (tok === '+inf.0')      return Infinity;
-      else if (tok === '-inf.0') return -Infinity;
       var n = parseFloat(tok);
       // TODO flaction, imagine, +pattern.
       if (n === NaN) throw new Error("parsing failed the number " + tok);

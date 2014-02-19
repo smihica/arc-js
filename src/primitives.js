@@ -118,7 +118,7 @@ var coerce = function(obj, to_type, args) {
   case 'sym':
     switch(to_type) {
     case 'string':
-      if (obj === nil) return "nil";
+      if (obj === nil) return "";
       if (obj === t)   return "t";
       return obj.name;
     case 'sym':
@@ -157,12 +157,32 @@ var type = function(x) {
   }
 };
 
+var flat_iter = function(lis, max_depth) {
+  var rt = nil;
+  if (max_depth < 1) return reverse(lis);
+  while (lis !== nil) {
+    var x = car(lis);
+    if (x !== nil) {
+      if (type(x) === s_cons) {
+        var deeper = flat_iter(x, max_depth - 1);
+        rt = append(deeper, rt);
+      }
+      else rt = cons(x, rt);
+    }
+    lis = cdr(lis);
+  }
+  return rt;
+};
+
 // use decycle from https://raw.github.com/douglascrockford/JSON-js/master/cycle.js
 include("../lib/json/cycle.js");
 var stringify = function(x) {
   var type_name = type(x).name;
   switch (type_name) {
   case 'int':
+    if (x === Infinity)  return '+inf.0';
+    if (x === -Infinity) return '-inf.0';
+    break;
   case 'num':
   case 'string':
     break;
@@ -275,8 +295,24 @@ var primitives = (function() {
       for (;0 < n && lis !== nil;n--) lis = cdr(lis);
       return lis;
     }],
+    'lastcons': [{dot: -1}, function(lis) {
+      var rt = lis;
+      while (type(lis) === s_cons) {
+        rt = lis;
+        lis = cdr(lis);
+      }
+      return rt;
+    }],
     'consif': [{dot: -1}, function(n, lis) {
       return (n === nil) ? lis : cons(n, lis);
+    }],
+    'flat': [{dot: 1}, function(lis, $$) {
+      var max_depth = Infinity;
+      if (1 < arguments.length) max_depth = arguments[1];
+      if (lis === nil) return nil;
+      if (type(lis) !== s_cons) return cons(lis, nil);
+      if (max_depth < 1) return lis;
+      return nreverse(flat_iter(lis, max_depth));
     }],
     'firstn': [{dot: -1}, function(n, lis) {
       var rt = nil;
@@ -347,7 +383,7 @@ var primitives = (function() {
         }
       }
       if (num) return rt;
-      return primitives['%list-append'].apply(this, arguments);
+      return append.apply(this, arguments);
     }],
     'min': [{dot: 0}, function($$) {
       var l = arguments.length, rt = Infinity;
@@ -359,7 +395,12 @@ var primitives = (function() {
       for (var i=l-1; 0<=i; i--) rt = Math.max(rt, arguments[i]);
       return rt;
     }],
-    '%list-append': [{dot: 0}, function($$) {
+    'rand': [{dot: 0}, function($$) {
+      var l = arguments.length;
+      if (l < 1) return Math.random();
+      return Math.floor(Math.random() * $$);
+    }],
+    'append': [{dot: 0}, function($$) {
       var dotted = nil;
       for (var i=0, l=arguments.length, rt = nil; i<l; i++) {
         if (dotted !== nil) throw new Error(
@@ -373,6 +414,24 @@ var primitives = (function() {
         }
       }
       return nreverse(rt, dotted);
+    }],
+    'nconc': [{dot: 0}, function($$) {
+      var l = arguments.length - 1;
+      if (l < 0) return nil;
+      var rt = null;
+      for (var i=0; i<l; i++) {
+        if (arguments[i] === nil) continue;
+        rt = rt || arguments[i];
+        var last = lastcons(arguments[i]);
+        if (last.cdr !== nil) throw new Error("nconc: Can't concatenate dotted list.");
+        while (i < l) {
+          if (arguments[i+1] !== nil) break;
+          i++;
+        }
+        if (i === l) break;
+        last.cdr = arguments[i+1];
+      }
+      return rt || arguments[l];
     }],
     '-': [{dot: 1}, function(x, $$) {
       for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
@@ -545,6 +604,13 @@ var primitives = (function() {
       }
       throw new Error('newstring requires int, char.');
     }],
+    'string': [{dot: 0}, function($$) {
+      var rt = '';
+      for (var i = arguments.length-1; -1 < i; i--) {
+        rt = coerce(arguments[i], s_string) + rt;
+      }
+      return rt;
+    }],
     'in-ns': [{dot: -1}, function(n) {
       NameSpace.push(this.namespace);
       this.namespace = this.namespace.extend(n.name);
@@ -598,6 +664,9 @@ var primitives = (function() {
       }
       return nil;
     }],
+    'msec': [{dot: -1}, function() {
+      return +(new Date());
+    }],
   };
   for (var n in rt) {
     var f = rt[n];
@@ -631,6 +700,10 @@ var caar     = primitives.caar;
 var cadr     = primitives.cadr;
 var cddr     = primitives.cddr;
 var nthcdr   = primitives.nthcdr;
+var lastcons = primitives.lastcons;
+var append   = primitives.append;
+var nconc    = primitives.nconc;
+var reverse  = primitives.rev;
 var nreverse = primitives.nrev;
 var rep      = primitives.rep;
 var annotate = primitives.annotate;
