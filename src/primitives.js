@@ -333,20 +333,21 @@ var primitives = (function() {
          ).join(' ') + '.'));
     }],
     '+': [{dot: 0}, function($$) {
-      var l = arguments.length, rt = 0;
+      var l = arguments.length, rt = 0, num = false;
+      if (l < 1) return 0;
       for (var i=l-1; 0<=i; i--) {
-        if (typeof arguments[i] === 'string') {
+        var typ = type(arguments[i]);
+        if (typeof arguments[i] === 'number') {
+          num = true;
+          rt += arguments[i];
+        } else if (arguments[i] !== nil && type(arguments[i]) !== s_cons) {
           var rts = '';
-          for (var i=l-1; 0<=i; i--)
-            rts = coerce(arguments[i], s_string) + rts;
+          for (var i=l-1; 0<=i; i--) rts = coerce(arguments[i], s_string) + rts;
           return rts;
         }
       }
-      if (l < 1) return 0;
-      if (arguments[0] === nil || type(arguments[0]) === s_cons)
-        return primitives['%list-append'].apply(this, arguments);
-      for (var i=0; i<l; i++) rt += arguments[i];
-      return rt;
+      if (num) return rt;
+      return primitives['%list-append'].apply(this, arguments);
     }],
     'min': [{dot: 0}, function($$) {
       var l = arguments.length, rt = Infinity;
@@ -450,7 +451,7 @@ var primitives = (function() {
       for (var i=1, l=arguments.length-1, args=[]; i<l; i++)
         args[i-1] = arguments[i];
       if (0 < l) args = args.concat(list_to_javascript_arr(arguments[l]));
-      return new Call(fn, args);
+      return new Call(fn, null, args);
     }],
     '%pair': [{dot: -1}, function(lis) {
       var rt = nil, toggle = true;
@@ -491,7 +492,7 @@ var primitives = (function() {
       case 'string':
         if (idx < 0 || (obj.length - 1) < idx)
           throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
-        return new Char(obj[idx]);
+        return Char.get(obj[idx]);
       case 'cons':
         for (var iter = obj, i = idx; 0 < i; i--) {
           if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
@@ -534,7 +535,7 @@ var primitives = (function() {
       return (symbol.name in this.global) ? t : nil;
     }],
     'newstring': [{dot: 1}, function(n, $$) {
-      var c = new Char("\u0000");
+      var c = Char.get("\u0000");
       if (1 < arguments.length) c = arguments[1];
       var nt = type(n).name, ct = type(c).name;
       if ((nt === 'int' || nt === 'num') && ct === 'char') {

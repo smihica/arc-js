@@ -1,16 +1,13 @@
 var Call = classify("Call", {
   property: {
-    fname: null,
+    name: null,
     fn: null,
     args: null
   },
   method: {
-    init: function(fn_or_name, args) {
-      if (typeof fn_or_name === 'string') {
-        this.name = fn_or_name;
-      } else {
-        this.fn = fn_or_name;
-      }
+    init: function(fn, name, args) {
+      if (fn) this.fn = fn;
+      else if (name) this.name = name;
       this.args = args;
     },
     codegen: function() {

@@ -286,7 +286,9 @@ describe('VM eval', function(){
     eval_print_eql(
       '(let s \'(1 2) (list (with (x s) (cdr x)) s))', '((2) (1 2))',
       '(let s \'(1 2) (list (list (list (with (x s) (cdr x)) s))))', '((((2) (1 2))))',
-      '(let s \'(1 2) (list (let x s (list (let y x (cdr y)) (car x))) s))', '(((2) 1) (1 2))'
+      '(let s \'(1 2) (list (let x s (list (let y x (cdr y)) (car x))) s))', '(((2) 1) (1 2))',
+      '((fn (a) (let b \'a (if b (with (c b d b) (list a b c d))))) \'a)', '(a a a a)',
+      '(with (s \'(1 2 3)) (list (with (ss s) (with (sss ss) (with (ssss (car sss)) ((fn (sss) (assign s sss)) (cdr ss)) ssss))) s))', '(1 (2 3))'
     );
 
   });
@@ -666,7 +668,7 @@ describe('VM eval', function(){
       eval_print_eql(
         "(tailp '(return 3 (halt)))", "3",
         "(tailp '(halt))", "nil",
-        "(tailp '(exit-let 3 (return 3 (halt))))", "6"
+        "(tailp '(exit-let 3 3 (return 3 (halt))))", "6"
       );
     });
 
@@ -708,7 +710,7 @@ describe('VM eval', function(){
         "((frame 83) (constant 1) (argument) (constant 1) (argument) (close 0 77 1 -1) (box 0) (constant 2) (argument) (constant 1) (argument) (refer-local 0) (argument) (close 1 67 1 -1) (constant 3) (argument) (constant 4) (argument) (constant 2) (argument) (refer-local 0) (argument) (refer-free 0) (argument) (close 2 54 2 -1) (box 1) (constant 100) (assign-free 0) (constant 5) (argument) (constant 1) (argument) (refer-local 0) (argument) (refer-free 1) (argument) (refer-local 1) (argument) (refer-free 0) (argument) (close 4 36 1 -1) (box 0) (frame 12) (refer-free 0) (indirect) (argument) (refer-local 0) (indirect) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (assign-local 0) (constant 20) (assign-free 1) (refer-free 0) (indirect) (argument) (refer-free 2) (argument) (refer-free 1) (indirect) (argument) (refer-free 3) (argument) (refer-local 0) (indirect) (argument) (constant 5) (argument) (refer-global +) (indirect) (shift 6 2) (apply) (shift 2 3) (apply) (shift 3 2) (apply) (shift 2 2) (apply) (apply) (halt))",
 
         "(do-compile '(let a 10 a))",
-        "((constant 10) (argument) (enter-let) (refer-let 0 0) (exit-let 2) (halt))",
+        "((constant 10) (argument) (enter-let) (refer-let 0 0) (exit-let 2 2) (halt))",
 
         "(do-compile '(def fib (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))",
         "((close 0 57 1 -1) (frame 10) (refer-local 0) (argument) (constant 2) (argument) (constant 2) (argument) (refer-global <) (indirect) (apply) (test 3) (refer-local 0) (jump 43) (frame 17) (frame 10) (refer-local 0) (argument) (constant 1) (argument) (constant 2) (argument) (refer-global -) (indirect) (apply) (argument) (constant 1) (argument) (refer-global fib) (indirect) (apply) (argument) (frame 17) (frame 10) (refer-local 0) (argument) (constant 2) (argument) (constant 2) (argument) (refer-global -) (indirect) (apply) (argument) (constant 1) (argument) (refer-global fib) (indirect) (apply) (argument) (constant 2) (argument) (refer-global +) (indirect) (shift 3 2) (apply) (return 2) (assign-global fib) (halt))",
@@ -788,6 +790,8 @@ describe('VM eval', function(){
       eval_print_eql('(+ 1 2.256)', '3.256');
       eval_print_eql('(+ \'(a b c) "xyz")', '"abcxyz"');
       eval_print_eql('(+ 1 "abc" 2 \'(b 3 #\\x "xy" (z a)) \'z nil)', '"1abc2b3xxyzaznil"');
+      eval_print_eql('(+ #\\a #\\b #\\c)', '"abc"');
+      eval_print_eql("(+ '(1 2 3) '(4 5 6))", "(1 2 3 4 5 6)");
     });
     describe('bound', function() {
       eval_print_eql('(bound \'xxxx)', 'nil');

@@ -317,12 +317,85 @@
 ; (nthcdr x y) = (cut y x).
 
 (def cut (seq start (o end))
-  (let end (if (no end)   (len seq)
-               (< end 0)  (+ (len seq) end)
-               end)
-    (if (isa seq 'string)
-      (let s2 (newstring (- end start))
-        (for i 0 (- end start 1)
-          (= (s2 i) (seq (+ start i))))
-        s2)
-      (firstn (- end start) (nthcdr start seq)))))
+  (let l (len seq)
+    (with (end (if (no end) l
+                   (< end 0) (+ l end)
+                   end)
+           start (if (< start 0) (+ l start) start)
+           strp  (isa seq 'string))
+      (let seq (coerce seq 'cons)
+        (let res (firstn (- end start) (nthcdr start seq))
+          (if strp (coerce res 'string) res))))))
+
+(def last (xs) (lastn 1 xs))
+
+(def rem (test seq)
+  (let f (testify test)
+    (if (alist seq)
+      ((afn (s acc)
+         (if (no s)        (nrev acc)
+             (f (car s))   (self (cdr s) acc)
+             (self (cdr s) (cons (car s) acc))))
+       seq nil)
+      (coerce (rem f (coerce seq 'cons)) 'string))))
+
+; Seems like keep doesn't need to testify-- would be better to
+; be able to use tables as fns.  But rem does need to, because
+; often want to rem a table from a list.  So maybe the right answer
+; is to make keep the more primitive, not rem.
+
+(def keep (test seq)
+  (rem (complement (testify test)) seq))
+
+;(def trues (f seq)
+;  (rem nil (map f seq)))
+
+(def trues (f xs)
+  (and xs
+       (let fx (f (car xs))
+         (if fx
+             (cons fx (trues f (cdr xs)))
+             (trues f (cdr xs))))))
+
+(mac do1 args
+  (w/uniq g
+    `(let ,g ,(car args)
+       ,@(cdr args)
+       ,g)))
+
+;; caselet
+;; case
+
+(mac push (x place)
+  (w/uniq gx
+    (let (binds val setter) (setforms place)
+      `(let ,gx ,x
+         (withs ,binds ;; atwiths
+           (,setter (cons ,gx ,val)))))))
+
+(mac swap (place1 place2)
+  (w/uniq (g1 g2)
+    (with ((binds1 val1 setter1) (setforms place1)
+           (binds2 val2 setter2) (setforms place2))
+      `(withs ,(+ binds1 (list g1 val1) binds2 (list g2 val2)) ;; atwiths
+         (,setter1 ,g2)
+         (,setter2 ,g1)))))
+
+(mac rotate places
+  (with (vars (map [uniq] places)
+              forms (map setforms places))
+    `(withs ,(mappend (fn (g (binds val setter)) ;; atwiths
+                        (+ binds (list g val)))
+                      vars
+                      forms)
+       ,@(map (fn (g (binds val setter))
+                (list setter g))
+              (+ (cdr vars) (list (car vars)))
+              forms))))
+
+(mac pop (place)
+  (w/uniq g
+    (let (binds val setter) (setforms place)
+      `(withs ,(+ binds (list g val))
+         (do1 (car ,g)
+              (,setter (cdr ,g)))))))

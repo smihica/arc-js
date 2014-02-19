@@ -67,10 +67,10 @@ function main(inputs, out) {
       case 'frame':
       case 'return':
       case 'continue-return':
-      case 'exit-let':
       case 'conti':
         asm.push(c[1]|0);
         break;
+      case 'exit-let':
       case 'shift':
       case 'refer-let':
       case 'assign-let':

@@ -251,14 +251,12 @@
 
 (def map (f . seqs)
   (if (mem [isa _ 'string] seqs)
-      (withs (n   (apply min (map len seqs))
-              new (newstring n))
-        ((afn (i)
+      (let n (apply min (map len seqs))
+        ((afn (i l)
            (if (is i n)
-               new
-               (do (sref new (apply f (map [_ i] seqs)) i)
-                   (self (+ i 1)))))
-         0))
+               (coerce (nrev l) 'string)
+               (self (+ i 1) (cons (apply f (map [_ i] seqs)) l))))
+         0 nil))
 
       (no (cdr seqs))
       (map1 f (car seqs))
@@ -514,21 +512,21 @@
    vars 0))
 
 (def tailp (next)
+  ;(prn "tailp: " next)
   (if (is (car next) 'ignore)
       (tailp (cadr next))
       (is (car next) 'return)
       (cadr next)
       (and (is (car next) 'exit-let)
-           (is (caar (cddr next)) 'return))
-      (+ (cadr next) (cadr (car (cddr next))))))
+           (is (caar (cdddr next)) 'return))
+      (+ (cadr next) (cadar (cdddr next)))))
 
-(def reduce-nest-exit (next)
+(def reduce-nest-exit (next n)
+  ;(prn "reduce-nest-exit: " next " " n)
   (let a (car next)
     (if (is a 'exit-let)
-        (list (cadr next) (caddr next))
-        ;(and (is a 'ignore) (is (car (cadr next)) 'exit-let))
-        ;(list (cadr (cadr next)) (list 'ignore (caddr (cadr next))))
-        (list 0 next))))
+        `(exit-let ,(+ (cadr next) n) ,(caddr next) ,(cadddr next))
+        `(exit-let ,n ,n ,next))))
 
 (def collect-free (vars e next)
   (if (no vars)
@@ -595,20 +593,20 @@
                                      `(argument ,c)))))
                 (rev vals)
                 (with (e    (cons (cons (rev vars) (car e)) (cdr e))
-                       rne  (reduce-nest-exit next)
                        sets (find-sets body vars)
-                       free (remove-globs (find-free body vars) e))
-                  `(enter-let
-                     ,(make-boxes
-                        sets (rev vars)
-                        (compile
-                          body
-                          e
-                          (union is
-                                 sets
-                                 (set-intersect s free))
-                          `(exit-let ,(+ (len vars) 1 (car rne))
-                                     ,(cadr rne)))))))))
+                       free (remove-globs (find-free body vars) e)
+                       n    (+ (len vars) 1))
+                  (with (rne (reduce-nest-exit next n))
+                    `(enter-let
+                       ,(make-boxes
+                          sets (rev vars)
+                          (compile
+                            body
+                            e
+                            (union is
+                                   sets
+                                   (set-intersect s free))
+                            rne))))))))
 
            (do body
                ((afn (body next)
@@ -744,8 +742,8 @@
                `((enter-let)
                  ,@(preproc x (+ i 1))))
 
-    (exit-let (n x)
-              `((exit-let ,n)
+    (exit-let (n m x)
+              `((exit-let ,n ,m)
                 ,@(preproc x (+ i 1))))
 
     (assign-let (n m x)

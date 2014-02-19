@@ -44,10 +44,10 @@ var VM = classify("VM", {
           case 'frame':
           case 'return':
           case 'continue-return':
-          case 'exit-let':
           case 'conti':
             asm.push([op, line[++k]|0]);
             break;
+          case 'exit-let':
           case 'shift':
           case 'refer-let':
           case 'assign-let':
@@ -100,10 +100,10 @@ var VM = classify("VM", {
         case 'frame':
         case 'return':
         case 'continue-return':
-        case 'exit-let':
         case 'conti':
           c[1] = (c[1]|0);
           break;
+        case 'exit-let':
         case 'shift':
         case 'refer-let':
         case 'assign-let':
@@ -183,7 +183,6 @@ var VM = classify("VM", {
       v = v | 0; d = d | 0;
       m = m | 0; l = l | 0;
       var repeat = !step;
-      // var _nest = [];
       do {
         var op = this.x[this.p];
         var code = op[0];
@@ -197,9 +196,10 @@ var VM = classify("VM", {
           break;
         case 'exit-let':
           n = op[1];
+          m = op[2];
           this.l -= n;
           this.s = this.l;
-          this.l = this.stack.index(this.s, -2);
+          this.l = this.stack.index(this.s, -m);
           this.p++;
           break;
         case 'refer-let':
