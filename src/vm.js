@@ -199,6 +199,7 @@ var VM = classify("VM", {
           n = op[1];
           this.l -= n;
           this.s = this.l;
+          this.l = this.stack.index(this.s, -2);
           this.p++;
           break;
         case 'refer-let':
@@ -403,7 +404,6 @@ var VM = classify("VM", {
         case 'return':
           this.namespace = NameSpace.pop();
           this.global = this.namespace.vars;
-          // _nest.pop();
           // don't break !!
         case 'continue-return':
           var n  = op[1];

@@ -282,6 +282,13 @@ describe('VM eval', function(){
 
       '(nth2 3 \'(1 2 3 4 5))', 4
     );
+
+    eval_print_eql(
+      '(let s \'(1 2) (list (with (x s) (cdr x)) s))', '((2) (1 2))',
+      '(let s \'(1 2) (list (list (list (with (x s) (cdr x)) s))))', '((((2) (1 2))))',
+      '(let s \'(1 2) (list (let x s (list (let y x (cdr y)) (car x))) s))', '(((2) 1) (1 2))'
+    );
+
   });
 
   describe('def', function() {
