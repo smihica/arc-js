@@ -4,11 +4,12 @@ __An Arc implementation in web browser__
 
 ### Features
 
-- Stack based vm
-- Self-hosting compiler
-- First-class continuations
-- Tail call optimization
-- mac macro
+- __Stack based vm__
+- __Self-hosting compiler__
+- __First-class continuations__
+- __Tail call optimization__
+- __mac macro__
+- __almost of [anarki](https://github.com/arclanguage/anarki)'s functions.__
 - user tagged objects (annotate)
 - REPL
 - regexp (#/exp/)
@@ -18,7 +19,6 @@ __An Arc implementation in web browser__
 - type default function (deftf)
 - complex-args
 - defgeneric (object system)
-- ```almost of [anarki](https://github.com/arclanguage/anarki)'s functions.```
 
 ### Not Yet (going to support)
 
