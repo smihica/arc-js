@@ -17,12 +17,12 @@ __An Arc implementation in web browser__
 - namespace (ns)
 - type default function (deftf)
 - complex-args
+- defgeneric (object system)
+- ```almost of [anarki](https://github.com/arclanguage/anarki)'s functions.```
 
 ### Not Yet (going to support)
 
-- some useful primitives
-- debugger
-- defgeneric (object system)
+- useful debugger.
 
 ### demo
 
