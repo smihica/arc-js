@@ -48,7 +48,26 @@ function main(inputs, out) {
     return compile(vm.reader.read(code));
   }
 
-  function code_list_to_js_arr(code) {
+  function make_vals_tbl() {
+    var tbl = {};
+    var lis = [];
+    return {
+      indexing: function(str) {
+        var res = tbl[str];
+        if (typeof res === 'undefined') {
+          lis.push(str);
+          res = lis.length - 1;
+          tbl[str] = res;
+        }
+        return res;
+      },
+      get_list: function() {
+        return lis;
+      }
+    };
+  }
+
+  function code_list_to_js_arr(code, tbl) {
     var asm = [];
     while(code !== ArcJS.nil) {
       var c = ArcJS.list_to_javascript_arr(ArcJS.car(code));
@@ -85,10 +104,10 @@ function main(inputs, out) {
         break;
       case 'refer-global':
       case 'assign-global':
-        asm.push(c[1].name);
+        asm.push(tbl.indexing(c[1].name)|0);
         break;
       case 'constant':
-        asm.push(ArcJS.stringify(c[1]));
+        asm.push(tbl.indexing(ArcJS.stringify(c[1]))|0);
         break;
       default:
       }
@@ -97,10 +116,14 @@ function main(inputs, out) {
     return asm;
   }
 
-  var i = 0, l = inputs.length;
+  var i = 0, l = inputs.length, tbl;
   function processing() {
     fs.readFile(inputs[i], 'utf8', function(err, data) {
       if (err) throw new Error(err);
+      if (i === 0) {
+        tbl = make_vals_tbl();
+        out.write("preloads.push([\n");
+      }
       vm.reader.load_source(data);
       var exprs = [];
       while (true) {
@@ -110,12 +133,15 @@ function main(inputs, out) {
       }
       exprs.forEach(function(expr) {
         process.stderr.write("COMPILING ... " + ArcJS.stringify(expr) + "\n");
-        var arr = code_list_to_js_arr(compile_with_evaluate(expr));
+        var arr = code_list_to_js_arr(compile_with_evaluate(expr), tbl);
         out.write(JSON.stringify(arr) + ',\n');
       });
       i++;
       if (i < l) processing();
-      else out.write("]);");
+      else {
+        out.write("]);\n");
+        out.write("preload_vals.push(" + JSON.stringify(tbl.get_list()) + ");\n");
+      }
     });
   }
 
@@ -130,8 +156,7 @@ function main(inputs, out) {
   out.write(
     ('// This is an auto generated file.\n' +
      "// Compiled from ['/Users/smihica/code/arc-js/src/arc/compiler.arc'].\n" +
-     "// DON'T EDIT !!!\n" +
-     "preload.push.apply(preload, [\n"));
+     "// DON'T EDIT !!!\n" ));
 
   init_operators(processing);
 

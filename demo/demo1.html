@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <title>Demo1</title>
+    <script type="text/javascript" src="//code.jquery.com/jquery-1.10.2.js"></script>
+    <script type="text/javascript" src="../arc.min.js"></script>
+    <script type="text/javascript" src="../arc_loader.js"></script>
+    <script type="text/arc">
+      (= hello "hello")
+    </script>
+    <script type="text/arc" src="demo1.arc"></script>
+  </head>
+  <body>
+    <h1 id="title"></h1>
+    <script type="text/javascript">
+      $(function(){
+        $("#title").html(
+          ArcJS.context().evaluate('(+ hello " world !")')
+        );
+      });
+    </script>
+  </body>
+</html>

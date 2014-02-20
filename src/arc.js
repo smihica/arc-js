@@ -17,5 +17,6 @@ var ArcJS = (function() {
   include("preload.js");
   include("namespace.js");
   include("vm.js");
+  include("context.js");
   return ArcJS;
 }).call(typeof exports !== 'undefined' ? exports : {});

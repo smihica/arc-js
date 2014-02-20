@@ -1,4 +1,5 @@
-var preload = [];
+var preloads = [];
+var preload_vals = [];
 // compiler
 include("compiler.fasl");
 // arclib

@@ -1,9 +1,11 @@
 $(function() {
+
+  var s = new Date();
+  var runner = ArcJS.context();
+  var e = new Date();
+
   var holder = $('#holder');
   var txt = $('#repl-txt');
-  var s = new Date();
-  var vm = new ArcJS.VM();
-  var e = new Date();
   var init_time = e - s;
   txt.html(';; ArcJS ' + ArcJS.version + ' ' + ' Initialized in ' + init_time + ' ms<br>arc&gt;<br>');
 
@@ -14,30 +16,6 @@ $(function() {
     matchBrackets: true,
     keyMap: 'emacs'
   });
-
-  function compile(expr) {
-    var asm = [
-      ['frame', 8],
-      ['constant', expr],
-      ['argument'],
-      ['constant', 1],
-      ['argument'],
-      ['refer-global', 'do-compile'],
-      ['indirect'],
-      ['apply'],
-      ['halt']
-    ];
-    vm.cleanup();
-    vm.set_asm(asm);
-    return vm.run();
-  }
-
-  function evaluate(expr) {
-    var compiled = compile(expr);
-    vm.cleanup();
-    vm.load(compiled);
-    return vm.run();
-  }
 
   var escapeHTML = (function() {
     var htmlEscapes = {
@@ -62,11 +40,11 @@ $(function() {
     if (code.match(/^\s*$/g)) return;
     try {
       var s = new Date();
-      expr = vm.reader.read(code);
+      expr = runner.read(code);
       var e = new Date();
       read_time = e - s;
     } catch (e) {
-      if (vm.reader.i < vm.reader.slen) {
+      if (runner.vm.reader.i < runner.vm.reader.slen) {
         result = e.toString();
         err = true;
       }
@@ -76,15 +54,11 @@ $(function() {
     if (!err) {
       try {
         var s = new Date();
-        // console.log(vm.namespace);
-        var compiled = compile(expr);
-        // console.log(vm.namespace);
+        var compiled = runner.compile(expr);
         var e = new Date();
         compile_time = e - s;
-        vm.cleanup();
-        vm.load(compiled);
         var s = new Date();
-        res =  vm.run();
+        res = runner.eval_asm(compiled);
         var e = new Date();
         eval_time = e - s;
         result = ArcJS.stringify(res);
@@ -108,7 +82,7 @@ $(function() {
         return (err) ? '<span class="error">' + r + '</span>' : r;
       })(result_list.join('<br>'));
 
-    var ns = vm.namespace;
+    var ns = runner.vm.namespace;
     var nss = '';
     while (ns !== ArcJS.NameSpace.root) {
       nss = '::' + ns.name + nss;

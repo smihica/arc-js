@@ -22,13 +22,11 @@ arc.min.js:	arc.js
 
 arc:		src/arc/arc.arc
 		$(COMPILE_ARC) -o src/arc.fasl src/arc/arc.arc
-		make
 
 compiler:       src/arc/compiler.arc
 		mkdir -p backup
 		cp src/compiler.fasl backup/$(DATETIME).compiler.fasl
 		$(COMPILE_ARC) -o src/compiler.fasl src/arc/compiler.arc
-#		make arc
 
 restore_compiler:
 		mv $(shell ls backup/*.compiler.fasl | sort -r | sed '1!d') src/compiler.fasl
