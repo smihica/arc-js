@@ -115,7 +115,6 @@ var Table = classify("Table", {
       var key;
       switch (type_name) {
       case 'string':
-        break;
       case 'int':
       case 'num':
         key = obj+'';
