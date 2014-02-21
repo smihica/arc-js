@@ -542,8 +542,14 @@ var primitives = (function() {
       }
       return javascript_arr_to_list(narr);
     }],
-    'table': [{dot: -1}, function() {
-      return new Table();
+    'table': [{dot: 0}, function($$) {
+      var tbl = new Table();
+      var l = arguments.length;
+      if ((l % 2) === 1) throw new Error('(table) arguments must be even number.');
+      for (var i = 0; i < l; i+=2) {
+        tbl.put(arguments[i], arguments[i+1]);
+      }
+      return tbl;
     }],
     'ref': [{dot: -1}, function(obj, idx) {
       var val, typename = type(obj).name;

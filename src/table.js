@@ -45,7 +45,7 @@ var Table = classify("Table", {
     },
     get: function(key) {
       var skey = Table.keying(key);
-      return this.src[skey] || nil;
+      return this.src.hasOwnProperty(skey) ? this.src[skey] : nil;
     },
     rem: function(key) {
       var skey = Table.keying(key);

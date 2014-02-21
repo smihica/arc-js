@@ -10,7 +10,8 @@ var Reader = classify("Reader", {
     QUOTE:            Symbol.get('quote'),
     QUASIQUOTE:       Symbol.get('quasiquote'),
     UNQUOTE:          Symbol.get('unquote'),
-    UNQUOTE_SPLICING: Symbol.get('unquote-splicing')
+    UNQUOTE_SPLICING: Symbol.get('unquote-splicing'),
+    NUMBER_PATTERN: /^[-+]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][-+]?[0-9]+)?$/
   },
 
   property: {
@@ -138,17 +139,13 @@ var Reader = classify("Reader", {
 
     read_number: function() {
       var tok = this.read_thing();
-      var p;
       if (tok.length === 0) return Reader.EOF;
-      if (tok === '.') return Reader.DOT;
-      if (tok === '+' || tok === '-')
-        return this.make_symbol(tok);
-      if ((p = (tok[0] === '+')) || tok[0] === '-') {
-        var body = tok.slice(1);
-        if (body === 'inf.0') return p ? Infinity : -Infinity;
-        if (body.match(/[^0-9i.]/)) return this.make_symbol(tok);
-      }
-      return this.make_number(tok);
+      if (tok === '.')      return Reader.DOT;
+      if (tok === '+inf.0') return Infinity;
+      if (tok === '-inf.0') return -Infinity;
+      if (tok.match(Reader.NUMBER_PATTERN))
+        return this.make_number(tok);
+      return this.read_symbol(tok);
     },
 
     make_number: function(tok) {
@@ -158,8 +155,8 @@ var Reader = classify("Reader", {
       return n;
     },
 
-    read_symbol: function() {
-      var tok = this.read_thing();
+    read_symbol: function(tok) {
+      if (arguments.length < 1) tok = this.read_thing();
       if (tok.length === 0) return Reader.EOF;
       var ss = this.vm.global['%___special_syntax___'];
       if (ss) {

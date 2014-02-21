@@ -771,6 +771,15 @@
 
 (def int (x (o b 10)) (coerce x 'int b))
 
+(defss x-plus #/^(\d+)\+$/ (x)
+       (+ "[+ " x " _]"))
+(defss x-minus #/^(\d+)\-$/ (x)
+       (+ "[- _ " x "]"))
+(defss x-mul #/^(\d+)\*$/ (x)
+       (+ "[* " x " _]"))
+(defss x-div #/^(\d+)\/$/ (x)
+       (+ "[/ _ " x "]"))
+
 ; (def real (x) ($.exact->inexact x))
 
 (mac rand-choice exprs

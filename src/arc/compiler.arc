@@ -202,16 +202,16 @@
 (defss compose-ss #/^(.*[^:]):([^:].*)$/ (a b)
        (+ "(compose " a " " b ")"))
 
-(defss complement-ss #/^\~(.*)$/ (a)
+(defss complement-ss #/^\~(.+)$/ (a)
        (+ "(complement " a ")"))
 
-(defss ssyntax-ss #/^(.*)\.(.*)$/ (a b)
+(defss ssyntax-ss #/^(.+)\.(.+)$/ (a b)
        (+ "(" a " " b ")"))
 
-(defss ssyntax-with-quote-ss #/^(.*)\!(.*)$/ (a b)
+(defss ssyntax-with-quote-ss #/^(.+)\!(.+)$/ (a b)
        (+ "(" a " '" b ")"))
 
-(defss namespace #/^(.*?)::(.*)$/ (a b)
+(defss namespace #/^(.+?)::(.+)$/ (a b)
        (+ "(ns " a " " b ")"))
 
 ;; type functions.
@@ -227,13 +227,16 @@
 
 ;; util fns
 (def mem (test seq)
-  (if (isa test 'fn)
-      ((afn (seq)
-         (if seq
-             (if (test (car seq)) seq
-                 (self (cdr seq)))))
-       seq)
-      (%mem test seq)))
+  (if (isa seq 'string)
+      (aif (mem test (coerce seq 'cons))
+           (coerce it 'string))
+      (if (isa test 'fn)
+          ((afn (seq)
+             (if seq
+                 (if (test (car seq)) seq
+                     (self (cdr seq)))))
+           seq)
+          (%mem test seq))))
 
 (def union (test lis1 lis2)
   (if (is test is) (%union test lis1 lis2)

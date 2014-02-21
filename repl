@@ -30,7 +30,7 @@ function compile(expr) {
 var code_hist = '';
 function onenter(code) {
   var expr = null, res = null, result = '', err = false;
-  if (code.match(/^\s*$/g)) return false;
+  if (code.match(/^(\s*;+.*\n|\n)$/) && code_hist === '') return false;
   try {
     expr = vm.reader.read(code_hist + code);
   } catch (e) {
@@ -39,6 +39,14 @@ function onenter(code) {
       err = true;
     }
     else { /* Not closed yet. ignore.*/
+      code_hist += code;
+      return true;
+    }
+  }
+  if (result === ArcJS.Reader.EOF) {
+    if (code_hist === '') {
+      return false;
+    } else {
       code_hist += code;
       return true;
     }
@@ -72,7 +80,7 @@ function onenter(code) {
 }
 
 rl.on('line', function (code) {
-  var continue_flag = onenter(code);
+  var continue_flag = onenter(code+'\n');
   if (!continue_flag) process.stdout.write(term);
 });
 
