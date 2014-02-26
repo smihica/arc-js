@@ -155,7 +155,7 @@ function main(inputs, out) {
 
   out.write(
     ('// This is an auto generated file.\n' +
-     "// Compiled from ['/Users/smihica/code/arc-js/src/arc/compiler.arc'].\n" +
+     "// Compiled from ['" + inputs.join("','") + "'].\n" +
      "// DON'T EDIT !!!\n" ));
 
   init_operators(processing);

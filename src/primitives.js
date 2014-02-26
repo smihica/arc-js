@@ -361,12 +361,13 @@ var primitives = (function() {
     }],
     'type': [{dot: -1}, type],
     'err': [{dot: 0}, function($$) {
-      throw new Error(
-        ('error: ' +
-         Array.prototype.map.call(
-           arguments,
-           function(x) { return type(x) === s_string ? x : stringify(x); }
-         ).join(' ') + '.'));
+      var str = (
+        Array.prototype.map.call(
+          arguments,
+          function(x) { return type(x) === s_string ? x : stringify(x); }
+        ).join(' ') + '.');
+      console.error(str);
+      throw new Error('ERROR');
     }],
     '+': [{dot: 0}, function($$) {
       var l = arguments.length, rt = 0, num = false;
@@ -584,6 +585,27 @@ var primitives = (function() {
       case 'table':
         obj.put(idx, val);
         return val;
+      }
+      throw new Error('(sref obj val idx) supports only cons or string or table. but ' + typename + ' given.');
+    }],
+    'dref': [{dot: -1}, function(obj, idx) {
+      switch (type(obj).name) {
+      case 'string':
+        throw new Error('TODO: mutable string is not supported yet.');
+        return nil;
+      case 'cons':
+        throw new Error('TODO: mutable string is not supported yet.');
+        /* TODO Support! 
+        for (var iter = obj, i = idx; 0 < i; i--) {
+          if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
+          iter = cdr(iter);
+        }
+        scdr(iter, cddr(iter));
+        return nil;
+        */
+      case 'table':
+        obj.rem(idx);
+        return nil;
       }
       throw new Error('(sref obj val idx) supports only cons or string or table. but ' + typename + ' given.');
     }],

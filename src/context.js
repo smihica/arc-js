@@ -36,7 +36,12 @@ var Context = classify("Context", {
     },
     evaluate: function(str) {
       var expr = this.read(str);
-      return stringify(this.eval_expr(expr));
+      var result = nil;
+      while (expr !== Reader.EOF) {
+        result = stringify(this.eval_expr(expr));
+        expr = this.read();
+      }
+      return result;
     }
   }
 });

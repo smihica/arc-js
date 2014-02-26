@@ -25,9 +25,9 @@ var VM = classify("VM", {
         this.global[p] = new Box(primitives[p]);
       }
       this.reader = new Reader(this);
-      this.init_def();
+      this.init_def(preloads, preload_vals);
     },
-    init_def: function() {
+    init_def: function(preloads, preload_vals) {
       var ops = VM.operators;
       for (var i=0,l=preloads.length; i<l; i++)
         (function(preload, preload_val) {
