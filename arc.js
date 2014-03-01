@@ -1556,7 +1556,7 @@ var preload_vals = [];
 // compiler
 /** @file compiler.fasl { */
 // This is an auto generated file.
-// Compiled from ['/Users/smihica/code/arc-js/src/arc/compiler.arc'].
+// Compiled from ['src/arc/compiler.arc'].
 // DON'T EDIT !!!
 preloads.push([
 [0,6,6,0,7,11,1,21,22,19,2,25],
