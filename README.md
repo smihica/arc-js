@@ -40,3 +40,7 @@ __An Arc implementation in web browser__
 - [anarki](https://github.com/arclanguage/anarki)
 - [3imp.pdf](http://www.cs.indiana.edu/~dyb/papers/3imp.pdf)
 - [biwascheme](http://www.biwascheme.org/)
+
+### License
+
+- MIT License

@@ -15,7 +15,9 @@ auto:
 		./tools/update-watcher src/*.js src/arc/*.arc -- make
 
 arc.js:		src/*.js src/compiler.fasl src/arc.fasl
-	        $(CONSTRUCT) -o arc.js src/arc.js
+	        $(CONSTRUCT) -o arc.tmp.js src/arc.js
+		cat src/comments.js arc.tmp.js > arc.js
+		rm arc.tmp.js
 
 arc.min.js:	arc.js
 		$(COMPRESS) --unsafe -nc -o arc.min.js arc.js
