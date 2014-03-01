@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 var term = 'arc> ';
 var readline = require('readline');
-var ArcJS = require('./arc.min.js');
+var ArcJS = require('./arc.js');
 var vm = new ArcJS.VM();
 
 var rl = readline.createInterface({

@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 
+var script_dir = require('path').dirname(require.main.filename);
+
 var fs = require('fs');
 
 function main(inputs, out) {
-  var ArcJS = require('../arc.min.js');
+  var ArcJS = require(script_dir + '/../arc.js');
   var vm = new ArcJS.VM();
   var operators = [];
 
@@ -146,7 +148,7 @@ function main(inputs, out) {
   }
 
   function init_operators(after) {
-    fs.readFile(require('path').dirname(require.main.filename) + '/../src/operators.js', 'utf8', function(err, data) {
+    fs.readFile(script_dir + '/../src/operators.js', 'utf8', function(err, data) {
       if (err) throw new Error(err);
       operators = JSON.parse(data);
       after();
