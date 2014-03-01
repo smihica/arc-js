@@ -1,0 +1,140 @@
+#!/usr/bin/env node
+
+var script_dir = require('path').dirname(require.main.filename);
+var fs = require('fs');
+
+var term = 'arc> ';
+var readline = require('readline');
+var ArcJS = require(script_dir + '/arc.js');
+var runner = ArcJS.context();
+var vm = runner.vm;
+
+var rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  terminal: false
+});
+
+function compile(expr) {
+  var asm = [
+    ['frame', 8],
+    ['constant', expr],
+    ['argument'],
+    ['constant', 1],
+    ['argument'],
+    ['refer-global', 'do-compile'],
+    ['indirect'],
+    ['apply'],
+    ['halt']
+  ];
+  vm.cleanup();
+  vm.set_asm(asm);
+  return vm.run();
+}
+
+var code_hist = '';
+function onenter(code) {
+  var expr = null, res = null, result = '', err = false;
+  if (code.match(/^(\s*;+.*\n|\n)$/) && code_hist === '') return false;
+  try {
+    expr = vm.reader.read(code_hist + code);
+  } catch (e) {
+    if (vm.reader.i < vm.reader.slen) {
+      result = e.toString();
+      err = true;
+    }
+    else { /* Not closed yet. ignore.*/
+      code_hist += code;
+      return true;
+    }
+  }
+  if (result === ArcJS.Reader.EOF) {
+    if (code_hist === '') {
+      return false;
+    } else {
+      code_hist += code;
+      return true;
+    }
+  }
+  if (!err) {
+    var called_ns = vm.namespace;
+    try {
+      var compiled = compile(expr);
+      vm.cleanup();
+      vm.load(compiled);
+      res =  vm.run();
+      result = ArcJS.stringify(res);
+    } catch (e) {
+      result = e.toString();
+      vm.namespace = called_ns;
+      err = true;
+    }
+  }
+  process.stdout.write(result + "\n");
+  code_hist = '';
+
+  var ns = vm.namespace;
+  var nss = '';
+  while (ns !== ArcJS.NameSpace.root) {
+    nss = '::' + ns.name + nss;
+    ns = ns.upper;
+  }
+  term = 'arc' + nss + '> ';
+
+  return false;
+}
+
+function main(mode, scripts) {
+
+  (function prepare(i, after) {
+    if (scripts.length <= i) return after();
+    fs.readFile(scripts[i], 'utf8', function(err, data) {
+      if (err) throw new Error(err);
+      if (scripts[i].match(/\.fasl$/)) {
+        eval('var fasl = (function() {\nvar preloads = [], preload_vals = [];\n' + data +
+             'return {preloads: preloads, preload_vals: preload_vals};\n})();');
+        runner.vm.init_def(fasl.preloads, fasl.preload_vals);
+      } else {
+        runner.evaluate(data);
+      }
+      prepare(i+1, after);
+    });
+  })(0, function after() {
+    if (mode === 'run') process.exit(0);
+
+    rl.on('line', function (code) {
+      var continue_flag = onenter(code+'\n');
+      if (!continue_flag) process.stdout.write(term);
+    });
+
+    process.stdout.write(term);
+  });
+}
+
+var argv = process.argv.slice(2);
+var scripts = [];
+var mode = 'repl';
+for (var i=0,l=argv.length; i<l; i++) {
+  if (argv[i] === '--run' || argv[i] === '-r') {
+    mode = 'run';
+    scripts = argv.slice(i+1);
+    break;
+  }
+  scripts.push(argv[i]);
+}
+
+if (-1 < scripts.indexOf('-h')) {
+  console.log('  [ Arc-JS version ' + ArcJS.version + ' ]');
+  console.log('');
+  console.log('  Usage: ./arcjs preload-file [preload-files ... ] | --run run-file [run-files ... ]');
+  console.log('');
+  console.log('  Example');
+  console.log('');
+  console.log('    REPL mode:    $ ./arcjs lib.fasl lib2.arc');
+  console.log('');
+  console.log('    Runner mode:  $ ./arcjs -r script.arc srcipt2.arc');
+  console.log('');
+  process.exit();
+}
+
+main(mode, scripts);
