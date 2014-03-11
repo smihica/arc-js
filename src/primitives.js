@@ -142,7 +142,9 @@ var type = function(x) {
   case 'string':
     return s_string;
   case 'number':
-    return (!!(x % 1)) ? s_num : s_int;
+    return ((isNaN(x))  ? Symbol.get('%javascript-NaN') :
+            (!!(x % 1)) ? s_num :
+            s_int);
   case 'function':
     return s_fn;
   case 'object':
@@ -153,7 +155,7 @@ var type = function(x) {
     if (x instanceof Table)    return s_table;
     if (x instanceof Tagged)   return x.tag;
   default:
-    return Symbol.get('javascript-' + type);
+    return Symbol.get('%javascript-' + type);
   }
 };
 
