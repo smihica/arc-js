@@ -460,7 +460,9 @@ var type = function(x) {
   case 'string':
     return s_string;
   case 'number':
-    return (!!(x % 1)) ? s_num : s_int;
+    return ((isNaN(x))  ? Symbol.get('%javascript-NaN') :
+            (!!(x % 1)) ? s_num :
+            s_int);
   case 'function':
     return s_fn;
   case 'object':
@@ -471,7 +473,7 @@ var type = function(x) {
     if (x instanceof Table)    return s_table;
     if (x instanceof Tagged)   return x.tag;
   default:
-    return Symbol.get('javascript-' + type);
+    return Symbol.get('%javascript-' + type);
   }
 };
 
@@ -1924,6 +1926,8 @@ var VM = classify("VM", {
     global: null,
     reader: null,
     namespace: null,
+    call_stack: null,
+    warn: null,
   },
   method: {
     init: function() {
@@ -2062,6 +2066,8 @@ var VM = classify("VM", {
       this.s = 0;
       this.count = 0;
       this.stack = new Stack();
+      this.call_stack = [];
+      this.warn = "";
       if (globalp) {
         this.x = null;
         NameSpace.root = new NameSpace('%ROOT', null);
@@ -2087,9 +2093,7 @@ var VM = classify("VM", {
       this.set_asm(asm);
       return this.run();
     },
-    run: function(asm_string, clean_all, step) {
-      if (!step) this.cleanup(clean_all);
-      if (asm_string)   this.load_string(asm_string);
+    run_iter: function(step) {
       var n = 0, b = 0, v = 0, d = 0, m = 0, l = 0;
       n = n | 0; b = b | 0;
       v = v | 0; d = d | 0;
@@ -2343,6 +2347,22 @@ var VM = classify("VM", {
         }
         this.count++;
       } while (repeat);
+    },
+    run: function(asm_string, clean_all, step) {
+      if (!step) this.cleanup(clean_all);
+      if (asm_string)   this.load_string(asm_string);
+      var ret = this.run_iter(step);
+      var typ = type(ret);
+      if (typ.name.match("^\%javascript\-.*$")) {
+        this.warn += "[BUG]: Returned value is not arc-value '" + JSON.stringify(ret) + "'.\n"
+      }
+      return ret;
+    },
+    get_call_stack_string: function() {
+      var res = "ERROR";
+      for (var i = 0, l = this.call_stack.length; i < l; i++) {
+      }
+      return res;
     }
   }
 });

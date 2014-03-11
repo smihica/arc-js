@@ -35,9 +35,10 @@ function compile(expr) {
 var code_hist = '';
 function onenter(code) {
   var expr = null, res = null, result = '', err = false;
-  if (code.match(/^(\s*;+.*\n|\n)$/) && code_hist === '') return false;
+  if ((code.match(/^\s*$/)) && code_hist === '') return false;
   try {
     expr = vm.reader.read(code_hist + code);
+    if (expr === ArcJS.Reader.EOF) return false;
   } catch (e) {
     if (vm.reader.i < vm.reader.slen) {
       result = e.toString();
@@ -70,7 +71,16 @@ function onenter(code) {
       err = true;
     }
   }
-  process.stdout.write(result + "\n");
+  if (err) {
+    process.stderr.write(result + "\n");
+    var call_stack_str = vm.get_call_stack_string();
+    process.stderr.write(call_stack_str + "\n");
+  } else {
+    process.stdout.write(result + "\n");
+  }
+  if (vm.warn !== "") {
+    process.stderr.write(vm.warn + "\n");
+  }
   code_hist = '';
 
   var ns = vm.namespace;
