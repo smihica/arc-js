@@ -1199,12 +1199,11 @@ var primitives = (function() {
       var args = RegExp.$1;
       if (args === '') {
         f.arglen = 0;
-        f.prim_name = n;
       } else {
         var vs = args.split(/\s*,\s*/g);
         f.arglen = vs.length;
-        f.prim_name = n;
       }
+      f.prim_name = n;
       rt[n] = f;
     }
   }
@@ -1927,6 +1926,7 @@ var VM = classify("VM", {
     reader: null,
     namespace: null,
     call_stack: null,
+    recent_call_args: null,
     warn: null,
   },
   method: {
@@ -2067,6 +2067,7 @@ var VM = classify("VM", {
       this.count = 0;
       this.stack = new Stack();
       this.call_stack = [];
+      this.recent_call_args = [];
       this.warn = "";
       if (globalp) {
         this.x = null;
@@ -2244,6 +2245,7 @@ var VM = classify("VM", {
           this.s = this.stack.shift(n, m, this.s);
           this.namespace = NameSpace.pop();
           this.global = this.namespace.vars;
+          this.call_stack.shift();
           this.p++;
           break;
         case 'apply':
@@ -2278,6 +2280,7 @@ var VM = classify("VM", {
                             'expected: ' + ((-1 < dotpos) ? ('>= ' + dotpos) : fn.arglen) + '\n' +
                             'given: ' + vlen);
           }
+          this.recent_call_args = this.stack.range_get(this.s - 1 - vlen, this.s - 2);
           if (closurep) {
             this.x = fn.body;
             this.p = fn.pc;
@@ -2298,8 +2301,11 @@ var VM = classify("VM", {
             }
             this.f = this.s;
             this.l = this.s;
+            this.call_stack.unshift([fn.name, true]);
           } else {
-            this.a = fn.apply(this, this.stack.range_get(this.s - 1 - vlen, this.s - 2));
+            this.call_stack.unshift([fn.prim_name, false]);
+            this.a = fn.apply(this, this.recent_call_args);
+            this.call_stack.shift();
             if (this.a instanceof Call) {
               var code = this.a.codegen();
               this.s -= (vlen + 1);
@@ -2320,6 +2326,7 @@ var VM = classify("VM", {
         case 'return':
           this.namespace = NameSpace.pop();
           this.global = this.namespace.vars;
+          this.call_stack.shift();
           // don't break !!
         case 'continue-return':
           var n  = op[1];
@@ -2358,9 +2365,16 @@ var VM = classify("VM", {
       }
       return ret;
     },
-    get_call_stack_string: function() {
-      var res = "ERROR";
-      for (var i = 0, l = this.call_stack.length; i < l; i++) {
+    get_call_stack_string: function(lim) {
+      lim = lim || Infinity;
+      var res = "Stack Trace:\n_______________________________________\n";
+      for (var i = 0, l = Math.min(this.call_stack.length, lim); i < l; i++) {
+        var info = this.call_stack[i];
+        var typ = info[1]; var args_str = "";
+        if (i === 0) {
+          args_str = "\n        EXECUTED " + stringify(cons(Symbol.get(info[0]), javascript_arr_to_list(this.recent_call_args)));
+        }
+        res += ("  " + i + "  " + (typ ? "fn" : "prim") + " '" + info[0] + "'" + args_str + "\n");
       }
       return res;
     }

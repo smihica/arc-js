@@ -708,12 +708,11 @@ var primitives = (function() {
       var args = RegExp.$1;
       if (args === '') {
         f.arglen = 0;
-        f.prim_name = n;
       } else {
         var vs = args.split(/\s*,\s*/g);
         f.arglen = vs.length;
-        f.prim_name = n;
       }
+      f.prim_name = n;
       rt[n] = f;
     }
   }
