@@ -41,7 +41,13 @@ $(function() {
   }
 
   function run() {
-    var rt = stringify(vm.run());
+    var rt;
+    try {
+      rt = stringify(vm.run());
+    } catch (e) {
+      $('#res').html(e+'\n'+vm.get_call_stack_string());
+      throw e;
+    }
     $('#res').text(rt);
   }
 
@@ -97,7 +103,7 @@ $(function() {
     try {
       rt = vm.step();
     } catch (e) {
-      $('#res').text(e+'\n'+vm.get_call_stack_string());
+      $('#res').html(e+'\n'+vm.get_call_stack_string());
       throw e;
     }
     show_stack();
