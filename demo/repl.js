@@ -79,7 +79,13 @@ $(function() {
       'ms eval:' + eval_time +
       'ms total:' + (read_time + compile_time + eval_time) + 'ms' + '</span><br>' +
       (function(r){
-        return (err) ? '<span class="error">' + r + '</span>' : r;
+        if (err) {
+          var call_stack_arr = runner.vm.get_call_stack_string().split('\n')
+          var call_stack_str = '<pre class="code">' + call_stack_arr.filter(function(x){return x !== '';}).map(escapeHTML).join('<br>') + "</pre>";
+          line_len += call_stack_arr.length;
+          return '<span class="error">' + r + call_stack_str + '</span>';
+        }
+        return r;
       })(result_list.join('<br>'));
 
     var ns = runner.vm.namespace;

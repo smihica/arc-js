@@ -97,7 +97,7 @@ $(function() {
     try {
       rt = vm.step();
     } catch (e) {
-      $('#res').text(e+'');
+      $('#res').text(e+'\n'+vm.get_call_stack_string());
       throw e;
     }
     show_stack();
