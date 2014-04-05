@@ -2,6 +2,7 @@
 
 (assign %___macros___ (table))
 (assign %___special_syntax___ (table))
+(assign %___special_syntax_list___ nil)
 (assign %___type_functions___ (table))
 
 ;(mac mac (name vars . body)
@@ -194,25 +195,30 @@
 
 ;; special syntax.
 (mac defss (name regex vars . body)
-  `(assign ,name
-           (sref %___special_syntax___
-                 (annotate 'special-syntax (cons ,regex (fn ,vars ,@body)))
-                 ',name)))
+  `(do
+     (assign ,name
+             (sref %___special_syntax___
+                   (annotate 'special-syntax (cons ,regex (fn ,vars ,@body)))
+                   ',name))
+     (assign %___special_syntax_list___
+             (map1 (fn (x) (rep (cadr x)))
+                   (coerce %___special_syntax___ 'cons)))
+     ,name))
 
 (defss compose-ss #/^(.*[^:]):([^:].*)$/ (a b)
-       (+ "(compose " a " " b ")"))
+       `(compose ,a ,b))
 
 (defss complement-ss #/^\~(.+)$/ (a)
-       (+ "(complement " a ")"))
+       `(complement ,a))
 
-(defss ssyntax-ss #/^(.+)\.(.+)$/ (a b)
-       (+ "(" a " " b ")"))
+(defss sexp-ss #/^(.+)\.(.+)$/ (a b)
+       `(,a ,b))
 
-(defss ssyntax-with-quote-ss #/^(.+)\!(.+)$/ (a b)
-       (+ "(" a " '" b ")"))
+(defss sexp-with-quote-ss #/^(.+)\!(.+)$/ (a b)
+       `(,a ',b))
 
 (defss namespace #/^(.+?)::(.+)$/ (a b)
-       (+ "(ns " a " " b ")"))
+       `(ns ,a ,b))
 
 ;; type functions.
 (mac deftf (type vars . body)
@@ -304,6 +310,23 @@
 
 ;;;;;;;;;;;;;;;;;;;;; layer 4
 
+(def ssyntax (s . expand-p)
+  (let sstr (string s)
+    ((rfn ssyntax-iter (sslis)
+       (if sslis
+           (withs (reg-fn (car sslis)
+                   reg    (car reg-fn)
+                   fn     (cdr reg-fn))
+             (aif (match reg sstr)
+                  (if (car expand-p)
+                      (apply fn (map1 read (cdr it)))
+                      t)
+                  (ssyntax-iter (cdr sslis))))))
+     %___special_syntax_list___)))
+
+(def ssexpand (s)
+  (aif (ssyntax s t) it s))
+
 (def macex1 (x)
   (aif (and (is (type x) 'cons) (ref %___macros___ (car x)))
        (apply (rep it) (cdr x))
@@ -348,6 +371,12 @@
                 (%macex
                   (apply (rep it) (cdr x)) e)
                 (map1 [%macex _ e] x)))
+
+    sym (let expanded (ssexpand x)
+          (if (is expanded x)
+              x
+              (%macex expanded e)))
+
     x))
 
 (def macex (x . igns) (%macex x igns))

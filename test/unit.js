@@ -129,12 +129,6 @@ describe('Reader', function(){
       expect(car(cdr(cdr(reader.read("#/\\/\\/\\~/"))))).to.equal('//\\~');
       expect(car(cdr(cdr(reader.read("#/\\/\\/\\.\\t/"))))).to.equal('//\\.\t');
     });
-    it('special-syntax', function() {
-      expect(stringify(reader.read("car:car:cdr:cdr"))).to.equal('(compose (compose (compose car car) cdr) cdr)');
-      expect(stringify(reader.read("~abc"))).to.equal('(complement abc)');
-      expect(stringify(reader.read("abc.def.ghi"))).to.equal('((abc def) ghi)');
-      expect(stringify(reader.read("abc!def!ghi"))).to.equal("((abc (quote def)) (quote ghi))");
-    });
   });
 });
 
@@ -603,7 +597,19 @@ describe('VM eval', function(){
         "(with (x y) (do (+ x y) (- x y)))",
 
         "(macex '(def f (a . b) (+ a (car b))))",
-        "(assign f (fn (a . b) (+ a (car b))))"
+        "(assign f (fn (a . b) (+ a (car b))))",
+
+        "(macex 'car:car:cdr:cdr)",
+        "(fn %g6-g ((fn %g7-g ((fn %g8-g (car (apply car %g8-g))) (apply cdr %g7-g))) (apply cdr %g6-g)))",
+
+        "(macex '~abc)",
+        "(complement abc)",
+
+        "(macex 'abc.def.ghi)",
+        "((abc def) ghi)",
+
+        "(macex 'abc!def!ghi)",
+        "((abc (quote def)) (quote ghi))"
 
       );
     });

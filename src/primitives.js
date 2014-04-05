@@ -226,8 +226,13 @@ var stringify_for_disp = function(x) {
 
 var uniq_counter = 0;
 
+var reader_for_primitives = new Reader();
+
 var primitives = (function() {
   var rt = {
+    'read': [{dot: -1}, function(str) {
+      return reader_for_primitives.read(str);
+    }],
     'cons': [{dot: -1}, function(car, cdr) {
       return new Cons(car, cdr);
     }],
@@ -514,6 +519,10 @@ var primitives = (function() {
         args[i-1] = arguments[i];
       if (0 < l) args = args.concat(list_to_javascript_arr(arguments[l]));
       return new Call(fn, null, args);
+    }],
+    'match': [{dot: -1}, function(reg, str) {
+      var mat = str.match(new RegExp(rep(reg)));
+      return mat ? javascript_arr_to_list(mat) : nil;
     }],
     '%pair': [{dot: -1}, function(lis) {
       var rt = nil, toggle = true;

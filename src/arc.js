@@ -12,8 +12,8 @@ var ArcJS = (function() {
   include("continuation.js");
   include("tagged.js");
   include("box.js");
-  include("primitives.js");
   include("reader.js");
+  include("primitives.js");
   include("preload.js");
   include("namespace.js");
   include("vm.js");

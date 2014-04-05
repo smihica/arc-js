@@ -18,20 +18,10 @@ var Reader = classify("Reader", {
     str: '',
     i: 0,
     slen: 0,
-    subreader: null,
-    vm: null
   },
 
   method: {
-    init: function(vm) {
-      this.vm = vm;
-    },
-
-    get_subreader: function() {
-      if (this.subreader) return this.subreader;
-      this.subreader = new Reader(this.vm);
-      return this.subreader;
-    },
+    init: function() {},
 
     load_source: function(str) {
       this.str = str;
@@ -158,18 +148,6 @@ var Reader = classify("Reader", {
     read_symbol: function(tok) {
       if (arguments.length < 1) tok = this.read_thing();
       if (tok.length === 0) return Reader.EOF;
-      var ss = this.vm.global['%___special_syntax___'];
-      if (ss) {
-        var ss = ss.v.src;
-        for (var s in ss) {
-          var def = rep(ss[s]);
-          var m = tok.match(new RegExp(rep(car(def))));
-          if (m) {
-            var expanded = this.vm.arc_apply(cdr(def), m.slice(1));
-            return this.get_subreader().read(expanded);
-          }
-        }
-      }
       return this.make_symbol(tok);
     },
 
