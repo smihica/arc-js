@@ -36,52 +36,61 @@ var code_hist = '';
 function onenter(code) {
   var expr = null, res = null, result = '', err = false;
   if ((code.match(/^\s*$/)) && code_hist === '') return false;
-  try {
-    expr = vm.reader.read(code_hist + code);
-    if (expr === ArcJS.Reader.EOF) return false;
-  } catch (e) {
-    if (vm.reader.i < vm.reader.slen) {
-      result = e.toString();
-      err = true;
-    }
-    else { /* Not closed yet. ignore.*/
-      code_hist += code;
-      return true;
-    }
-  }
-  if (result === ArcJS.Reader.EOF) {
-    if (code_hist === '') {
-      return false;
-    } else {
-      code_hist += code;
-      return true;
-    }
-  }
-  if (!err) {
-    var called_ns = vm.namespace;
+
+  var code_all = code_hist + code;
+
+  do {
+
     try {
-      var compiled = compile(expr);
-      vm.cleanup();
-      vm.load(compiled);
-      res =  vm.run();
-      result = ArcJS.stringify(res);
+      expr = vm.reader.read(code_all);
+      if (expr === ArcJS.Reader.EOF) return false;
     } catch (e) {
-      result = e.toString();
-      vm.namespace = called_ns;
-      err = true;
+      if (vm.reader.i < vm.reader.slen) {
+        result = e.toString();
+        err = true;
+      }
+      else { /* Not closed yet. ignore.*/
+        code_hist = code_all;
+        return true;
+      }
     }
-  }
-  if (err) {
-    process.stderr.write(result + "\n");
-    var call_stack_str = vm.get_call_stack_string();
-    process.stderr.write(call_stack_str + "\n");
-  } else {
-    process.stdout.write(result + "\n");
-  }
-  if (vm.warn !== "") {
-    process.stderr.write(vm.warn + "\n");
-  }
-  code_hist = '';
+    if (result === ArcJS.Reader.EOF) {
+      if (code_hist === '') {
+        return false;
+      } else {
+        code_hist = code_all;
+        return true;
+      }
+    }
+    if (!err) {
+      var called_ns = vm.namespace;
+      try {
+        var compiled = compile(expr);
+        vm.cleanup();
+        vm.load(compiled);
+        res =  vm.run();
+        result = ArcJS.stringify(res);
+      } catch (e) {
+        result = e.toString();
+        vm.namespace = called_ns;
+        err = true;
+      }
+    }
+    if (err) {
+      process.stderr.write(result + "\n");
+      var call_stack_str = vm.get_call_stack_string();
+      process.stderr.write(call_stack_str + "\n");
+    } else {
+      process.stdout.write(result + "\n");
+    }
+    if (vm.warn !== "") {
+      process.stderr.write(vm.warn + "\n");
+    }
+
+    code_hist = '';
+    code_all = vm.reader.str.slice(vm.reader.i);
+
+  } while (code_all !== '');
 
   var ns = vm.namespace;
   var nss = '';
