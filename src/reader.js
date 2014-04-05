@@ -41,6 +41,10 @@ var Reader = classify("Reader", {
       return (-1 < '0123456789+-.'.indexOf(c));
     },
 
+    readable_symbol_p: function(c) {
+      return c === '|';
+    },
+
     reader_macro_p: function(c) {
       return c === '#';
     },
@@ -145,16 +149,29 @@ var Reader = classify("Reader", {
       return n;
     },
 
+    read_readable_symbol: function() {
+      var c, acc = '';
+      while (this.i < this.slen) {
+        c = this.str[this.i++];
+        if (c === '|') {
+          return coerce(acc, s_sym);
+        } else {
+          acc += c;
+        }
+      }
+      throw new Error("unexpected end-of-file while reading symbol");
+    },
+
     read_symbol: function(tok) {
       if (arguments.length < 1) tok = this.read_thing();
       if (tok.length === 0) return Reader.EOF;
-      return this.make_symbol(tok);
+      return this.make_symbol(tok, false);
     },
 
-    make_symbol: function(tok) {
+    make_symbol: function(tok, readable) {
       if (tok === 'nil') return nil;
       if (tok === 't') return true;
-      return Symbol.get(tok);
+      return Symbol.get(tok, readable);
     },
 
     read_string: function(delimiter, type, escape_only_delimiter) {
@@ -203,7 +220,7 @@ var Reader = classify("Reader", {
 
     read_regexp: function() {
       var str = this.read_string('/', 'regexp', true);
-      return list(Symbol.get('annotate'), list(Symbol.get('quote'), Symbol.get('regexp')), str);
+      return list(Symbol.get('annotate'), list(Reader.QUOTE, Symbol.get('regexp')), str);
     },
 
     read_token: function() {
@@ -214,6 +231,7 @@ var Reader = classify("Reader", {
         c = this.str[this.i++];
         if (this.whitespace_p(c)) { continue; }
         if (this.number_p(c)) { this.i--; return this.read_number(); }
+        if (this.readable_symbol_p(c)) { return this.read_readable_symbol(); }
         if (this.reader_macro_p(c)) {
           c = this.str[this.i++];
           if (c === '|') {
@@ -272,6 +290,10 @@ var Reader = classify("Reader", {
       if (token === Reader.LPAREN) return this.read_list();
       if (token === Reader.LBRACK) return this.read_blist();
       return token;
+    },
+
+    completed_p: function() {
+      return (this.slen <= this.i);
     },
 
     read: function(str) {

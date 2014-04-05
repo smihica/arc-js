@@ -70,6 +70,13 @@ describe('Reader', function(){
       rex('u-nk_~o#abc$$%%moemoe').equal(ArcJS.Symbol.get('u-nk_~o#abc$$%%moemoe'));
       rex('nil').equal(nil);
       rex('t').equal(t);
+      rex('|b|').equal(ArcJS.Symbol.get('b')).property('evaluable_name', false);
+      rex('|10|').equal(ArcJS.Symbol.get('10')).property('evaluable_name', true);
+      rex('|a b c|').equal(ArcJS.Symbol.get('a b c')).property('evaluable_name', true);
+      rex("|'|").equal(ArcJS.Symbol.get("'")).property('evaluable_name', true);
+      rex('|"|').equal(ArcJS.Symbol.get('"')).property('evaluable_name', true);
+      rex('|#|').equal(ArcJS.Symbol.get('#')).property('evaluable_name', true);
+      rex('||').equal(ArcJS.Symbol.get('')).property('evaluable_name', true);
     });
     it('character', function() {
       rex('#\\a').equal(ArcJS.Char.get('a'));
@@ -778,6 +785,7 @@ describe('VM eval', function(){
       eval_print_eql('(coerce 66.7 \'num)', '66.7');
       // string to
       eval_print_eql('(coerce "ABC" \'sym)', 'ABC');
+      eval_print_eql('(coerce "A B C" \'sym)', '|A B C|');
       eval_print_eql('(coerce "abc" \'cons)', '(#\\a #\\b #\\c)');
       eval_print_eql('(coerce "0101001" \'int 2)', '41');
       eval_print_eql('(coerce "23.45" \'num)', '23.45');

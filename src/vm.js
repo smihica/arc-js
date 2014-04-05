@@ -237,7 +237,7 @@ var VM = classify("VM", {
             value = vars[name];
             if (ns.upper === null) {
               if (value === void(0))
-                throw new Error('Unbound variable "' + name + '"');
+                throw new Error('Unbound variable ' + stringify_for_disp(Symbol.get(name)));
               else break;
             }
             ns = ns.upper;

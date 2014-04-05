@@ -79,7 +79,16 @@ var coerce = function(obj, to_type, args) {
   case 'string':
     switch(to_type) {
     case 'sym':
-      return Symbol.get(obj);
+      try {
+        var r = read(obj);
+        if (reader_for_primitives.completed_p() &&
+            type(r).name === 'sym')
+          return r;
+        return Symbol.get(obj, true);
+      } catch (e) {
+        // TODO: ignore only Reader Error.
+        return Symbol.get(obj, true);
+      }
     case 'cons':
       var lis = [];
       for (var i = 0, l = obj.length; i<l; i++)
@@ -191,7 +200,7 @@ var stringify = function(x) {
   case 'sym':
     if (x === nil) return 'nil';
     if (x === t) return 't';
-    return x.name;
+    return (x.evaluable_name) ? '|' + x.name + '|' : x.name;
   case 'cons':
     return "(" + stringify_list(x) + ")";
   case 'fn':
@@ -728,36 +737,38 @@ var primitives = (function() {
   return rt;
 })();
 
-var cons     = primitives.cons;
-var list     = primitives.list;
-var car      = primitives.car;
-var scar     = primitives.scar;
-var cdr      = primitives.cdr;
-var scdr     = primitives.scdr;
-var caar     = primitives.caar;
-var cadr     = primitives.cadr;
-var cddr     = primitives.cddr;
-var nthcdr   = primitives.nthcdr;
-var lastcons = primitives.lastcons;
-var append   = primitives.append;
-var nconc    = primitives.nconc;
-var reverse  = primitives.rev;
-var nreverse = primitives.nrev;
-var rep      = primitives.rep;
-var annotate = primitives.annotate;
+var read        = primitives.read;
+var cons        = primitives.cons;
+var list        = primitives.list;
+var car         = primitives.car;
+var scar        = primitives.scar;
+var cdr         = primitives.cdr;
+var scdr        = primitives.scdr;
+var caar        = primitives.caar;
+var cadr        = primitives.cadr;
+var cddr        = primitives.cddr;
+var nthcdr      = primitives.nthcdr;
+var lastcons    = primitives.lastcons;
+var append      = primitives.append;
+var nconc       = primitives.nconc;
+var reverse     = primitives.rev;
+var nreverse    = primitives.nrev;
+var rep         = primitives.rep;
+var annotate    = primitives.annotate;
 
-ArcJS.nil = nil;
-ArcJS.t = t;
-ArcJS.type = type;
+ArcJS.nil       = nil;
+ArcJS.t         = t;
+ArcJS.type      = type;
 ArcJS.stringify = stringify;
-ArcJS.cons = cons;
-ArcJS.list = list;
-ArcJS.car = car;
-ArcJS.cdr = cdr;
-ArcJS.cadr = cadr;
-ArcJS.cddr = cddr;
-ArcJS.nreverse = nreverse;
-ArcJS.rep = rep;
-ArcJS.annotate = annotate;
+ArcJS.cons      = cons;
+ArcJS.list      = list;
+ArcJS.read      = read;
+ArcJS.car       = car;
+ArcJS.cdr       = cdr;
+ArcJS.cadr      = cadr;
+ArcJS.cddr      = cddr;
+ArcJS.nreverse  = nreverse;
+ArcJS.rep       = rep;
+ArcJS.annotate  = annotate;
 ArcJS.list_to_javascript_arr = list_to_javascript_arr;
 ArcJS.javascript_arr_to_list = javascript_arr_to_list;
