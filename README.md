@@ -1,6 +1,6 @@
 # arc-js
 
-__An Arc implementation in web browser__
+__An Arc-langugage interpreter written in JavaScript__
 
 ### Features
 
@@ -19,10 +19,7 @@ __An Arc implementation in web browser__
 - type default function (deftf)
 - complex-args
 - defgeneric (object system)
-
-### Not Yet (going to support)
-
-- useful debugger.
+- stack trace.
 
 ### demo
 
