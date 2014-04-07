@@ -1,11 +1,9 @@
 #!/usr/bin/env node
 
-var script_dir = require('path').dirname(require.main.filename);
 var fs = require('fs');
-
 var term = 'arc> ';
 var readline = require('readline');
-var ArcJS = require(script_dir + '/arc.js');
+var ArcJS = require('../arc.js');
 var runner = ArcJS.context();
 var vm = runner.vm;
 

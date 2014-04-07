@@ -1,14 +1,39 @@
 #!/usr/bin/env node
 'use strict';
 
-var script_dir = require('path').dirname(require.main.filename);
-
 var fs = require('fs');
 
 function main(inputs, out) {
-  var ArcJS = require(script_dir + '/../arc.js');
+  var ArcJS = require('../arc.js');
   var vm = new ArcJS.VM();
-  var operators = [];
+  var operators = [
+    "frame",
+    "close",
+    "test",
+    "jump",
+    "conti",
+    "shift",
+    "constant",
+    "argument",
+    "refer-let",
+    "refer-local",
+    "refer-free",
+    "refer-global",
+    "refer-nil",
+    "refer-t",
+    "enter-let",
+    "exit-let",
+    "assign-let",
+    "assign-local",
+    "assign-free",
+    "assign-global",
+    "box",
+    "indirect",
+    "apply",
+    "return",
+    "continue-return",
+    "halt"
+  ];
 
   function compile(expr) {
     var asm = [
@@ -147,20 +172,12 @@ function main(inputs, out) {
     });
   }
 
-  function init_operators(after) {
-    fs.readFile(script_dir + '/../src/operators.js', 'utf8', function(err, data) {
-      if (err) throw new Error(err);
-      operators = JSON.parse(data);
-      after();
-    });
-  }
-
   out.write(
     ('// This is an auto generated file.\n' +
      "// Compiled from ['" + inputs.join("','") + "'].\n" +
      "// DON'T EDIT !!!\n" ));
 
-  init_operators(processing);
+  processing();
 
 }
 
