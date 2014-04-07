@@ -1,0 +1,32 @@
+{
+  "name": "arc-js",
+  "version": "0.1.0",
+  "description": "An Arc-langugage interpreter written in JavaScript",
+  "main": "arc.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "files": [
+    "arc.js",
+    "arc.min.js",
+    "bin"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/smihica/arc-js.git"
+  },
+  "keywords": [
+    "Arc",
+    "interpreter",
+    "language",
+    "arclang"
+  ],
+  "author": "smihica",
+  "license": "MIT",
+  "readmeFilename": "README.md",
+  "gitHead": "8ed960129798a42bf3d38f95a5ee801a43db7d72",
+  "bin": {
+    "arcjs": "./bin/arcjs",
+    "arcjsc": "./bin/arcjsc"
+  }
+}
