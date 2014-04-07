@@ -134,7 +134,7 @@ function main(inputs, out) {
         exprs.push(expr);
       }
       exprs.forEach(function(expr) {
-        process.stderr.write("COMPILING ... " + ArcJS.stringify(expr) + "\n");
+        if (debug) process.stderr.write("COMPILING ... " + ArcJS.stringify(expr) + "\n");
         var arr = code_list_to_js_arr(compile_with_evaluate(expr), tbl);
         out.write(JSON.stringify(arr) + ',\n');
       });
@@ -165,22 +165,31 @@ function main(inputs, out) {
 }
 
 var argv = process.argv.slice(2);
-var inputs = [], output = '';
+var inputs = [], output = '', debug = false;
 for (var i=0,l=argv.length; i<l; i++) {
-  if (argv[i] === '-o') { i++; output = argv[i]; continue; }
-  inputs.push(argv[i]);
+  var itm = argv[i];
+  if (itm === '-o' || itm === '--output') { i++; output = argv[i]; continue; }
+  if (itm === '-d' || itm === '--debug')  { debug = true; continue; }
+  inputs.push(itm);
 }
 
-if (inputs.length === 0 || -1 < inputs.indexOf('-h')) {
-  console.log('Usage: arc-compilter-node.js input-file [input-files ... ] [ -o output-file | stdout ]');
+if (inputs.length === 0 || -1 < inputs.indexOf('-h') || -1 < inputs.indexOf('--help')) {
+  console.log('arcjsc -- Arc language compiler for arc-js interpreter');
   console.log('');
-  console.log('Example');
-  console.log('$ arc-compilter-node.js code.arc -o code.fasl.js');
+  console.log('Usage: arcjsc [options] input-file [input-files ... ] [ -o output-file ]');
+  console.log('  -h, --help               : show help');
+  console.log('  -d, --debug              : print debug message to stderr');
+  console.log('  -o, --output output-file : output to the file. default is stdout.');
+  console.log('');
+  console.log('Example:');
+  console.log('  $ arcjsc code.arc -o code.fasl');
+  console.log('');
   process.exit();
 }
 
+
 var out = process.stdout;
-if (output !== '') {
+if (output !== '' && output !== 'stdout') {
   out = fs.createWriteStream(output, { flags: 'w' });
 }
 

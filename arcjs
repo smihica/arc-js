@@ -142,17 +142,24 @@ for (var i=0,l=argv.length; i<l; i++) {
   scripts.push(argv[i]);
 }
 
-if (-1 < scripts.indexOf('-h')) {
-  console.log('  [ Arc-JS version ' + ArcJS.version + ' ]');
+if (-1 < scripts.indexOf('-h') || -1 < scripts.indexOf('--help')) {
+  console.log('arcjs -- Arc language interpreter or REPL written in JavaScript');
   console.log('');
-  console.log('  Usage: ./arcjs preload-file [preload-files ... ] | --run run-file [run-files ... ]');
+  console.log('Usage: arcjs [options] preload-file [preload-files ... ] | -r run-file [run-files ... ]');
+  console.log('  -h, --help                          : show help');
+  console.log('  -v, --version                       : show version');
+  console.log('  -r, --run run-file [run-files ... ] : run the files.');
   console.log('');
-  console.log('  Example');
+  console.log('Example:');
+  console.log('  simple REPL                         : $ arcjs');
+  console.log('  set preload-files for REPL          : $ arcjs lib.fasl lib2.arc');
+  console.log('  script runner                       : $ arcjs -r script.arc srcipt2.arc');
   console.log('');
-  console.log('    REPL mode:    $ ./arcjs lib.fasl lib2.arc');
-  console.log('');
-  console.log('    Runner mode:  $ ./arcjs -r script.arc srcipt2.arc');
-  console.log('');
+  process.exit();
+}
+
+if (-1 < scripts.indexOf('-v') || -1 < scripts.indexOf('--version')) {
+  console.log(ArcJS.version);
   process.exit();
 }
 
