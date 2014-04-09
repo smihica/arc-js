@@ -715,6 +715,25 @@ var primitives = (function() {
     'msec': [{dot: -1}, function() {
       return +(new Date());
     }],
+    'fn-name': [{dot: 1}, function(fn, $$) {
+      var closurep = (fn instanceof Closure);
+      if (!closurep && !(typeof fn === 'function')) {
+        var typename = type(fn).name;
+        throw new Error('fn-name expects only fn-type object as the first argument. but ' + typename + ' given.');
+      }
+      var name;
+      if (1 < arguments.length) {
+        name = coerce(arguments[1], s_string);
+        if (closurep) {
+          fn.name = name;
+        } else {
+          fn.prim_name = name;
+        }
+      } else {
+        name = (closurep) ? fn.name : fn.prim_name;
+      }
+      return coerce(name || nil, s_sym);
+    }]
   };
   for (var n in rt) {
     var f = rt[n];

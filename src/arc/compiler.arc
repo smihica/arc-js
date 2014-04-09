@@ -28,7 +28,9 @@
 
 (mac rfn (name vars . body)
   (list 'with (list name nil)
-        (list 'assign name (+ (list 'fn vars) body))))
+        (list 'assign name (+ (list 'fn vars) body))
+        (list 'fn-name name (list 'quote name))
+        name))
 
 (mac afn (vars . body)
   (+ (list 'rfn 'self vars) body))

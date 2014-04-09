@@ -257,11 +257,11 @@
 (mac = args (expand=list args))
 
 (mac loop (start test update . body)
-  (w/uniq (gfn gparm)
+  (w/uniq (looper loop-flag)
     `(do ,start
-         ((rfn ,gfn (,gparm)
-            (if ,gparm
-                (do ,@body ,update (,gfn ,test))))
+         ((rfn ,looper (,loop-flag)
+            (if ,loop-flag
+                (do ,@body ,update (,looper ,test))))
           ,test))))
 
 (mac for (v init max . body)

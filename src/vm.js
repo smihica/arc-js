@@ -458,14 +458,15 @@ var VM = classify("VM", {
     },
     get_call_stack_string: function(lim) {
       lim = lim || Infinity;
+      var default_name = '%NAMELESS';
       var res = "Stack Trace:\n_______________________________________\n";
       for (var i = 0, l = Math.min(this.call_stack.length, lim); i < l; i++) {
         var info = this.call_stack[i];
         var typ = info[1]; var args_str = "";
         if (i === 0) {
-          args_str = "\n        EXECUTED " + stringify(cons(Symbol.get(info[0]), javascript_arr_to_list(this.recent_call_args)));
+          args_str = "\n        EXECUTED " + stringify(cons(Symbol.get(info[0] || default_name), javascript_arr_to_list(this.recent_call_args)));
         }
-        res += ("  " + i + "  " + (typ ? "fn" : "prim") + " '" + info[0] + "'" + args_str + "\n");
+        res += ("  " + i + "  " + (typ ? "fn" : "prim") + " '" + (info[0] || default_name) + "'" + args_str + "\n");
       }
       return res;
     }
