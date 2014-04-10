@@ -1795,3 +1795,7 @@
 ;  (let bb (n-of 1000 (rand 50)) (time10 (bestn 100 > bb)))
 ;  time: 2237 msec.  -> now down to 850 msec
 
+(def gcd (a b)
+  (if (is a b) a
+      (> a b) (gcd (- a b) b)
+      (> b a) (gcd a (- b a))))

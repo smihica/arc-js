@@ -38,7 +38,7 @@ var Context = classify("Context", {
       var expr = this.read(str);
       var result = nil;
       while (expr !== Reader.EOF) {
-        result = stringify(this.eval_expr(expr));
+        result = this.eval_expr(expr);
         expr = this.read();
       }
       return result;
