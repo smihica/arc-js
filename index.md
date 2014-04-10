@@ -4,7 +4,8 @@ title: Arc.js
 ---
 
 ## Arc.js
-This is an Arc-language interpreter written in JavaScript.
+
+This is an Arc-language interpreter written in JavaScript. It can run both on nodejs and on a web-site.
 
 ## Features
 
@@ -24,13 +25,13 @@ This is an Arc-language interpreter written in JavaScript.
 - REPL
 - stack-tracer
 
-## How to install (on your machine)
+## How to install
 
-You have to install nodejs and npm first.
+You have to install __nodejs__ and __npm__ first.
 
-    $ sudo npm install arc-js
+    $ sudo npm install -g arc-js
 
-Then, You can run REPL.
+Then, You can run __REPL__.
 
     $ arcjs
     arc> (pr 'hello-world)
