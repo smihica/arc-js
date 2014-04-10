@@ -1,7 +1,8 @@
 {
   "name": "arc-js",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "An Arc-langugage interpreter written in JavaScript",
+  "homepage": "http://smihica.github.io/arc-js/",
   "main": "arc.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -9,6 +10,7 @@
   "files": [
     "arc.js",
     "arc.min.js",
+    "arc_loader.js",
     "bin"
   ],
   "repository": {
