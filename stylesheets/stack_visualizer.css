@@ -1,0 +1,117 @@
+html, body {
+    width: 100%;
+    min-height: 100%;
+    height: 100%;
+    margin: 0; padding: 0;
+}
+table {
+    width:  100%;
+    height: 100%;
+    border-collapse: collapse;
+    margin: 0; padding: 0;
+}
+table tr td {
+    margin: 0; padding: 0;
+    overflow: scroll;
+    width: 33%;
+    height: 100%;
+    box-sizing: border-box;
+    vertical-align: top;
+}
+table tr td textarea {
+    margin: 0; padding: 0;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    font-size:16px;
+    font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+    background-color: #FFF;
+}
+div#status {
+    margin: 0; padding: 0;
+    width: 100%;
+    height: 5%;
+    border: 1px solid #000;
+    font-size:14px;
+    font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+}
+div#asm {
+    margin: 0; padding: 0;
+    width: 100%;
+    height: 70%;
+    overflow: scroll;
+    border: 1px solid #000;
+}
+#res {
+    margin: 0; padding: 0;
+    width: 100%;
+    height: 25%;
+    overflow: scroll;
+    border: 1px solid #000;
+    font-size:16px;
+    font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+}
+table th {
+    text-align: right;
+}
+
+th button {
+    font-size: 16px;
+}
+
+div#stack {
+    width:  100%;
+    height: 100%;
+    overflow: scroll;
+    border: 1px solid #000;
+}
+
+div#stack table {
+    width:  100%;
+    height: auto;
+    font-size: 12px;
+    font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+}
+
+div#stack table tr td {
+    border-bottom: 1px solid #CCC;
+    color: black;
+}
+
+div#stack table tr td:first-child {
+    border-right: 1px solid #CCC;
+    width: 2%;
+}
+
+div#stack table tr.s td {
+    background: #F99;
+}
+
+div#stack table tr.f td {
+    background: #99F;
+}
+
+div#stack table tr.l td {
+    background: #9F9;
+}
+
+div#asm table {
+    font-size: 12px;
+    width:  100%;
+    height: auto;
+    font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+}
+
+div#asm table tr td {
+    border-bottom: 1px solid #CCC;
+    color: black;
+}
+
+div#asm table tr td:first-child {
+    border-right: 1px solid #CCC;
+    width: 2%;
+}
+
+div#asm table tr.p td {
+    background: #F99;
+}

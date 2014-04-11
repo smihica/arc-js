@@ -7,23 +7,22 @@ title: Arc.js
 
 This is an Arc-language interpreter written in JavaScript. It can run both on nodejs and on a web-site.
 
+## REPL
+
+<div id="repl">
+  <div id="repl-txt"></div>
+  <div id="holder"></div>
+</div>
+
 ## Features
 
-- Stack based vm
-- Self-hosting compiler
-- First-class continuations
-- Tail call optimization
-- mac macro
-- almost of [anarki](https://github.com/arclanguage/anarki)'s functions.
-- user tagged objects (annotate)
-- defgeneric (object system)
-- complex-args
-- regexp (#/exp/)
-- special syntax (:~.!)
-- user defined special syntax (defss)
-- user difined type function (deftf)
-- REPL
-- stack-tracer
+| Stack based vm ( [visualizer](stack_visualizer.html) ) | Self-hosting compiler                                                  |
+| First-class continuations                              | Tail call optimization                                                 |
+| mac macro                                              | Almost of [anarki](https://github.com/arclanguage/anarki)'s functions. |
+| user tagged objects (annotate)                         | defgeneric (object system)                                             |
+| complex-args (let, fn)                                 | regexp (#/exp/)                                                        |
+| Special syntax (:~.!)                                  | user defined special syntax (defss)                                    |
+| User difined type function (deftf)                     | stack-tracer                                                           |
 
 ## How to install
 

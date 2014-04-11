@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>arc-js : stack visualizer</title>
+<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script type="text/javascript" src="js/arc.min.js"></script>
+<script type="text/javascript" src="javascripts/stack_visualizer.js"></script>
+<link rel="stylesheet" href="stylesheets/stack_visualizer.css"></link>
+</head>
+<body>
+  <table>
+    <tr>
+      <th>
+        <button id="read-compile-btn">compile</button>
+      </th>
+      <th>
+        <button id="auto-step-btn">Run &gt;&gt;</button>
+        <button id="step-btn">Next step &gt;&gt;</button>
+      </th>
+      <th>
+        <button id="reset-btn">Reset</button>
+        <button id="run-btn">Run All</button>
+      </th>
+    </tr>
+    <tr>
+      <td><textarea name="" id="arc"></textarea></td>
+      <td><div id="stack"></div></td>
+      <td>
+        <div id="status"></div>
+        <div id="asm"></div>
+        <pre id="res"></pre>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
