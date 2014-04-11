@@ -74,7 +74,7 @@ $(function() {
     var org = txt.html();
     var _new = '<pre class="code">' + code_list.join('<br>') + '</pre>' +
       '<span class="time">' +
-      ';; passed time -- read:' + read_time +
+      ';; passed -- read:' + read_time +
       'ms compile:' + compile_time +
       'ms eval:' + eval_time +
       'ms total:' + (read_time + compile_time + eval_time) + 'ms' + '</span><br>' +
