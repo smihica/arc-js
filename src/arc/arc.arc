@@ -1799,3 +1799,16 @@
   (if (is a b) a
       (> a b) (gcd (- a b) b)
       (> b a) (gcd a (- b a))))
+
+(defss c_r #/^c([ad]{5,})r$/ (xs)
+       (let ac [case _ #\a 'car #\d 'cdr]
+         `(let f (fn (x)
+                  ,((afn (xs) (if xs `(,(ac car.xs) ,(self cdr.xs)) 'x))
+                    (coerce (string xs) 'cons)))
+            (fn-name f ',(sym (+ 'c xs 'r)))
+            f)))
+
+(defss keyword-ss #/^:(.+)$/ (sym) `(keyword ',sym))
+
+(def keyword (s) (sym (+ #\: s)))
+(def keywordp (s) (is ((string s) 0) #\:))
