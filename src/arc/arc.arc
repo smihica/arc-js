@@ -1805,7 +1805,7 @@
          `(let f (fn (x)
                   ,((afn (xs) (if xs `(,(ac car.xs) ,(self cdr.xs)) 'x))
                     (coerce (string xs) 'cons)))
-            (fn-name f ',(sym (+ 'c xs 'r)))
+            (fn-name f ',(coerce (+ 'c xs 'r) 'sym))
             f)))
 
 (defss keyword-ss #/^:(.+)$/ (sym) `(keyword ',sym))

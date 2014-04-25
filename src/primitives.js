@@ -529,6 +529,24 @@ var primitives = (function() {
       if (0 < l) args = args.concat(list_to_javascript_arr(arguments[l]));
       return new Call(fn, null, args);
     }],
+    'ssyntax': [{dot: 1}, function(s, $$) {
+      if (s === nil || s === t) return nil;
+      var sstr = s.name;
+      var specials = this.global['%___special_syntax___'].unbox().src;
+      for (var i in specials) {
+        var reg_fn = rep(specials[i]);
+        var reg = car(reg_fn);
+        var fn  = cdr(reg_fn);
+        var mat = sstr.match(new RegExp(rep(reg)));
+        if (mat) {
+          if (1 < arguments.length) {
+            return new Call(fn, null, mat.slice(1).map(read));
+          }
+          return t;
+        }
+      }
+      return nil;
+    }],
     'match': [{dot: -1}, function(reg, str) {
       var mat = str.match(new RegExp(rep(reg)));
       return mat ? javascript_arr_to_list(mat) : nil;

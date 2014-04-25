@@ -2,7 +2,6 @@
 
 (assign %___macros___ (table))
 (assign %___special_syntax___ (table))
-(assign %___special_syntax_list___ nil)
 (assign %___type_functions___ (table))
 
 ;(mac mac (name vars . body)
@@ -200,11 +199,8 @@
   `(do
      (assign ,name
              (sref %___special_syntax___
-                   (annotate 'special-syntax (cons ,regex (fn ,vars ,@body)))
+                   (annotate 'special-syntax (cons ,regex (let x (fn ,vars ,@body) (fn-name x ',name) x)))
                    ',name))
-     (assign %___special_syntax_list___
-             (map1 (fn (x) (rep (cadr x)))
-                   (coerce %___special_syntax___ 'cons)))
      ,name))
 
 (defss compose-ss #/^(.*[^:]):([^:].*)$/ (a b)
@@ -311,20 +307,6 @@
 (def undottify (l) (if (acons l) (cons (car l) (undottify (cdr l))) l (cons l nil)))
 
 ;;;;;;;;;;;;;;;;;;;;; layer 4
-
-(def ssyntax (s . expand-p)
-  (let sstr (string s)
-    ((rfn ssyntax-iter (sslis)
-       (if sslis
-           (withs (reg-fn (car sslis)
-                   reg    (car reg-fn)
-                   fn     (cdr reg-fn))
-             (aif (match reg sstr)
-                  (if (car expand-p)
-                      (apply fn (map1 read (cdr it)))
-                      t)
-                  (ssyntax-iter (cdr sslis))))))
-     %___special_syntax_list___)))
 
 (def ssexpand (s)
   (aif (ssyntax s t) it s))
