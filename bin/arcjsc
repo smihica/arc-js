@@ -60,7 +60,14 @@ function main(inputs, out) {
   }
 
   function compile_with_evaluate(expr) {
-    var compiled = compile(expr);
+    var compiled;
+    try {
+      compiled = compile(expr);
+    } catch (e) {
+      var call_stack_str = vm.get_call_stack_string();
+      process.stderr.write(call_stack_str + "\n");
+      throw e;
+    }
     vm.cleanup();
     vm.load(compiled);
     vm.run();
