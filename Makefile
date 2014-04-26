@@ -26,7 +26,7 @@ arc:		src/arc/arc.arc
 
 compiler:       src/arc/compiler.arc
 		mkdir -p backup
-		cp src/compiler.fasl backup/$(DATETIME).compiler.fasl
+		if [ -e src/compiler.fasl ]; then cp src/compiler.fasl backup/$(DATETIME).compiler.fasl; fi;
 		$(COMPILE_ARC) -d -o src/compiler.fasl src/arc/compiler.arc
 
 restore_compiler:
