@@ -532,7 +532,7 @@ var primitives = (function() {
     'ssyntax': [{dot: 1}, function(s, $$) {
       if (s === nil || s === t) return nil;
       var sstr = s.name;
-      var specials = this.global['%___special_syntax___'].unbox().src;
+      var specials = this.global['***special_syntax***'].unbox().src;
       for (var i in specials) {
         var reg_fn = rep(specials[i]);
         var reg = car(reg_fn);

@@ -3,7 +3,7 @@ var Table = classify("Table", {
     genkey: (function() {
       var i = 0;
       return function() {
-        return '%___table_key_' + i++ + '___';
+        return '%___table_key_' + i++ + '___%';
       }
     })(),
     keying: function keying(obj) {

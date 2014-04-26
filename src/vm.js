@@ -343,7 +343,7 @@ var VM = classify("VM", {
           var fn = this.a;
           var fn_type = type(fn);
           if (fn_type !== s_fn) {
-            var tfs = this.global['%___type_functions___'];
+            var tfs = this.global['***type_functions***'];
             var tfn;
             if (tfs && (tfn = tfs.v.get(fn_type)) !== nil) {
               tfn = rep(tfn);

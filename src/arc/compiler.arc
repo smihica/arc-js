@@ -1,20 +1,20 @@
 ;;;;;;;;;;;;;;;;;;;;; layer 0
 
-(assign %___macros___ (table))
-(assign %___special_syntax___ (table))
-(assign %___type_functions___ (table))
+(assign ***macros*** (table))
+(assign ***special_syntax*** (table))
+(assign ***type_functions*** (table))
 
 ;(mac mac (name vars . body)
 ;(if body
-;      `(assign ,name (sref %___macros___ (annotate 'mac (fn ,vars ,@body)) ',name))
+;      `(assign ,name (sref ***macros*** (annotate 'mac (fn ,vars ,@body)) ',name))
 ;      `(annotate 'mac (fn ,name ,@vars))))
 
 (assign mac
-        (sref %___macros___
+        (sref ***macros***
               (annotate 'mac
                         (fn (name vars . body)
                           (%if body
-                               (list 'assign name (list 'sref '%___macros___ (list 'annotate ''mac (+ (list 'fn vars) body)) (list 'quote name)))
+                               (list 'assign name (list 'sref '***macros*** (list 'annotate ''mac (+ (list 'fn vars) body)) (list 'quote name)))
                                (list 'annotate ''mac (+ (list 'fn name) vars)))))
               'mac))
 
@@ -198,7 +198,7 @@
 (mac defss (name regex vars . body)
   `(do
      (assign ,name
-             (sref %___special_syntax___
+             (sref ***special_syntax***
                    (annotate 'special-syntax (cons ,regex (let x (fn ,vars ,@body) (fn-name x ',name) x)))
                    ',name))
      ,name))
@@ -220,8 +220,8 @@
 
 ;; type functions.
 (mac deftf (type vars . body)
-  `(assign ,(coerce (+ "%___" (coerce type 'string) "_type_fn___") 'sym)
-           (sref %___type_functions___
+  `(assign ,(coerce (+ "***" (coerce type 'string) "_type_fn***") 'sym)
+           (sref ***type_functions***
                  (annotate 'type-function (fn ,vars ,@body))
                  ',type)))
 
@@ -312,7 +312,7 @@
   (aif (ssyntax s t) it s))
 
 (def macex1 (x)
-  (aif (and (is (type x) 'cons) (ref %___macros___ (car x)))
+  (aif (and (is (type x) 'cons) (ref ***macros*** (car x)))
        (apply (rep it) (cdr x))
        x))
 
@@ -351,7 +351,7 @@
            (aif (let top (car x)
                   (and (is (type top) 'sym)
                        (no (mem top e))
-                       (ref %___macros___ top)))
+                       (ref ***macros*** top)))
                 (%macex
                   (apply (rep it) (cdr x)) e)
                 (map1 [%macex _ e] x)))
