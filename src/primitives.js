@@ -532,7 +532,7 @@ var primitives = (function() {
     'ssyntax': [{dot: 1}, function(s, $$) {
       if (s === nil || s === t) return nil;
       var sstr = s.name;
-      var specials = this.global['***special_syntax***'].unbox().src;
+      var specials = this.ns.get('***special_syntax***').unbox().src;
       for (var i in specials) {
         var reg_fn = rep(specials[i]);
         var reg = car(reg_fn);
@@ -657,7 +657,7 @@ var primitives = (function() {
     }],
     'coerce': [{dot: 2}, coerce],
     'bound': [{dot: -1}, function(symbol) {
-      return (symbol.name in this.global) ? t : nil;
+      return this.ns.has(symbol.name) ? t : nil;
     }],
     'newstring': [{dot: 1}, function(n, $$) {
       var c = Char.get("\u0000");
@@ -676,18 +676,6 @@ var primitives = (function() {
         rt = coerce(arguments[i], s_string) + rt;
       }
       return rt;
-    }],
-    'in-ns': [{dot: -1}, function(n) {
-      NameSpace.push(this.namespace);
-      this.namespace = this.namespace.extend(n.name);
-      this.global = this.namespace.vars;
-      return nil;
-    }],
-    'exit-ns': [{dot: -1}, function() {
-      this.namespace = NameSpace.pop();
-      if (!this.namespace) return nil; // throw new Error('this is root ns.');
-      this.global = this.namespace.vars;
-      return nil;
     }],
     'isa': [{dot: -1}, function(x, typ) {
       return (type(x) === typ) ? t : nil;

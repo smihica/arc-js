@@ -1,9 +1,8 @@
 var NameSpace = classify('NameSpace', {
   property: {
-    name:   null,
-    upper:  null,
-    lowers: {},
-    vars:   {}
+    name:     null,
+    includes: null,
+    primary:  {}
   },
   static: {
     root: null,
@@ -17,28 +16,32 @@ var NameSpace = classify('NameSpace', {
     }
   },
   method: {
-    init: function(name, upper) {
+    init: function(name, includes) {
       this.name = name;
-      this.upper = upper;
+      this.includes = includes;
     },
-    extend: function(name) {
-      if (!this.lowers[name]) this.lowers[name] = new NameSpace(name, this);
-      return this.lowers[name];
+    set: function(name, val) {
+      this.primary[name] = val;
     },
-    down: function(name) {
-      return this.lowers[name];
+    setBox: function(name, val) {
+      this.primary[name] = new Box(val);
     },
-    up: function() {
-      return this.upper;
-    },
-    clear_lower: function(name) {
-      if (name) {
-        delete this.lowers[name];
-      } else {
-        this.lowers = {};
+    get: function(name) {
+      var v = this.primary[name];
+      if (v) return v;
+      for (var i = 0, l = this.includes.length; i<l; i++) {
+        v = this.includes[i].primary[name];
+        if (v) return v;
       }
+      throw new Error('Unbound variable ' + stringify_for_disp(Symbol.get(name)));
+    },
+    has: function(name) {
+      if (name in this.primary) return true;
+      for (var i = 0, l = this.includes.length; i<l; i++)
+        if (name in this.includes[i].primary) return true;
+      return false;
     }
   }
 });
-NameSpace.root = new NameSpace('%ROOT', null);
+NameSpace.root = new NameSpace('***root_namespace***', []);
 ArcJS.NameSpace = NameSpace;
