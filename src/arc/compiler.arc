@@ -1,3 +1,5 @@
+(***ns*** 'arc.core.compiler)
+
 ;;;;;;;;;;;;;;;;;;;;; layer 0
 
 (assign ***macros*** (table))
@@ -193,6 +195,13 @@
          args))))
 
 (def complement (f) (fn args (no (apply f args))))
+
+;; namespace
+(mac defns (name . options)
+  `(***defns*** ',name ',options))
+
+(mac ns (name)
+  `(***ns*** ',name))
 
 ;; special syntax.
 (mac defss (name regex vars . body)

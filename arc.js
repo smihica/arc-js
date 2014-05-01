@@ -624,15 +624,129 @@ var Reader = classify("Reader", {
 });
 ArcJS.Reader = Reader;
 /** @} */
+/** @file namespace.js { */
+var NameSpace = classify('NameSpace', {
+  property: {
+    name:     null,
+    imports: null,
+    primary:  {}
+  },
+  static: {
+    tbl: {},
+    root:  null,
+    stack: [null],
+    default_ns: ['arc.core.primitives',
+                 'arc.core.compiler',
+                 'arc.core'],
+    push: function(x) {
+      this.stack.push(x);
+      return x;
+    },
+    pop: function() {
+      return this.stack.pop();
+    },
+    get: function(name, create) {
+      var rt = NameSpace.tbl[name];
+      if (!rt) {
+        if (!create)
+          throw new Error('the namespace "' + name + '" is not found.');
+        else
+          return new NameSpace(name, []);
+      }
+      return rt;
+    },
+    create_default: function(name, imports) {
+      imports = imports || [];
+      var df = NameSpace.default_ns;
+      for (var i = df.length-1; -1 < i; i--) {
+        var ns = NameSpace.tbl[df[i]];
+        if (ns) imports = imports.concat([ns]);
+      }
+      return new NameSpace(name, imports);
+    }
+  },
+  method: {
+    init: function(name, imports) {
+      this.name = name;
+      this.imports = imports;
+      NameSpace.tbl[name] = this;
+    },
+    set: function(name, val) {
+      this.primary[name] = val;
+    },
+    setBox: function(name, val) {
+      this.primary[name] = new Box(val);
+    },
+    get: function(name) {
+      var v = this.primary[name];
+      if (v) return v;
+      for (var i = 0, l = this.imports.length; i<l; i++) {
+        v = this.imports[i].primary[name];
+        if (v) return v;
+      }
+      throw new Error('Unbound variable ' + stringify_for_disp(Symbol.get(name)));
+    },
+    has: function(name) {
+      if (name in this.primary) return true;
+      for (var i = 0, l = this.imports.length; i<l; i++)
+        if (name in this.imports[i].primary) return true;
+      return false;
+    }
+  }
+});
+var primitives_ns = new NameSpace('arc.core.primitives', []);
+var compiler_ns   = new NameSpace('arc.core.compiler', [primitives_ns]);
+var arc_ns        = new NameSpace('arc.core', [compiler_ns, primitives_ns]);
+ArcJS.NameSpace = NameSpace;
+/** @} */
 /** @file primitives.js { */
+var Primitives = classify('Primitives', {
+  static: {
+    reader: new Reader(),
+    all: []
+  },
+  property: {
+    ns:   null,
+    vars: {}
+  },
+  method: {
+    init: function(ns_name) {
+      this.ns = NameSpace.get(ns_name, true);
+      Primitives.all.push(this);
+    },
+    define: function(def) {
+      for (var n in def) {
+        var f = def[n];
+        if (f instanceof Array && typeof f[1] === 'function') {
+          var options = f[0];
+          f = f[1];
+          f.dotpos = options['dot'];
+          f.toString().match(/^function.*?\((.*?)\)/);
+          var args = RegExp.$1;
+          if (args === '') {
+            f.arglen = 0;
+          } else {
+            var vs = args.split(/\s*,\s*/g);
+            f.arglen = vs.length;
+          }
+          f.prim_name = n;
+          this.vars[n] = f;
+        }
+      }
+      return this;
+    }
+  }
+});
+
+/** @file core.js { */
 var nil = (function() {
   var n = new Cons(null, null);
   n.car = n; n.cdr = n;
   return n;
 })();
+var t = true;
 
 var is_nodejs = (typeof module !== 'undefined' && module.exports);
-var t = true;
 
 var s_int    = Symbol.get('int');
 var s_num    = Symbol.get('num');
@@ -665,135 +779,6 @@ var javascript_arr_to_list = function(arr) {
   }
   return rt;
 }
-
-var coerce = function(obj, to_type, args) {
-  /*
-    A char can be coerced to int, string, or sym.
-    A number can be coerced to int, char, or string (of specified base).
-    A string can be coerced to sym, cons (char list), or int (of specified base).
-    A list of characters can be coerced to a string.
-    A symbol can be coerced to a string.
-  */
-  to_type = to_type.name;
-  var from_type = type(obj).name;
-  switch(from_type) {
-  case 'char':
-    switch(to_type) {
-    case 'int':
-    case 'num':
-      return obj.c.charCodeAt(0);
-    case 'sym':
-      return Symbol.get(obj.c);
-    case 'string':
-      return obj.c[0];
-    case 'char':
-      return obj;
-    }
-    break;
-  case 'num':
-  case 'int':
-    switch(to_type) {
-    case 'char':
-      return Char.get(String.fromCharCode(obj));
-    case 'string':
-      return (obj).toString(arguments[2] || 10);
-    case 'int':
-      return (obj | 0);
-    case 'num':
-      return obj;
-    }
-    break;
-  case 'string':
-    switch(to_type) {
-    case 'sym':
-      try {
-        var r = read(obj);
-        if (reader_for_primitives.completed_p() &&
-            type(r).name === 'sym')
-          return r;
-        return Symbol.get(obj, true);
-      } catch (e) {
-        // TODO: ignore only Reader Error.
-        return Symbol.get(obj, true);
-      }
-    case 'cons':
-      var lis = [];
-      for (var i = 0, l = obj.length; i<l; i++)
-        lis.push(Char.get(obj[i]));
-      return javascript_arr_to_list(lis);
-    case 'int':
-      return (parseInt(obj, arguments[2] || 10) | 0);
-    case 'num':
-      return parseFloat(obj);
-    case 'string':
-      return obj;
-    }
-    break;
-  case 'cons':
-    switch(to_type) {
-    case 'string':
-      var rt = '';
-      while (obj !== nil) {
-        var c = car(obj);
-        if(type(c).name === 'char') {
-          rt += c.c;
-        } else {
-          // throw new Error('coerce of cons->string requires a proper list of Chars.');
-          rt += coerce(c, s_string);
-        }
-        obj = cdr(obj);
-      }
-      return rt;
-    case 'cons':
-      return obj;
-    case 'table':
-      var rt = new Table();
-      return rt.load_from_list(obj);
-    }
-    break;
-  case 'sym':
-    switch(to_type) {
-    case 'string':
-      if (obj === nil) return "";
-      if (obj === t)   return "t";
-      return obj.name;
-    case 'sym':
-      return obj;
-    }
-    break;
-  case 'table':
-    switch(to_type) {
-    case 'cons':
-      return obj.dump_to_list();
-    }
-    break;
-  }
-  throw new Error("Can't coerce " + from_type + " to " + to_type);
-}
-
-var type = function(x) {
-  if (x === nil || x === t) return s_sym;
-  var type = typeof x;
-  switch (type) {
-  case 'string':
-    return s_string;
-  case 'number':
-    return ((isNaN(x))  ? Symbol.get('%javascript-NaN') :
-            (!!(x % 1)) ? s_num :
-            s_int);
-  case 'function':
-    return s_fn;
-  case 'object':
-    if (x instanceof Symbol)   return s_sym;
-    if (x instanceof Cons)     return s_cons;
-    if (x instanceof Closure)  return s_fn;
-    if (x instanceof Char)     return s_char;
-    if (x instanceof Table)    return s_table;
-    if (x instanceof Tagged)   return x.tag;
-  default:
-    return Symbol.get('%javascript-' + type);
-  }
-};
 
 var flat_iter = function(lis, max_depth) {
   var rt = nil;
@@ -1035,551 +1020,679 @@ var stringify_for_disp = function(x) {
 
 var uniq_counter = 0;
 
-var reader_for_primitives = new Reader();
+var primitives_core = (new Primitives('arc.core.primitives')).define({
+  'read': [{dot: -1}, function(str) {
+    return Primitives.reader.read(str);
+  }],
+  'cons': [{dot: -1}, function(car, cdr) {
+    return new Cons(car, cdr);
+  }],
+  'car':  [{dot: -1}, function(x) {
+    if (x instanceof Cons) return x.car;
+    throw new Error(stringify(x) + ' is not cons type.');
+  }],
+  'scar': [{dot: -1}, function(x, v) {
+    if (x instanceof Cons) return (x.car = v);
+    throw new Error(stringify(x) + ' is not cons type.');
+  }],
+  'cdr': [{dot: -1}, function(x) {
+    if (x instanceof Cons) return x.cdr;
+    throw new Error(stringify(x) + ' is not cons type.');
+  }],
+  'scdr': [{dot: -1}, function(x, v) {
+    if (x instanceof Cons) return (x.cdr = v);
+    throw new Error(stringify(x) + ' is not cons type.');
+  }],
 
-var primitives = (function() {
-  var rt = {
-    'read': [{dot: -1}, function(str) {
-      return reader_for_primitives.read(str);
-    }],
-    'cons': [{dot: -1}, function(car, cdr) {
-      return new Cons(car, cdr);
-    }],
-    'car':  [{dot: -1}, function(x) {
-      if (x instanceof Cons) return x.car;
-      throw new Error(stringify(x) + ' is not cons type.');
-    }],
-    'scar': [{dot: -1}, function(x, v) {
-      if (x instanceof Cons) return (x.car = v);
-      throw new Error(stringify(x) + ' is not cons type.');
-    }],
-    'cdr': [{dot: -1}, function(x) {
-      if (x instanceof Cons) return x.cdr;
-      throw new Error(stringify(x) + ' is not cons type.');
-    }],
-    'scdr': [{dot: -1}, function(x, v) {
-      if (x instanceof Cons) return (x.cdr = v);
-      throw new Error(stringify(x) + ' is not cons type.');
-    }],
+  /* c...r code generator
+     (pr ((afn (d cs)
+     (if (< 0 d)
+     (+ (self (- d 1) (cons 'a cs)) (self (- d 1) (cons 'd cs)))
+     (+ "'c" cs "r': [{dot: -1}, function(x) { return c"
+     (intersperse "r(c" cs) "r(x" (n-of (len cs) ")")
+     "; }],\n" )))
+     4 nil))
+  */
+  'caar': [{dot: -1}, function(x) { return car(car(x)); }],
+  'cdar': [{dot: -1}, function(x) { return cdr(car(x)); }],
+  'cadr': [{dot: -1}, function(x) { return car(cdr(x)); }],
+  'cddr': [{dot: -1}, function(x) { return cdr(cdr(x)); }],
 
-    /* c...r code generator
-      (pr ((afn (d cs)
-         (if (< 0 d)
-             (+ (self (- d 1) (cons 'a cs)) (self (- d 1) (cons 'd cs)))
-             (+ "'c" cs "r': [{dot: -1}, function(x) { return c"
-                (intersperse "r(c" cs) "r(x" (n-of (len cs) ")")
-                "; }],\n" )))
-       4 nil))
-    */
-    'caar': [{dot: -1}, function(x) { return car(car(x)); }],
-    'cdar': [{dot: -1}, function(x) { return cdr(car(x)); }],
-    'cadr': [{dot: -1}, function(x) { return car(cdr(x)); }],
-    'cddr': [{dot: -1}, function(x) { return cdr(cdr(x)); }],
+  'caaar': [{dot: -1}, function(x) { return car(car(car(x))); }],
+  'cdaar': [{dot: -1}, function(x) { return cdr(car(car(x))); }],
+  'cadar': [{dot: -1}, function(x) { return car(cdr(car(x))); }],
+  'cddar': [{dot: -1}, function(x) { return cdr(cdr(car(x))); }],
+  'caadr': [{dot: -1}, function(x) { return car(car(cdr(x))); }],
+  'cdadr': [{dot: -1}, function(x) { return cdr(car(cdr(x))); }],
+  'caddr': [{dot: -1}, function(x) { return car(cdr(cdr(x))); }],
+  'cdddr': [{dot: -1}, function(x) { return cdr(cdr(cdr(x))); }],
 
-    'caaar': [{dot: -1}, function(x) { return car(car(car(x))); }],
-    'cdaar': [{dot: -1}, function(x) { return cdr(car(car(x))); }],
-    'cadar': [{dot: -1}, function(x) { return car(cdr(car(x))); }],
-    'cddar': [{dot: -1}, function(x) { return cdr(cdr(car(x))); }],
-    'caadr': [{dot: -1}, function(x) { return car(car(cdr(x))); }],
-    'cdadr': [{dot: -1}, function(x) { return cdr(car(cdr(x))); }],
-    'caddr': [{dot: -1}, function(x) { return car(cdr(cdr(x))); }],
-    'cdddr': [{dot: -1}, function(x) { return cdr(cdr(cdr(x))); }],
+  'caaaar': [{dot: -1}, function(x) { return car(car(car(car(x)))); }],
+  'cdaaar': [{dot: -1}, function(x) { return cdr(car(car(car(x)))); }],
+  'cadaar': [{dot: -1}, function(x) { return car(cdr(car(car(x)))); }],
+  'cddaar': [{dot: -1}, function(x) { return cdr(cdr(car(car(x)))); }],
+  'caadar': [{dot: -1}, function(x) { return car(car(cdr(car(x)))); }],
+  'cdadar': [{dot: -1}, function(x) { return cdr(car(cdr(car(x)))); }],
+  'caddar': [{dot: -1}, function(x) { return car(cdr(cdr(car(x)))); }],
+  'cdddar': [{dot: -1}, function(x) { return cdr(cdr(cdr(car(x)))); }],
+  'caaadr': [{dot: -1}, function(x) { return car(car(car(cdr(x)))); }],
+  'cdaadr': [{dot: -1}, function(x) { return cdr(car(car(cdr(x)))); }],
+  'cadadr': [{dot: -1}, function(x) { return car(cdr(car(cdr(x)))); }],
+  'cddadr': [{dot: -1}, function(x) { return cdr(cdr(car(cdr(x)))); }],
+  'caaddr': [{dot: -1}, function(x) { return car(car(cdr(cdr(x)))); }],
+  'cdaddr': [{dot: -1}, function(x) { return cdr(car(cdr(cdr(x)))); }],
+  'cadddr': [{dot: -1}, function(x) { return car(cdr(cdr(cdr(x)))); }],
+  'cddddr': [{dot: -1}, function(x) { return cdr(cdr(cdr(cdr(x)))); }],
 
-    'caaaar': [{dot: -1}, function(x) { return car(car(car(car(x)))); }],
-    'cdaaar': [{dot: -1}, function(x) { return cdr(car(car(car(x)))); }],
-    'cadaar': [{dot: -1}, function(x) { return car(cdr(car(car(x)))); }],
-    'cddaar': [{dot: -1}, function(x) { return cdr(cdr(car(car(x)))); }],
-    'caadar': [{dot: -1}, function(x) { return car(car(cdr(car(x)))); }],
-    'cdadar': [{dot: -1}, function(x) { return cdr(car(cdr(car(x)))); }],
-    'caddar': [{dot: -1}, function(x) { return car(cdr(cdr(car(x)))); }],
-    'cdddar': [{dot: -1}, function(x) { return cdr(cdr(cdr(car(x)))); }],
-    'caaadr': [{dot: -1}, function(x) { return car(car(car(cdr(x)))); }],
-    'cdaadr': [{dot: -1}, function(x) { return cdr(car(car(cdr(x)))); }],
-    'cadadr': [{dot: -1}, function(x) { return car(cdr(car(cdr(x)))); }],
-    'cddadr': [{dot: -1}, function(x) { return cdr(cdr(car(cdr(x)))); }],
-    'caaddr': [{dot: -1}, function(x) { return car(car(cdr(cdr(x)))); }],
-    'cdaddr': [{dot: -1}, function(x) { return cdr(car(cdr(cdr(x)))); }],
-    'cadddr': [{dot: -1}, function(x) { return car(cdr(cdr(cdr(x)))); }],
-    'cddddr': [{dot: -1}, function(x) { return cdr(cdr(cdr(cdr(x)))); }],
-
-    'list': [{dot: 0}, function($$) {
-      for (var i=arguments.length-1, rt=nil; -1<i; i--)
-        rt = cons(arguments[i], rt);
-      return rt;
-    }],
-    'nthcdr': [{dot: -1}, function(n, lis) {
-      for (;0 < n && lis !== nil;n--) lis = cdr(lis);
-      return lis;
-    }],
-    'lastcons': [{dot: -1}, function(lis) {
-      var rt = lis;
-      while (type(lis) === s_cons) {
-        rt = lis;
-        lis = cdr(lis);
+  'list': [{dot: 0}, function($$) {
+    for (var i=arguments.length-1, rt=nil; -1<i; i--)
+      rt = cons(arguments[i], rt);
+    return rt;
+  }],
+  'nthcdr': [{dot: -1}, function(n, lis) {
+    for (;0 < n && lis !== nil;n--) lis = cdr(lis);
+    return lis;
+  }],
+  'lastcons': [{dot: -1}, function(lis) {
+    var rt = lis;
+    while (type(lis) === s_cons) {
+      rt = lis;
+      lis = cdr(lis);
+    }
+    return rt;
+  }],
+  'consif': [{dot: -1}, function(n, lis) {
+    return (n === nil) ? lis : cons(n, lis);
+  }],
+  'flat': [{dot: 1}, function(lis, $$) {
+    var max_depth = Infinity;
+    if (1 < arguments.length) max_depth = arguments[1];
+    if (lis === nil) return nil;
+    if (type(lis) !== s_cons) return cons(lis, nil);
+    if (max_depth < 1) return lis;
+    return nreverse(flat_iter(lis, max_depth));
+  }],
+  'firstn': [{dot: -1}, function(n, lis) {
+    var rt = nil;
+    while (lis !== nil && 0 < n) {
+      rt = cons(car(lis), rt);
+      lis = cdr(lis);
+      n--;
+    }
+    return nreverse(rt)
+  }],
+  'len': [{dot: -1}, function(lis) {
+    if (typeof lis === 'string') return lis.length;
+    var i = 0;
+    while (lis !== nil) {
+      i++; lis = cdr(lis);
+    }
+    return i;
+  }],
+  'rev': [{dot: -1}, function(lis) {
+    var rt = nil;
+    while (lis !== nil) {
+      rt = cons(car(lis), rt);
+      lis = cdr(lis);
+    }
+    return rt;
+  }],
+  'nrev': [{dot: 1}, function(lis, $$) {
+    var r = $$ || nil;
+    var tmp;
+    while (lis !== nil && 'cdr' in lis) {
+      tmp = lis.cdr;
+      lis.cdr = r;
+      r = lis;
+      lis = tmp;
+    }
+    return r;
+  }],
+  'uniq': [{dot: 0}, function($$) {
+    var u = '%g'+uniq_counter;
+    if (0 < arguments.length) {
+      u += ('-' + arguments[0].name);
+    }
+    var rt = Symbol.get(u);
+    uniq_counter++;
+    return rt;
+  }],
+  'type': [{dot: -1}, function(x) {
+    if (x === nil || x === t) return s_sym;
+    var type = typeof x;
+    switch (type) {
+    case 'string':
+      return s_string;
+    case 'number':
+      return ((isNaN(x))  ? Symbol.get('%javascript-NaN') :
+              (!!(x % 1)) ? s_num :
+              s_int);
+    case 'function':
+      return s_fn;
+    case 'object':
+      if (x instanceof Symbol)   return s_sym;
+      if (x instanceof Cons)     return s_cons;
+      if (x instanceof Closure)  return s_fn;
+      if (x instanceof Char)     return s_char;
+      if (x instanceof Table)    return s_table;
+      if (x instanceof Tagged)   return x.tag;
+    default:
+      return Symbol.get('%javascript-' + type);
+    }
+  }],
+  'err': [{dot: 0}, function($$) {
+    var str = (
+      Array.prototype.map.call(
+        arguments,
+        function(x) { return type(x) === s_string ? x : stringify(x); }
+      ).join(' ') + '.');
+    console.error(str);
+    throw new Error('ERROR');
+  }],
+  '+': [{dot: 0}, function($$) {
+    var l = arguments.length, rt = 0, num = false;
+    if (l < 1) return 0;
+    for (var i=l-1; 0<=i; i--) {
+      var typ = type(arguments[i]);
+      if (typeof arguments[i] === 'number') {
+        num = true;
+        rt += arguments[i];
+      } else if (arguments[i] !== nil && type(arguments[i]) !== s_cons) {
+        var rts = '';
+        for (var i=l-1; 0<=i; i--) rts = coerce(arguments[i], s_string) + rts;
+        return rts;
       }
-      return rt;
-    }],
-    'consif': [{dot: -1}, function(n, lis) {
-      return (n === nil) ? lis : cons(n, lis);
-    }],
-    'flat': [{dot: 1}, function(lis, $$) {
-      var max_depth = Infinity;
-      if (1 < arguments.length) max_depth = arguments[1];
-      if (lis === nil) return nil;
-      if (type(lis) !== s_cons) return cons(lis, nil);
-      if (max_depth < 1) return lis;
-      return nreverse(flat_iter(lis, max_depth));
-    }],
-    'firstn': [{dot: -1}, function(n, lis) {
-      var rt = nil;
-      while (lis !== nil && 0 < n) {
+    }
+    if (num) return rt;
+    return append.apply(this, arguments);
+  }],
+  'min': [{dot: 0}, function($$) {
+    var l = arguments.length, rt = Infinity;
+    for (var i=l-1; 0<=i; i--) rt = Math.min(rt, arguments[i]);
+    return rt;
+  }],
+  'max': [{dot: 0}, function($$) {
+    var l = arguments.length, rt = -Infinity;
+    for (var i=l-1; 0<=i; i--) rt = Math.max(rt, arguments[i]);
+    return rt;
+  }],
+  'rand': [{dot: 0}, function($$) {
+    var l = arguments.length;
+    if (l < 1) return Math.random();
+    return Math.floor(Math.random() * $$);
+  }],
+  'append': [{dot: 0}, function($$) {
+    var dotted = nil;
+    for (var i=0, l=arguments.length, rt = nil; i<l; i++) {
+      if (dotted !== nil) throw new Error(
+        ('error: +(list): contract violation (' +
+         Array.prototype.map.call(arguments, stringify).join(' ') + ')'));
+      var lis = arguments[i];
+      while (lis !== nil) {
         rt = cons(car(lis), rt);
         lis = cdr(lis);
-        n--;
+        if (!(lis instanceof Cons)) { dotted = lis; break; }
       }
-      return nreverse(rt)
-    }],
-    'len': [{dot: -1}, function(lis) {
-      if (typeof lis === 'string') return lis.length;
-      var i = 0;
-      while (lis !== nil) {
-        i++; lis = cdr(lis);
-      }
-      return i;
-    }],
-    'rev': [{dot: -1}, function(lis) {
-      var rt = nil;
-      while (lis !== nil) {
-        rt = cons(car(lis), rt);
-        lis = cdr(lis);
-      }
-      return rt;
-    }],
-    'nrev': [{dot: 1}, function(lis, $$) {
-      var r = $$ || nil;
-      var tmp;
-      while (lis !== nil && 'cdr' in lis) {
-        tmp = lis.cdr;
-        lis.cdr = r;
-        r = lis;
-        lis = tmp;
-      }
-      return r;
-    }],
-    'uniq': [{dot: 0}, function($$) {
-      var u = '%g'+uniq_counter;
-      if (0 < arguments.length) {
-        u += ('-' + arguments[0].name);
-      }
-      var rt = Symbol.get(u);
-      uniq_counter++;
-      return rt;
-    }],
-    'type': [{dot: -1}, type],
-    'err': [{dot: 0}, function($$) {
-      var str = (
-        Array.prototype.map.call(
-          arguments,
-          function(x) { return type(x) === s_string ? x : stringify(x); }
-        ).join(' ') + '.');
-      console.error(str);
-      throw new Error('ERROR');
-    }],
-    '+': [{dot: 0}, function($$) {
-      var l = arguments.length, rt = 0, num = false;
-      if (l < 1) return 0;
-      for (var i=l-1; 0<=i; i--) {
-        var typ = type(arguments[i]);
-        if (typeof arguments[i] === 'number') {
-          num = true;
-          rt += arguments[i];
-        } else if (arguments[i] !== nil && type(arguments[i]) !== s_cons) {
-          var rts = '';
-          for (var i=l-1; 0<=i; i--) rts = coerce(arguments[i], s_string) + rts;
-          return rts;
-        }
-      }
-      if (num) return rt;
-      return append.apply(this, arguments);
-    }],
-    'min': [{dot: 0}, function($$) {
-      var l = arguments.length, rt = Infinity;
-      for (var i=l-1; 0<=i; i--) rt = Math.min(rt, arguments[i]);
-      return rt;
-    }],
-    'max': [{dot: 0}, function($$) {
-      var l = arguments.length, rt = -Infinity;
-      for (var i=l-1; 0<=i; i--) rt = Math.max(rt, arguments[i]);
-      return rt;
-    }],
-    'rand': [{dot: 0}, function($$) {
-      var l = arguments.length;
-      if (l < 1) return Math.random();
-      return Math.floor(Math.random() * $$);
-    }],
-    'append': [{dot: 0}, function($$) {
-      var dotted = nil;
-      for (var i=0, l=arguments.length, rt = nil; i<l; i++) {
-        if (dotted !== nil) throw new Error(
-          ('error: +(list): contract violation (' +
-           Array.prototype.map.call(arguments, stringify).join(' ') + ')'));
-        var lis = arguments[i];
-        while (lis !== nil) {
-          rt = cons(car(lis), rt);
-          lis = cdr(lis);
-          if (!(lis instanceof Cons)) { dotted = lis; break; }
-        }
-      }
-      return nreverse(rt, dotted);
-    }],
-    'nconc': [{dot: 0}, function($$) {
-      var l = arguments.length - 1;
-      if (l < 0) return nil;
-      var rt = null;
-      for (var i=0; i<l; i++) {
-        if (arguments[i] === nil) continue;
-        rt = rt || arguments[i];
-        var last = lastcons(arguments[i]);
-        if (last.cdr !== nil) throw new Error("nconc: Can't concatenate dotted list.");
-        while (i < l) {
-          if (arguments[i+1] !== nil) break;
-          i++;
-        }
-        if (i === l) break;
-        last.cdr = arguments[i+1];
-      }
-      return rt || arguments[l];
-    }],
-    '-': [{dot: 1}, function(x, $$) {
-      for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
-        rt -= arguments[i];
-      return (l === 1) ? (-rt) : rt;
-    }],
-    '*': [{dot: 0}, function($$) {
-      for (var i=0, l=arguments.length, rt = 1; i<l; i++)
-        rt *= arguments[i];
-      return rt;
-    }],
-    '/': [{dot: 1}, function(x, $$) {
-      for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
-        rt /= arguments[i];
-      return rt;
-    }],
-    '<': [{dot: 0}, function($$) {
-      for (var i=1, l=arguments.length; i<l; i++) {
-        if (!(arguments[i-1] < arguments[i])) return nil;
-      }
-      return t;
-    }],
-    '>': [{dot: 0}, function($$) {
-      for (var i=1, l=arguments.length; i<l; i++) {
-        if (!(arguments[i-1] > arguments[i])) return nil;
-      }
-      return t;
-    }],
-    '<=': [{dot: 0}, function($$) {
-      for (var i=1, l=arguments.length; i<l; i++) {
-        if (!(arguments[i-1] <= arguments[i])) return nil;
-      }
-      return t;
-    }],
-    '>=': [{dot: 0}, function($$) {
-      for (var i=1, l=arguments.length; i<l; i++) {
-        if (!(arguments[i-1] >= arguments[i])) return nil;
-      }
-      return t;
-    }],
-    'odd': [{dot: -1}, function(x) {
-      return (x % 2) ? t : nil;
-    }],
-    'even': [{dot: -1}, function(x) {
-      return (x % 2) ? nil : t;
-    }],
-    'mod': [{dot: -1}, function(x, y) {
-      return (x % y);
-    }],
-    'no': [{dot: -1}, function(x) {
-      return (x === nil) ? t : nil;
-    }],
-    'is': [{dot: -1}, function(a, b) {
-      return (a === b) ? t : nil;
-    }],
-    '%mem': [{dot: -1}, function(test, lis) {
-      while (lis !== nil) {
-        if (car(lis) === test) return lis;
-        lis = cdr(lis);
-      }
-      return nil;
-    }],
-    '%pos': [{dot: -1}, function(test, lis) {
-      var i = 0;
-      while (lis !== nil) {
-        if (car(lis) === test) return i;
-        lis = cdr(lis);
+    }
+    return nreverse(rt, dotted);
+  }],
+  'nconc': [{dot: 0}, function($$) {
+    var l = arguments.length - 1;
+    if (l < 0) return nil;
+    var rt = null;
+    for (var i=0; i<l; i++) {
+      if (arguments[i] === nil) continue;
+      rt = rt || arguments[i];
+      var last = lastcons(arguments[i]);
+      if (last.cdr !== nil) throw new Error("nconc: Can't concatenate dotted list.");
+      while (i < l) {
+        if (arguments[i+1] !== nil) break;
         i++;
       }
-      return nil;
-    }],
-    'atom': [{dot: -1}, function(x) {
-      return (type(x).name === 'cons') ? nil : t;
-    }],
-    'apply': [{dot: 1}, function(fn, $$) {
-      for (var i=1, l=arguments.length-1, args=[]; i<l; i++)
-        args[i-1] = arguments[i];
-      if (0 < l) args = args.concat(list_to_javascript_arr(arguments[l]));
-      return new Call(fn, null, args);
-    }],
-    'ssyntax': [{dot: 1}, function(s, $$) {
-      if (s === nil || s === t) return nil;
-      var sstr = s.name;
-      var specials = this.ns.get('***special_syntax***').unbox().src;
-      for (var i in specials) {
-        var reg_fn = rep(specials[i]);
-        var reg = car(reg_fn);
-        var fn  = cdr(reg_fn);
-        var mat = sstr.match(new RegExp(rep(reg)));
-        if (mat) {
-          if (1 < arguments.length) {
-            return new Call(fn, null, mat.slice(1).map(read));
-          }
-          return t;
-        }
-      }
-      return nil;
-    }],
-    'match': [{dot: -1}, function(reg, str) {
-      var mat = str.match(new RegExp(rep(reg)));
-      return mat ? javascript_arr_to_list(mat) : nil;
-    }],
-    '%pair': [{dot: -1}, function(lis) {
-      var rt = nil, toggle = true;
-      while (lis !== nil) {
-        if (toggle) {
-          rt = cons(cons(car(lis), nil), rt);
-        } else {
-          car(rt).cdr = cons(car(lis), nil);
-        }
-        lis = cdr(lis);
-        toggle = !toggle;
-      }
-      return nreverse(rt);
-    }],
-    '%union': [{dot: -1}, function(test, lis1, lis2) {
-      var arr = list_to_javascript_arr(lis1);
-      while (lis2 !== nil) {
-        var ca = car(lis2);
-        if (arr.indexOf(ca) < 0) arr.push(ca);
-        lis2 = cdr(lis2);
-      }
-      return javascript_arr_to_list(arr);
-    }],
-    'dedup': [{dot: -1}, function(lis) {
-      var arr = list_to_javascript_arr(lis);
-      var narr = [];
-      for (var i=0, l=arr.length; i<l; i++) {
-        if (narr.indexOf(arr[i]) < 0) narr.push(arr[i]);
-      }
-      return javascript_arr_to_list(narr);
-    }],
-    'table': [{dot: 0}, function($$) {
-      var tbl = new Table();
-      var l = arguments.length;
-      if ((l % 2) === 1) throw new Error('(table) arguments must be even number.');
-      for (var i = 0; i < l; i+=2) {
-        tbl.put(arguments[i], arguments[i+1]);
-      }
-      return tbl;
-    }],
-    'ref': [{dot: -1}, function(obj, idx) {
-      var val, typename = type(obj).name;
-      switch (typename) {
-      case 'string':
-        if (idx < 0 || (obj.length - 1) < idx)
-          throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
-        return Char.get(obj[idx]);
-      case 'cons':
-        for (var iter = obj, i = idx; 0 < i; i--) {
-          if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
-          iter = cdr(iter);
-        }
-        return car(iter);
-      case 'table':
-        return obj.get(idx);
-      }
-      throw new Error('(ref obj idx) supports only cons or string or table. but ' + typename + ' given.');
-    }],
-    'sref': [{dot: -1}, function(obj, val, idx) {
-      switch (type(obj).name) {
-      case 'string':
-        throw new Error('TODO: mutable string is not supported yet.');
-        return val;
-      case 'cons':
-        for (var iter = obj, i = idx; 0 < i; i--) {
-          if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
-          iter = cdr(iter);
-        }
-        scar(iter, val);
-        return val;
-      case 'table':
-        obj.put(idx, val);
-        return val;
-      }
-      throw new Error('(sref obj val idx) supports only cons or string or table. but ' + typename + ' given.');
-    }],
-    'dref': [{dot: -1}, function(obj, idx) {
-      switch (type(obj).name) {
-      case 'string':
-        throw new Error('TODO: mutable string is not supported yet.');
-        return nil;
-      case 'cons':
-        throw new Error('TODO: mutable string is not supported yet.');
-        /* TODO Support! 
-        for (var iter = obj, i = idx; 0 < i; i--) {
-          if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
-          iter = cdr(iter);
-        }
-        scdr(iter, cddr(iter));
-        return nil;
-        */
-      case 'table':
-        obj.rem(idx);
-        return nil;
-      }
-      throw new Error('(sref obj val idx) supports only cons or string or table. but ' + typename + ' given.');
-    }],
-    'annotate': [{dot: -1}, function(tag, obj) {
-      if (type(tag).name !== 'sym')
-        throw new Error("First argument must be a symbol " + stringify(tag));
-      return new Tagged(tag, obj);
-    }],
-    'rep': [{dot: -1}, function(tagged) {
-      return tagged.obj;
-    }],
-    'coerce': [{dot: 2}, coerce],
-    'bound': [{dot: -1}, function(symbol) {
-      return this.ns.has(symbol.name) ? t : nil;
-    }],
-    'newstring': [{dot: 1}, function(n, $$) {
-      var c = Char.get("\u0000");
-      if (1 < arguments.length) c = arguments[1];
-      var nt = type(n).name, ct = type(c).name;
-      if ((nt === 'int' || nt === 'num') && ct === 'char') {
-        var rt = '';
-        for (;0<n;n--) rt += c.c;
-        return rt;
-      }
-      throw new Error('newstring requires int, char.');
-    }],
-    'string': [{dot: 0}, function($$) {
-      var rt = '';
-      for (var i = arguments.length-1; -1 < i; i--) {
-        rt = coerce(arguments[i], s_string) + rt;
-      }
-      return rt;
-    }],
-    'isa': [{dot: -1}, function(x, typ) {
-      return (type(x) === typ) ? t : nil;
-    }],
-    'acons': [{dot: -1}, function(x) {
-      return (type(x) === s_cons) ? t : nil;
-    }],
-    'idfn': [{dot: -1}, function(x) { return x; }],
-    'disp': [{dot: 1}, function(item, $$) {
-      if (!is_nodejs) { throw new Error("'disp' is not supported in Browser."); }
-      var stream = process.stdout;
-      var l = arguments.length;
-      if (0 < l) {
-        if (1 < l) {
-          stream = arguments[1];
-        }
-        stream.write(stringify_for_disp(item));
-      }
-      return nil;
-    }],
-    'pr': [{dot: 0}, function($$) {
-      if (!is_nodejs) { throw new Error("'pr' is not supported in Browser."); }
-      for (var i = 0, l = arguments.length; i < l; i++) {
-        process.stdout.write(stringify_for_disp(arguments[i]));
-      }
-      return (0 < l) ? arguments[0] : nil;
-    }],
-    'prt': [{dot: 0}, function($$) {
-      if (!is_nodejs) { throw new Error("'prt' is not supported in Browser."); }
-      for (var i = 0, l = arguments.length; i < l; i++) {
-        if (arguments[i] !== nil) process.stdout.write(stringify_for_disp(arguments[i]));
-      }
-      return (0 < l) ? arguments[0] : nil;
-    }],
-    'prn': [{dot: 0}, function($$) {
-      if (0 < arguments.length) {
-        var arr = Array.prototype.map.call(arguments, stringify_for_disp);
-        console.log(arr.join(''));
-        return arguments[0];
-      }
-      return nil;
-    }],
-    'msec': [{dot: -1}, function() {
-      return +(new Date());
-    }],
-    'fn-name': [{dot: 1}, function(fn, $$) {
-      var closurep = (fn instanceof Closure);
-      if (!closurep && !(typeof fn === 'function')) {
-        var typename = type(fn).name;
-        throw new Error('fn-name expects only fn-type object as the first argument. but ' + typename + ' given.');
-      }
-      var name;
-      if (1 < arguments.length) {
-        name = coerce(arguments[1], s_string);
-        if (closurep) {
-          fn.name = name;
-        } else {
-          fn.prim_name = name;
-        }
-      } else {
-        name = (closurep) ? fn.name : fn.prim_name;
-      }
-      return coerce(name || nil, s_sym);
-    }]
-  };
-  for (var n in rt) {
-    var f = rt[n];
-    if (f instanceof Array && typeof f[1] === 'function') {
-      var options = f[0];
-      f = f[1];
-      f.dotpos = options['dot'];
-      f.toString().match(/^function.*?\((.*?)\)/);
-      var args = RegExp.$1;
-      if (args === '') {
-        f.arglen = 0;
-      } else {
-        var vs = args.split(/\s*,\s*/g);
-        f.arglen = vs.length;
-      }
-      f.prim_name = n;
-      rt[n] = f;
+      if (i === l) break;
+      last.cdr = arguments[i+1];
     }
-  }
-  return rt;
-})();
+    return rt || arguments[l];
+  }],
+  '-': [{dot: 1}, function(x, $$) {
+    for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
+      rt -= arguments[i];
+    return (l === 1) ? (-rt) : rt;
+  }],
+  '*': [{dot: 0}, function($$) {
+    for (var i=0, l=arguments.length, rt = 1; i<l; i++)
+      rt *= arguments[i];
+    return rt;
+  }],
+  '/': [{dot: 1}, function(x, $$) {
+    for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
+      rt /= arguments[i];
+    return rt;
+  }],
+  '<': [{dot: 0}, function($$) {
+    for (var i=1, l=arguments.length; i<l; i++) {
+      if (!(arguments[i-1] < arguments[i])) return nil;
+    }
+    return t;
+  }],
+  '>': [{dot: 0}, function($$) {
+    for (var i=1, l=arguments.length; i<l; i++) {
+      if (!(arguments[i-1] > arguments[i])) return nil;
+    }
+    return t;
+  }],
+  '<=': [{dot: 0}, function($$) {
+    for (var i=1, l=arguments.length; i<l; i++) {
+      if (!(arguments[i-1] <= arguments[i])) return nil;
+    }
+    return t;
+  }],
+  '>=': [{dot: 0}, function($$) {
+    for (var i=1, l=arguments.length; i<l; i++) {
+      if (!(arguments[i-1] >= arguments[i])) return nil;
+    }
+    return t;
+  }],
+  'odd': [{dot: -1}, function(x) {
+    return (x % 2) ? t : nil;
+  }],
+  'even': [{dot: -1}, function(x) {
+    return (x % 2) ? nil : t;
+  }],
+  'mod': [{dot: -1}, function(x, y) {
+    return (x % y);
+  }],
+  'no': [{dot: -1}, function(x) {
+    return (x === nil) ? t : nil;
+  }],
+  'is': [{dot: -1}, function(a, b) {
+    return (a === b) ? t : nil;
+  }],
+  '%mem': [{dot: -1}, function(test, lis) {
+    while (lis !== nil) {
+      if (car(lis) === test) return lis;
+      lis = cdr(lis);
+    }
+    return nil;
+  }],
+  '%pos': [{dot: -1}, function(test, lis) {
+    var i = 0;
+    while (lis !== nil) {
+      if (car(lis) === test) return i;
+      lis = cdr(lis);
+      i++;
+    }
+    return nil;
+  }],
+  'atom': [{dot: -1}, function(x) {
+    return (type(x).name === 'cons') ? nil : t;
+  }],
+  'apply': [{dot: 1}, function(fn, $$) {
+    for (var i=1, l=arguments.length-1, args=[]; i<l; i++)
+      args[i-1] = arguments[i];
+    if (0 < l) args = args.concat(list_to_javascript_arr(arguments[l]));
+    return new Call(fn, null, args);
+  }],
+  'ssyntax': [{dot: 1}, function(s, $$) {
+    if (s === nil || s === t) return nil;
+    var sstr = s.name;
+    var specials = this.ns.get('***special_syntax***').unbox().src;
+    for (var i in specials) {
+      var reg_fn = rep(specials[i]);
+      var reg = car(reg_fn);
+      var fn  = cdr(reg_fn);
+      var mat = sstr.match(new RegExp(rep(reg)));
+      if (mat) {
+        if (1 < arguments.length) {
+          return new Call(fn, null, mat.slice(1).map(read));
+        }
+        return t;
+      }
+    }
+    return nil;
+  }],
+  'match': [{dot: -1}, function(reg, str) {
+    var mat = str.match(new RegExp(rep(reg)));
+    return mat ? javascript_arr_to_list(mat) : nil;
+  }],
+  '%pair': [{dot: -1}, function(lis) {
+    var rt = nil, toggle = true;
+    while (lis !== nil) {
+      if (toggle) {
+        rt = cons(cons(car(lis), nil), rt);
+      } else {
+        car(rt).cdr = cons(car(lis), nil);
+      }
+      lis = cdr(lis);
+      toggle = !toggle;
+    }
+    return nreverse(rt);
+  }],
+  '%union': [{dot: -1}, function(test, lis1, lis2) {
+    var arr = list_to_javascript_arr(lis1);
+    while (lis2 !== nil) {
+      var ca = car(lis2);
+      if (arr.indexOf(ca) < 0) arr.push(ca);
+      lis2 = cdr(lis2);
+    }
+    return javascript_arr_to_list(arr);
+  }],
+  'dedup': [{dot: -1}, function(lis) {
+    var arr = list_to_javascript_arr(lis);
+    var narr = [];
+    for (var i=0, l=arr.length; i<l; i++) {
+      if (narr.indexOf(arr[i]) < 0) narr.push(arr[i]);
+    }
+    return javascript_arr_to_list(narr);
+  }],
+  'table': [{dot: 0}, function($$) {
+    var tbl = new Table();
+    var l = arguments.length;
+    if ((l % 2) === 1) throw new Error('(table) arguments must be even number.');
+    for (var i = 0; i < l; i+=2) {
+      tbl.put(arguments[i], arguments[i+1]);
+    }
+    return tbl;
+  }],
+  'ref': [{dot: -1}, function(obj, idx) {
+    var val, typename = type(obj).name;
+    switch (typename) {
+    case 'string':
+      if (idx < 0 || (obj.length - 1) < idx)
+        throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
+      return Char.get(obj[idx]);
+    case 'cons':
+      for (var iter = obj, i = idx; 0 < i; i--) {
+        if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
+        iter = cdr(iter);
+      }
+      return car(iter);
+    case 'table':
+      return obj.get(idx);
+    }
+    throw new Error('(ref obj idx) supports only cons or string or table. but ' + typename + ' given.');
+  }],
+  'sref': [{dot: -1}, function(obj, val, idx) {
+    switch (type(obj).name) {
+    case 'string':
+      throw new Error('TODO: mutable string is not supported yet.');
+      return val;
+    case 'cons':
+      for (var iter = obj, i = idx; 0 < i; i--) {
+        if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
+        iter = cdr(iter);
+      }
+      scar(iter, val);
+      return val;
+    case 'table':
+      obj.put(idx, val);
+      return val;
+    }
+    throw new Error('(sref obj val idx) supports only cons or string or table. but ' + typename + ' given.');
+  }],
+  'dref': [{dot: -1}, function(obj, idx) {
+    switch (type(obj).name) {
+    case 'string':
+      throw new Error('TODO: mutable string is not supported yet.');
+      return nil;
+    case 'cons':
+      throw new Error('TODO: mutable string is not supported yet.');
+      /* TODO Support! 
+         for (var iter = obj, i = idx; 0 < i; i--) {
+         if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
+         iter = cdr(iter);
+         }
+         scdr(iter, cddr(iter));
+         return nil;
+      */
+    case 'table':
+      obj.rem(idx);
+      return nil;
+    }
+    throw new Error('(sref obj val idx) supports only cons or string or table. but ' + typename + ' given.');
+  }],
+  'annotate': [{dot: -1}, function(tag, obj) {
+    if (type(tag).name !== 'sym')
+      throw new Error("First argument must be a symbol " + stringify(tag));
+    return new Tagged(tag, obj);
+  }],
+  'rep': [{dot: -1}, function(tagged) {
+    return tagged.obj;
+  }],
+  'coerce': [{dot: 2}, function(obj, to_type, args) {
+    /*
+      A char can be coerced to int, string, or sym.
+      A number can be coerced to int, char, or string (of specified base).
+      A string can be coerced to sym, cons (char list), or int (of specified base).
+      A list of characters can be coerced to a string.
+      A symbol can be coerced to a string.
+    */
+    to_type = to_type.name;
+    var from_type = type(obj).name;
+    switch(from_type) {
+    case 'char':
+      switch(to_type) {
+      case 'int':
+      case 'num':
+        return obj.c.charCodeAt(0);
+      case 'sym':
+        return Symbol.get(obj.c);
+      case 'string':
+        return obj.c[0];
+      case 'char':
+        return obj;
+      }
+      break;
+    case 'num':
+    case 'int':
+      switch(to_type) {
+      case 'char':
+        return Char.get(String.fromCharCode(obj));
+      case 'string':
+        return (obj).toString(arguments[2] || 10);
+      case 'int':
+        return (obj | 0);
+      case 'num':
+        return obj;
+      }
+      break;
+    case 'string':
+      switch(to_type) {
+      case 'sym':
+        try {
+          var r = read(obj);
+          if (Primitives.reader.completed_p() &&
+              type(r).name === 'sym')
+            return r;
+          return Symbol.get(obj, true);
+        } catch (e) {
+          // TODO: ignore only Reader Error.
+          return Symbol.get(obj, true);
+        }
+      case 'cons':
+        var lis = [];
+        for (var i = 0, l = obj.length; i<l; i++)
+          lis.push(Char.get(obj[i]));
+        return javascript_arr_to_list(lis);
+      case 'int':
+        return (parseInt(obj, arguments[2] || 10) | 0);
+      case 'num':
+        return parseFloat(obj);
+      case 'string':
+        return obj;
+      }
+      break;
+    case 'cons':
+      switch(to_type) {
+      case 'string':
+        var rt = '';
+        while (obj !== nil) {
+          var c = car(obj);
+          if(type(c).name === 'char') {
+            rt += c.c;
+          } else {
+            // throw new Error('coerce of cons->string requires a proper list of Chars.');
+            rt += coerce(c, s_string);
+          }
+          obj = cdr(obj);
+        }
+        return rt;
+      case 'cons':
+        return obj;
+      case 'table':
+        var rt = new Table();
+        return rt.load_from_list(obj);
+      }
+      break;
+    case 'sym':
+      switch(to_type) {
+      case 'string':
+        if (obj === nil) return "";
+        if (obj === t)   return "t";
+        return obj.name;
+      case 'sym':
+        return obj;
+      }
+      break;
+    case 'table':
+      switch(to_type) {
+      case 'cons':
+        return obj.dump_to_list();
+      }
+      break;
+    }
+    throw new Error("Can't coerce " + from_type + " to " + to_type);
+  }],
+  'bound': [{dot: -1}, function(symbol) {
+    return this.ns.has(symbol.name) ? t : nil;
+  }],
+  'newstring': [{dot: 1}, function(n, $$) {
+    var c = Char.get("\u0000");
+    if (1 < arguments.length) c = arguments[1];
+    var nt = type(n).name, ct = type(c).name;
+    if ((nt === 'int' || nt === 'num') && ct === 'char') {
+      var rt = '';
+      for (;0<n;n--) rt += c.c;
+      return rt;
+    }
+    throw new Error('newstring requires int, char.');
+  }],
+  'string': [{dot: 0}, function($$) {
+    var rt = '';
+    for (var i = arguments.length-1; -1 < i; i--) {
+      rt = coerce(arguments[i], s_string) + rt;
+    }
+    return rt;
+  }],
+  'isa': [{dot: -1}, function(x, typ) {
+    return (type(x) === typ) ? t : nil;
+  }],
+  'acons': [{dot: -1}, function(x) {
+    return (type(x) === s_cons) ? t : nil;
+  }],
+  'idfn': [{dot: -1}, function(x) { return x; }],
+  'disp': [{dot: 1}, function(item, $$) {
+    if (!is_nodejs) { throw new Error("'disp' is not supported in Browser."); }
+    var stream = process.stdout;
+    var l = arguments.length;
+    if (0 < l) {
+      if (1 < l) {
+        stream = arguments[1];
+      }
+      stream.write(stringify_for_disp(item));
+    }
+    return nil;
+  }],
+  'pr': [{dot: 0}, function($$) {
+    if (!is_nodejs) { throw new Error("'pr' is not supported in Browser."); }
+    for (var i = 0, l = arguments.length; i < l; i++) {
+      process.stdout.write(stringify_for_disp(arguments[i]));
+    }
+    return (0 < l) ? arguments[0] : nil;
+  }],
+  'prt': [{dot: 0}, function($$) {
+    if (!is_nodejs) { throw new Error("'prt' is not supported in Browser."); }
+    for (var i = 0, l = arguments.length; i < l; i++) {
+      if (arguments[i] !== nil) process.stdout.write(stringify_for_disp(arguments[i]));
+    }
+    return (0 < l) ? arguments[0] : nil;
+  }],
+  'prn': [{dot: 0}, function($$) {
+    if (0 < arguments.length) {
+      var arr = Array.prototype.map.call(arguments, stringify_for_disp);
+      console.log(arr.join(''));
+      return arguments[0];
+    }
+    return nil;
+  }],
+  'msec': [{dot: -1}, function() {
+    return +(new Date());
+  }],
+  'fn-name': [{dot: 1}, function(fn, $$) {
+    var closurep = (fn instanceof Closure);
+    if (!closurep && !(typeof fn === 'function')) {
+      var typename = type(fn).name;
+      throw new Error('fn-name expects only fn-type object as the first argument. but ' + typename + ' given.');
+    }
+    var name;
+    if (1 < arguments.length) {
+      name = coerce(arguments[1], s_string);
+      if (closurep) {
+        fn.name = name;
+      } else {
+        fn.prim_name = name;
+      }
+    } else {
+      name = (closurep) ? fn.name : fn.prim_name;
+    }
+    return coerce(name || nil, s_sym);
+  }],
+  '***defns***': [{dot: -1}, function(name, opts) {
+    name = coerce(name, s_string);
+    opts = list_to_javascript_arr(opts);
+    var import_flag = false;
+    var imports = [];
+    for (var i=0, l=opts.length; i<l; i++) {
+      var import_name = coerce(opts[i], s_string);
+      if (import_name === ':import') { import_flag = true; continue; }
+      if (import_flag) {
+        imports.unshift(NameSpace.get(import_name));
+      }
+    }
+    var _ = NameSpace.create_default(name, imports);
+    return nil;
+  }],
+  '***ns***': [{dot: -1}, function(name) {
+    name = coerce(name, s_string);
+    var ns = NameSpace.get(name);
+    this.ns = ns;
+    return nil;
+  }],
+  '***curr-ns***': [{dot: -1}, function() {
+    return Symbol.get(this.ns.name);
+  }]
+});
 
-var read        = primitives.read;
-var cons        = primitives.cons;
-var list        = primitives.list;
-var car         = primitives.car;
-var scar        = primitives.scar;
-var cdr         = primitives.cdr;
-var scdr        = primitives.scdr;
-var caar        = primitives.caar;
-var cadr        = primitives.cadr;
-var cddr        = primitives.cddr;
-var nthcdr      = primitives.nthcdr;
-var lastcons    = primitives.lastcons;
-var append      = primitives.append;
-var nconc       = primitives.nconc;
-var reverse     = primitives.rev;
-var nreverse    = primitives.nrev;
-var rep         = primitives.rep;
-var annotate    = primitives.annotate;
+var coerce      = primitives_core.vars.coerce;
+var type        = primitives_core.vars.type;
+var read        = primitives_core.vars.read;
+var cons        = primitives_core.vars.cons;
+var list        = primitives_core.vars.list;
+var car         = primitives_core.vars.car;
+var scar        = primitives_core.vars.scar;
+var cdr         = primitives_core.vars.cdr;
+var scdr        = primitives_core.vars.scdr;
+var caar        = primitives_core.vars.caar;
+var cadr        = primitives_core.vars.cadr;
+var cddr        = primitives_core.vars.cddr;
+var nthcdr      = primitives_core.vars.nthcdr;
+var lastcons    = primitives_core.vars.lastcons;
+var append      = primitives_core.vars.append;
+var nconc       = primitives_core.vars.nconc;
+var reverse     = primitives_core.vars.rev;
+var nreverse    = primitives_core.vars.nrev;
+var rep         = primitives_core.vars.rep;
+var annotate    = primitives_core.vars.annotate;
 
 ArcJS.nil       = nil;
 ArcJS.t         = t;
@@ -1598,6 +1711,7 @@ ArcJS.annotate  = annotate;
 ArcJS.list_to_javascript_arr = list_to_javascript_arr;
 ArcJS.javascript_arr_to_list = javascript_arr_to_list;
 /** @} */
+/** @} */
 /** @file preload.js { */
 var preloads = [];
 var preload_vals = [];
@@ -1607,130 +1721,84 @@ var preload_vals = [];
 // Compiled from ['src/arc/compiler.arc'].
 // DON'T EDIT !!!
 preloads.push([
-[0,6,6,0,7,11,1,21,22,19,2,25],
-[0,6,6,0,7,11,1,21,22,19,3,25],
-[0,6,6,0,7,11,1,21,22,19,4,25],
-[0,119,11,2,21,7,0,107,6,5,7,1,0,98,3,2,9,0,2,65,6,6,7,9,2,7,0,52,6,7,7,6,2,7,0,30,6,8,7,6,9,7,0,19,0,10,6,10,7,9,1,7,6,11,7,11,12,21,22,7,9,0,7,6,11,7,11,13,21,22,7,6,14,7,11,12,21,22,7,0,10,6,15,7,9,2,7,6,11,7,11,12,21,22,7,6,16,7,11,12,21,22,7,6,14,7,11,12,21,5,4,4,22,3,31,6,8,7,6,9,7,0,19,0,10,6,10,7,9,2,7,6,11,7,11,12,21,22,7,9,1,7,6,11,7,11,13,21,22,7,6,14,7,11,12,21,5,4,4,22,23,4,7,6,11,7,11,8,21,22,7,6,5,7,6,14,7,11,7,21,22,19,5,25],
-[0,41,11,2,21,7,0,29,6,5,7,1,0,20,1,-1,6,10,7,0,8,6,17,7,6,18,7,11,12,21,22,7,9,0,7,6,14,7,11,12,21,5,4,2,22,7,6,11,7,11,8,21,22,7,6,19,7,6,14,7,11,7,21,22,19,19,25],
-[0,96,11,2,21,7,0,84,6,5,7,1,0,75,3,2,6,20,7,0,10,9,2,7,12,7,6,11,7,11,12,21,22,7,0,30,6,6,7,9,2,7,0,19,0,10,6,10,7,9,1,7,6,11,7,11,12,21,22,7,9,0,7,6,11,7,11,13,21,22,7,6,14,7,11,12,21,22,7,0,21,6,21,7,9,2,7,0,10,6,15,7,9,2,7,6,11,7,11,12,21,22,7,6,14,7,11,12,21,22,7,9,2,7,6,22,7,11,12,21,5,6,4,22,7,6,11,7,11,8,21,22,7,6,23,7,6,14,7,11,7,21,22,19,23,25],
-[0,43,11,2,21,7,0,31,6,5,7,1,0,22,2,1,0,12,6,23,7,6,24,7,9,1,7,6,14,7,11,12,21,22,7,9,0,7,6,11,7,11,13,21,5,3,3,22,7,6,11,7,11,8,21,22,7,6,25,7,6,14,7,11,7,21,22,19,25,25],
-[0,158,11,2,21,7,0,146,6,5,7,1,0,137,1,0,0,8,9,0,7,6,18,7,11,26,21,22,7,6,18,7,12,7,14,20,0,8,0,0,7,1,1,102,1,-1,0,8,9,0,7,6,18,7,11,27,21,22,7,14,0,17,0,8,8,0,0,7,6,18,7,11,28,21,22,7,6,11,7,6,11,7,11,29,21,22,2,44,6,30,7,0,8,8,0,0,7,6,18,7,11,27,21,22,7,0,8,8,0,0,7,6,18,7,11,31,21,22,7,0,15,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,10,0,21,22,7,6,16,7,11,12,21,5,5,4,22,3,29,0,17,0,8,8,0,0,7,6,18,7,11,28,21,22,7,6,18,7,6,11,7,11,29,21,22,2,10,8,0,0,7,6,18,7,11,27,21,5,2,4,22,3,2,12,15,2,2,23,2,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,5,2,2,22,7,6,11,7,11,8,21,22,7,6,33,7,6,14,7,11,7,21,22,19,33,25],
-[0,93,11,2,21,7,0,81,6,5,7,1,0,72,1,0,0,8,9,0,7,6,18,7,11,32,21,22,2,46,6,30,7,0,8,9,0,7,6,18,7,11,27,21,22,7,0,24,0,8,6,34,7,6,18,7,11,12,21,22,7,0,8,9,0,7,6,18,7,11,32,21,22,7,6,11,7,11,13,21,22,7,12,7,6,16,7,11,12,21,5,5,2,22,3,17,0,8,9,0,7,6,18,7,11,27,21,22,7,14,8,0,0,2,3,8,0,0,3,2,12,15,2,2,23,2,7,6,11,7,11,8,21,22,7,6,34,7,6,14,7,11,7,21,22,19,34,25],
-[0,100,11,2,21,7,0,88,6,5,7,1,0,79,1,0,9,0,2,75,0,6,6,0,7,11,35,21,22,7,14,0,64,6,20,7,0,17,8,0,0,7,0,8,9,0,7,6,18,7,11,27,21,22,7,6,11,7,11,12,21,22,7,0,37,6,30,7,8,0,0,7,8,0,0,7,0,24,0,8,6,36,7,6,18,7,11,12,21,22,7,0,8,9,0,7,6,18,7,11,32,21,22,7,6,11,7,11,13,21,22,7,6,16,7,11,12,21,22,7,6,14,7,11,12,21,22,15,2,2,3,2,12,23,2,7,6,11,7,11,8,21,22,7,6,36,7,6,14,7,11,7,21,22,19,36,25],
-[0,50,11,2,21,7,0,38,6,5,7,1,0,29,3,2,0,19,6,20,7,0,10,9,2,7,9,1,7,6,11,7,11,12,21,22,7,6,11,7,11,12,21,22,7,9,0,7,6,11,7,11,13,21,5,3,4,22,7,6,11,7,11,8,21,22,7,6,37,7,6,14,7,11,7,21,22,19,37,25],
-[0,52,11,2,21,7,0,40,6,5,7,1,0,31,3,2,6,6,7,9,2,7,0,19,0,10,6,10,7,9,1,7,6,11,7,11,12,21,22,7,9,0,7,6,11,7,11,13,21,22,7,6,14,7,11,12,21,5,4,4,22,7,6,11,7,11,8,21,22,7,6,38,7,6,14,7,11,7,21,22,19,38,25],
-[0,171,11,2,21,7,0,159,6,5,7,1,0,150,1,0,0,8,9,0,7,6,18,7,11,26,21,22,7,6,18,7,12,7,14,20,0,8,0,0,7,1,1,115,1,-1,0,8,9,0,7,6,18,7,11,27,21,22,7,14,0,17,0,8,8,0,0,7,6,18,7,11,28,21,22,7,6,11,7,6,11,7,11,29,21,22,2,57,6,37,7,6,39,7,0,8,8,0,0,7,6,18,7,11,27,21,22,7,0,35,6,30,7,6,39,7,0,8,8,0,0,7,6,18,7,11,31,21,22,7,0,15,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,10,0,21,22,7,6,16,7,11,12,21,22,7,6,16,7,11,12,21,5,5,4,22,3,29,0,17,0,8,8,0,0,7,6,18,7,11,28,21,22,7,6,18,7,6,11,7,11,29,21,22,2,10,8,0,0,7,6,18,7,11,27,21,5,2,4,22,3,2,12,15,2,2,23,2,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,5,2,2,22,7,6,11,7,11,8,21,22,7,6,40,7,6,14,7,11,7,21,22,19,40,25],
-[0,156,11,2,21,7,0,144,6,5,7,1,0,135,3,2,12,7,14,20,0,8,0,0,7,9,2,7,1,2,89,1,-1,0,15,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,11,41,21,22,2,10,9,0,7,6,18,7,11,27,21,5,2,2,22,3,63,6,33,7,0,28,6,29,7,10,0,7,0,17,6,15,7,0,8,9,0,7,6,18,7,11,27,21,22,7,6,11,7,11,12,21,22,7,6,14,7,11,12,21,22,7,0,8,9,0,7,6,18,7,11,31,21,22,7,0,15,0,8,9,0,7,6,18,7,11,42,21,22,7,6,18,7,10,1,21,22,7,6,16,7,11,12,21,5,5,2,22,23,2,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,7,14,6,37,7,9,2,7,9,1,7,0,7,9,0,7,6,18,7,8,0,0,22,7,6,16,7,11,12,21,5,5,6,22,7,6,11,7,11,8,21,22,7,6,43,7,6,14,7,11,7,21,22,19,43,25],
-[0,48,11,2,21,7,0,36,6,5,7,1,0,27,2,1,0,17,6,43,7,0,6,6,0,7,11,35,21,22,7,9,1,7,6,14,7,11,12,21,22,7,9,0,7,6,11,7,11,13,21,5,3,3,22,7,6,11,7,11,8,21,22,7,6,44,7,6,14,7,11,7,21,22,19,44,25],
-[0,220,11,2,21,7,0,208,6,5,7,1,0,199,2,1,0,17,0,8,9,0,7,6,18,7,11,28,21,22,7,6,18,7,6,11,7,11,45,21,22,7,14,0,10,8,0,0,7,9,0,7,6,11,7,11,46,21,22,7,0,10,8,0,0,7,9,0,7,6,11,7,11,47,21,22,7,14,6,44,7,0,147,0,19,6,27,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,120,0,111,11,13,21,7,12,7,0,99,9,1,7,1,1,88,1,-1,0,8,9,0,7,6,18,7,11,27,21,22,7,0,71,0,62,6,49,7,0,53,0,17,6,10,7,0,8,9,0,7,6,18,7,11,32,21,22,7,6,11,7,11,48,21,22,7,0,28,0,19,6,32,7,0,10,10,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,2,22,7,8,0,1,7,6,11,7,11,50,21,22,7,6,14,7,11,49,21,22,7,8,0,0,7,6,11,7,11,13,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,8,22,7,6,11,7,11,8,21,22,7,6,51,7,6,14,7,11,7,21,22,19,51,25],
-[1,0,164,1,-1,4,2,7,6,18,7,9,0,7,1,1,155,1,-1,10,0,7,6,18,7,12,7,14,20,0,8,0,0,7,9,0,7,1,2,125,1,-1,0,8,9,0,7,6,18,7,11,52,21,22,7,14,0,10,8,0,0,7,6,48,7,6,11,7,11,29,21,22,2,101,0,8,9,0,7,6,18,7,11,27,21,22,7,14,0,10,8,0,0,7,6,53,7,6,11,7,11,29,21,22,2,28,0,26,10,0,7,1,1,8,1,-1,13,7,6,18,7,10,0,5,2,2,22,7,0,8,9,0,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,51,0,10,8,0,0,7,6,54,7,6,11,7,11,29,21,22,2,28,0,26,10,0,7,1,1,8,1,-1,13,7,6,18,7,10,0,5,2,2,22,7,0,8,9,0,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,13,0,11,10,1,21,7,9,0,7,6,11,7,11,50,21,22,12,15,2,2,3,2,12,15,2,2,23,2,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,5,2,2,22,5,2,2,22,19,55,25],
-[1,0,474,1,-1,0,8,9,0,7,6,18,7,11,55,21,22,2,19,0,17,0,8,9,0,7,6,18,7,11,52,21,22,7,6,48,7,6,11,7,11,29,21,22,3,2,12,2,434,0,8,9,0,7,6,18,7,11,27,21,22,7,14,0,10,8,0,0,7,6,53,7,6,11,7,11,29,21,22,2,21,0,19,1,0,3,1,-1,9,0,23,2,7,0,8,9,0,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,391,0,10,8,0,0,7,6,54,7,6,11,7,11,29,21,22,2,27,0,25,1,0,9,1,-1,6,56,7,6,18,7,11,57,21,5,2,2,22,7,0,8,9,0,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,354,0,15,0,8,9,0,7,6,18,7,11,27,21,22,7,6,18,7,11,52,21,22,7,14,0,10,8,0,0,7,6,48,7,6,11,7,11,29,21,22,2,285,0,15,0,8,9,0,7,6,18,7,11,27,21,22,7,6,18,7,11,27,21,22,7,14,0,10,8,0,0,7,6,58,7,6,11,7,11,29,21,22,2,68,0,66,9,0,7,1,1,41,1,-1,6,48,7,0,15,0,8,9,0,7,6,18,7,11,59,21,22,7,6,18,7,11,60,21,22,7,0,15,0,8,10,0,7,6,18,7,11,32,21,22,7,6,18,7,11,60,21,22,7,6,14,7,11,12,21,5,4,2,22,7,0,15,0,8,9,0,7,6,18,7,11,27,21,22,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,188,0,10,8,0,0,7,6,53,7,6,11,7,11,29,21,22,2,54,0,52,9,0,7,1,1,27,1,-1,6,48,7,9,0,7,0,15,0,8,10,0,7,6,18,7,11,32,21,22,7,6,18,7,11,60,21,22,7,6,14,7,11,12,21,5,4,2,22,7,0,15,0,8,9,0,7,6,18,7,11,27,21,22,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,124,0,10,8,0,0,7,6,54,7,6,11,7,11,29,21,22,2,73,0,71,9,0,7,1,1,46,1,-1,0,15,0,8,10,0,7,6,18,7,11,32,21,22,7,6,18,7,11,41,21,22,2,3,9,0,3,27,6,13,7,9,0,7,0,15,0,8,10,0,7,6,18,7,11,32,21,22,7,6,18,7,11,60,21,22,7,6,14,7,11,12,21,5,4,2,22,23,2,7,0,15,0,8,9,0,7,6,18,7,11,27,21,22,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,41,0,40,6,48,7,0,15,0,8,9,0,7,6,18,7,11,27,21,22,7,6,18,7,11,60,21,22,7,0,15,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,11,60,21,22,7,6,14,7,11,12,21,22,15,2,2,3,41,0,40,6,48,7,0,15,0,8,9,0,7,6,18,7,11,27,21,22,7,6,18,7,11,60,21,22,7,0,15,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,11,60,21,22,7,6,14,7,11,12,21,22,15,2,2,15,2,2,3,11,6,15,7,9,0,7,6,11,7,11,12,21,5,3,2,22,23,2,19,60,25],
-[1,0,173,1,-1,0,8,9,0,7,6,18,7,11,55,21,22,2,19,0,17,0,8,9,0,7,6,18,7,11,52,21,22,7,6,48,7,6,11,7,11,29,21,22,3,2,12,2,133,0,8,9,0,7,6,18,7,11,27,21,22,7,14,0,10,8,0,0,7,6,58,7,6,11,7,11,29,21,22,2,34,0,32,1,0,16,1,-1,0,8,9,0,7,6,18,7,11,59,21,22,7,6,18,7,11,59,21,5,2,2,22,7,0,8,9,0,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,77,0,10,8,0,0,7,6,53,7,6,11,7,11,29,21,22,2,21,0,19,1,0,3,1,-1,9,0,23,2,7,0,8,9,0,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,46,0,10,8,0,0,7,6,54,7,6,11,7,11,29,21,22,2,27,0,25,1,0,9,1,-1,6,61,7,6,18,7,11,57,21,5,2,2,22,7,0,8,9,0,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,9,0,8,9,0,7,6,18,7,11,60,21,22,15,2,2,3,11,6,15,7,9,0,7,6,11,7,11,12,21,5,3,2,22,23,2,19,59,25],
-[0,30,11,2,21,7,0,18,6,5,7,1,0,9,1,-1,9,0,7,6,18,7,11,59,21,5,2,2,22,7,6,11,7,11,8,21,22,7,6,58,7,6,14,7,11,7,21,22,19,58,25],
-[1,0,84,2,-1,9,0,7,12,7,6,11,7,12,7,14,20,0,9,1,7,8,0,0,7,1,2,52,2,-1,9,1,2,41,0,8,9,1,7,6,18,7,11,32,21,22,7,0,23,0,14,0,8,9,1,7,6,18,7,11,27,21,22,7,6,18,7,10,1,22,7,9,0,7,6,11,7,11,48,21,22,7,6,11,7,10,0,21,5,3,3,22,3,9,9,0,7,6,18,7,11,62,21,5,2,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,5,3,3,22,19,50,25],
-[0,119,11,2,21,7,0,107,6,5,7,1,0,98,2,1,0,8,9,1,7,6,18,7,11,41,21,22,2,12,6,63,7,9,0,7,6,11,7,11,48,21,5,3,3,22,3,77,6,37,7,0,67,0,8,9,1,7,6,18,7,11,27,21,22,7,0,51,0,8,9,1,7,6,18,7,11,31,21,22,7,0,35,0,26,6,64,7,0,17,0,8,9,1,7,6,18,7,11,42,21,22,7,9,0,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,3,22,23,3,7,6,11,7,11,8,21,22,7,6,64,7,6,14,7,11,7,21,22,19,64,25],
-[0,192,11,2,21,7,0,180,6,5,7,1,0,171,2,1,0,8,9,1,7,6,18,7,11,65,21,22,2,97,6,20,7,0,86,0,77,11,13,21,7,12,7,0,65,1,0,56,1,-1,9,0,7,0,46,0,37,6,35,7,0,28,0,19,6,15,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,2,22,7,9,1,7,6,11,7,11,50,21,22,7,6,14,7,11,49,21,22,7,9,0,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,3,22,3,65,6,37,7,0,55,9,1,7,0,46,0,37,6,35,7,0,28,0,19,6,15,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,9,0,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,3,22,23,3,7,6,11,7,11,8,21,22,7,6,66,7,6,14,7,11,7,21,22,19,66,25],
-[0,177,11,2,21,7,0,165,6,5,7,1,0,156,1,0,0,8,6,67,7,6,18,7,11,35,21,22,7,14,6,10,7,0,136,8,0,0,7,0,127,0,118,9,0,7,6,18,7,12,7,14,20,0,8,1,0,7,8,0,0,7,1,2,89,1,-1,0,8,9,0,7,6,18,7,11,32,21,22,2,33,0,8,9,0,7,6,18,7,11,27,21,22,7,0,15,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,10,0,21,22,7,6,11,7,11,12,21,5,3,2,22,3,47,6,49,7,0,37,0,8,9,0,7,6,18,7,11,27,21,22,2,10,0,8,9,0,7,6,18,7,11,27,21,22,3,2,6,68,7,0,10,10,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,2,22,23,2,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,4,22,7,6,11,7,11,8,21,22,7,6,69,7,6,14,7,11,7,21,22,19,69,25],
-[1,0,22,1,-1,9,0,7,1,1,18,1,0,0,10,10,0,7,9,0,7,6,11,7,11,49,21,22,7,6,18,7,11,41,21,5,2,2,22,23,2,19,70,25],
-[0,284,11,2,21,7,0,272,6,5,7,1,0,263,4,3,6,63,7,0,253,0,235,6,6,7,0,226,9,3,7,0,217,0,208,6,7,7,0,199,6,3,7,0,190,0,154,6,8,7,0,145,6,71,7,0,136,0,127,6,48,7,0,118,9,2,7,0,109,0,100,6,37,7,0,91,6,72,7,0,82,0,19,6,10,7,0,10,9,1,7,9,0,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,55,0,46,6,21,7,0,37,6,72,7,0,28,0,19,6,15,7,0,10,9,3,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,73,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,28,0,19,6,15,7,0,10,9,3,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,10,9,3,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,5,22,7,6,11,7,11,8,21,22,7,6,74,7,6,14,7,11,7,21,22,19,74,25],
-[0,82,11,3,21,7,0,70,6,75,7,0,61,0,10,6,76,7,6,77,7,6,11,7,11,8,21,22,7,1,0,29,2,-1,6,69,7,0,19,9,1,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,3,22,7,14,0,10,8,0,0,7,6,78,7,6,11,7,11,21,21,22,8,0,0,15,2,2,7,6,11,7,11,48,21,22,7,6,11,7,11,8,21,22,7,6,78,7,6,14,7,11,7,21,22,19,78,11,78,21,25],
-[0,73,11,3,21,7,0,61,6,75,7,0,52,0,10,6,76,7,6,79,7,6,11,7,11,8,21,22,7,1,0,20,1,-1,6,70,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,2,22,7,14,0,10,8,0,0,7,6,80,7,6,11,7,11,21,21,22,8,0,0,15,2,2,7,6,11,7,11,48,21,22,7,6,11,7,11,8,21,22,7,6,80,7,6,14,7,11,7,21,22,19,80,11,80,21,25],
-[0,73,11,3,21,7,0,61,6,75,7,0,52,0,10,6,76,7,6,81,7,6,11,7,11,8,21,22,7,1,0,20,2,-1,9,1,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,3,22,7,14,0,10,8,0,0,7,6,82,7,6,11,7,11,21,21,22,8,0,0,15,2,2,7,6,11,7,11,48,21,22,7,6,11,7,11,8,21,22,7,6,82,7,6,14,7,11,7,21,22,19,82,11,82,21,25],
-[0,91,11,3,21,7,0,79,6,75,7,0,70,0,10,6,76,7,6,83,7,6,11,7,11,8,21,22,7,1,0,38,2,-1,9,1,7,0,28,0,19,6,15,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,3,22,7,14,0,10,8,0,0,7,6,84,7,6,11,7,11,21,21,22,8,0,0,15,2,2,7,6,11,7,11,48,21,22,7,6,11,7,11,8,21,22,7,6,84,7,6,14,7,11,7,21,22,19,84,11,84,21,25],
-[0,82,11,3,21,7,0,70,6,75,7,0,61,0,10,6,76,7,6,85,7,6,11,7,11,8,21,22,7,1,0,29,2,-1,6,86,7,0,19,9,1,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,3,22,7,14,0,10,8,0,0,7,6,87,7,6,11,7,11,21,21,22,8,0,0,15,2,2,7,6,11,7,11,48,21,22,7,6,11,7,11,8,21,22,7,6,87,7,6,14,7,11,7,21,22,19,87,11,87,21,25],
-[0,178,11,2,21,7,0,166,6,5,7,1,0,157,3,2,6,6,7,0,147,0,30,0,21,6,88,7,0,10,9,2,7,6,89,7,6,11,7,11,90,21,22,7,6,91,7,6,14,7,11,13,21,22,7,6,92,7,6,11,7,11,90,21,22,7,0,109,0,100,6,7,7,0,91,6,4,7,0,82,0,46,6,8,7,0,37,6,93,7,0,28,0,19,6,10,7,0,10,9,1,7,9,0,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,28,0,19,6,15,7,0,10,9,2,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,4,22,7,6,11,7,11,8,21,22,7,6,94,7,6,14,7,11,7,21,22,19,94,25],
-[0,32,11,4,21,7,0,20,6,95,7,1,0,11,2,-1,9,1,7,9,0,7,6,11,7,11,96,21,5,3,3,22,7,6,11,7,11,8,21,22,7,6,48,7,6,14,7,11,7,21,22,19,97,25],
-[0,32,11,4,21,7,0,20,6,95,7,1,0,11,2,-1,9,1,7,9,0,7,6,11,7,11,96,21,5,3,3,22,7,6,11,7,11,8,21,22,7,6,1,7,6,14,7,11,7,21,22,19,98,25],
-[0,32,11,4,21,7,0,20,6,95,7,1,0,11,2,-1,9,1,7,9,0,7,6,11,7,11,96,21,5,3,3,22,7,6,11,7,11,8,21,22,7,6,89,7,6,14,7,11,7,21,22,19,99,25],
-[1,0,139,2,-1,0,10,9,0,7,6,89,7,6,11,7,11,100,21,22,2,38,0,19,9,1,7,0,10,9,0,7,6,48,7,6,11,7,11,90,21,22,7,6,11,7,11,101,21,22,7,14,8,0,0,2,12,0,10,8,0,0,7,6,89,7,6,11,7,11,90,21,22,3,2,12,15,2,2,3,90,0,10,9,1,7,6,10,7,6,11,7,11,100,21,22,2,69,9,0,7,6,18,7,12,7,14,20,0,8,0,0,7,9,1,7,1,2,38,1,-1,9,0,2,34,0,14,0,8,9,0,7,6,18,7,11,27,21,22,7,6,18,7,10,0,22,2,3,9,0,3,16,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,10,1,21,5,2,2,22,3,2,12,23,2,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,5,2,3,22,3,11,9,1,7,9,0,7,6,11,7,11,102,21,5,3,3,22,23,3,19,101,25],
-[1,0,32,3,-1,0,11,9,2,7,11,29,21,7,6,11,7,11,29,21,22,2,14,9,2,7,9,1,7,9,0,7,6,14,7,11,103,21,5,4,4,22,3,6,13,2,3,12,3,2,12,23,4,19,104,25],
-[1,0,294,2,1,0,20,1,0,11,1,-1,9,0,7,6,89,7,6,11,7,11,100,21,5,3,2,22,7,9,0,7,6,11,7,11,101,21,22,2,147,0,21,11,105,21,7,0,11,11,28,21,7,9,0,7,6,11,7,11,106,21,22,7,6,11,7,11,49,21,22,7,14,0,121,6,0,7,12,7,6,11,7,12,7,14,20,0,9,0,7,9,1,7,8,0,0,7,8,1,0,7,1,4,86,2,-1,0,10,9,1,7,10,0,7,6,11,7,11,29,21,22,2,19,0,8,9,0,7,6,18,7,11,62,21,22,7,6,89,7,6,11,7,11,90,21,5,3,3,22,3,56,0,10,9,1,7,6,18,7,6,11,7,11,13,21,22,7,0,37,0,28,10,2,7,0,19,9,1,7,1,1,8,1,-1,10,0,7,6,18,7,9,0,5,2,2,22,7,10,3,7,6,11,7,11,106,21,22,7,6,11,7,11,49,21,22,7,9,0,7,6,11,7,11,48,21,22,7,6,11,7,10,1,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,22,15,2,2,3,126,0,15,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,11,41,21,22,2,19,9,1,7,0,8,9,0,7,6,18,7,11,27,21,22,7,6,11,7,11,50,21,5,3,3,22,3,92,9,0,7,6,18,7,12,7,14,20,0,8,0,0,7,9,1,7,1,2,62,1,-1,0,11,11,41,21,7,9,0,7,6,11,7,11,101,21,22,2,3,12,3,47,0,20,10,0,7,0,11,11,27,21,7,9,0,7,6,11,7,11,50,21,22,7,6,11,7,11,49,21,22,7,0,18,0,11,11,32,21,7,9,0,7,6,11,7,11,50,21,22,7,6,18,7,10,1,21,22,7,6,11,7,11,48,21,5,3,2,22,23,2,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,5,2,3,22,23,3,19,106,25],
-[1,0,26,2,1,11,13,21,7,12,7,0,13,11,106,21,7,9,1,7,9,0,7,6,14,7,11,49,21,22,7,6,14,7,11,49,21,5,4,3,22,19,107,25],
-[1,0,34,2,-1,9,1,7,1,1,22,1,-1,0,7,9,0,7,6,18,7,10,0,22,2,12,9,0,7,12,7,6,11,7,11,48,21,5,3,2,22,3,2,12,23,2,7,9,0,7,6,11,7,11,107,21,5,3,3,22,19,108,25],
-[1,0,75,2,-1,9,1,2,71,0,17,0,8,9,1,7,6,18,7,11,27,21,22,7,9,0,7,6,11,7,11,102,21,22,2,19,0,8,9,1,7,6,18,7,11,32,21,22,7,9,0,7,6,11,7,11,109,21,5,3,3,22,3,34,0,8,9,1,7,6,18,7,11,27,21,22,7,0,17,0,8,9,1,7,6,18,7,11,32,21,22,7,9,0,7,6,11,7,11,109,21,22,7,6,11,7,11,48,21,5,3,3,22,3,2,12,23,3,19,109,25],
-[1,0,75,2,-1,9,1,2,71,0,17,0,8,9,1,7,6,18,7,11,27,21,22,7,9,0,7,6,11,7,11,102,21,22,2,35,0,8,9,1,7,6,18,7,11,27,21,22,7,0,17,0,8,9,1,7,6,18,7,11,32,21,22,7,9,0,7,6,11,7,11,110,21,22,7,6,11,7,11,48,21,5,3,3,22,3,18,0,8,9,1,7,6,18,7,11,32,21,22,7,9,0,7,6,11,7,11,110,21,5,3,3,22,3,2,12,23,3,19,110,25],
-[1,0,64,1,-1,0,8,9,0,7,6,18,7,11,41,21,22,2,3,12,3,52,0,8,9,0,7,6,18,7,11,111,21,22,2,12,9,0,7,12,7,6,11,7,11,48,21,5,3,2,22,3,32,0,8,9,0,7,6,18,7,11,27,21,22,7,0,15,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,11,112,21,22,7,6,11,7,11,48,21,5,3,2,22,23,2,19,112,25],
-[1,0,80,1,-1,9,0,7,6,0,7,6,11,7,12,7,14,20,0,8,0,0,7,1,1,50,2,-1,0,8,9,1,7,6,18,7,11,41,21,22,2,3,6,113,3,38,0,8,9,1,7,6,18,7,11,111,21,22,2,3,9,0,3,27,0,8,9,1,7,6,18,7,11,32,21,22,7,0,10,9,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,10,0,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,5,3,2,22,19,114,25],
-[1,0,129,3,2,0,8,9,0,7,6,18,7,11,65,21,22,2,10,0,8,9,0,7,6,18,7,11,27,21,22,3,2,12,2,19,9,2,7,14,8,0,0,2,3,8,0,0,3,10,9,1,7,14,8,0,0,2,3,8,0,0,3,2,12,15,2,2,15,2,2,3,2,12,7,14,8,0,0,2,3,8,0,0,3,14,9,2,2,3,9,1,3,2,12,7,14,8,0,0,2,3,8,0,0,3,2,12,15,2,2,15,2,2,2,67,0,8,9,2,7,6,18,7,11,27,21,22,7,0,49,0,8,9,1,7,6,18,7,11,27,21,22,7,0,33,0,8,9,2,7,6,18,7,11,32,21,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,0,8,9,0,7,6,18,7,11,27,21,22,7,6,14,7,11,115,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,4,22,3,2,12,23,4,19,115,25],
-[1,0,32,1,-1,0,8,9,0,7,6,18,7,11,65,21,22,2,17,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,11,116,21,5,2,2,22,3,6,9,0,2,3,13,3,2,12,23,2,19,116,25],
-[1,0,58,1,-1,0,15,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,11,41,21,22,2,10,9,0,7,6,18,7,11,27,21,5,2,2,22,3,32,0,8,9,0,7,6,18,7,11,27,21,22,7,0,15,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,11,117,21,22,7,6,11,7,11,48,21,5,3,2,22,23,2,19,117,25],
-[1,0,57,1,-1,0,8,9,0,7,6,18,7,11,65,21,22,2,33,0,8,9,0,7,6,18,7,11,27,21,22,7,0,15,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,11,118,21,22,7,6,11,7,11,48,21,5,3,2,22,3,15,9,0,2,12,9,0,7,12,7,6,11,7,11,48,21,5,3,2,22,3,2,12,23,2,19,118,25],
-[1,0,20,1,-1,0,10,9,0,7,13,7,6,11,7,11,119,21,22,7,14,8,0,0,2,3,8,0,0,3,2,9,0,15,2,2,23,2,19,120,25],
-[1,0,71,1,-1,0,17,0,8,9,0,7,6,18,7,11,52,21,22,7,6,48,7,6,11,7,11,29,21,22,2,20,0,18,11,2,21,7,0,8,9,0,7,6,18,7,11,27,21,22,7,6,11,7,11,96,21,22,3,2,12,7,14,8,0,0,2,26,0,8,8,0,0,7,6,18,7,11,121,21,22,7,0,8,9,0,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,4,22,3,2,9,0,15,2,2,23,2,19,122,25],
-[1,0,817,2,-1,0,8,9,1,7,6,18,7,11,52,21,22,7,14,0,10,8,0,0,7,6,48,7,6,11,7,11,29,21,22,2,747,0,8,9,1,7,6,18,7,11,27,21,22,7,14,0,10,8,0,0,7,6,15,7,6,11,7,11,29,21,22,2,29,0,27,1,0,11,1,0,6,15,7,9,0,7,6,11,7,11,48,21,5,3,2,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,696,0,10,8,0,0,7,6,10,7,6,11,7,11,29,21,22,2,241,0,239,9,0,7,1,1,221,2,1,0,8,9,1,7,6,18,7,11,123,21,22,2,91,0,8,6,124,7,6,18,7,11,35,21,22,7,14,0,69,6,10,7,0,60,8,0,0,7,0,51,0,42,6,20,7,0,33,0,24,0,8,9,1,7,6,18,7,11,12,21,22,7,0,8,8,0,0,7,6,18,7,11,12,21,22,7,6,11,7,11,125,21,22,7,9,0,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,15,2,2,7,10,0,7,6,11,7,11,126,21,5,3,3,22,3,121,6,10,7,0,111,9,1,7,0,102,0,17,0,8,9,0,7,6,18,7,11,28,21,22,7,6,11,7,6,11,7,11,127,21,22,2,38,0,36,0,8,9,0,7,6,18,7,11,27,21,22,7,0,20,11,29,21,7,0,8,9,1,7,6,18,7,11,112,21,22,7,10,0,7,6,14,7,11,104,21,22,7,6,11,7,11,126,21,22,3,39,0,38,0,10,6,63,7,9,0,7,6,11,7,11,48,21,22,7,0,20,11,29,21,7,0,8,9,1,7,6,18,7,11,112,21,22,7,10,0,7,6,14,7,11,104,21,22,7,6,11,7,11,126,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,3,22,23,3,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,445,0,10,8,0,0,7,6,20,7,6,11,7,11,29,21,22,2,311,0,309,9,0,7,1,1,291,2,1,0,8,9,1,7,6,18,7,11,26,21,22,7,14,0,11,11,27,21,7,8,0,0,7,6,11,7,11,50,21,22,7,14,0,8,8,0,0,7,6,18,7,11,123,21,22,2,107,0,11,11,31,21,7,8,1,0,7,6,11,7,11,50,21,22,7,14,0,16,1,0,7,1,-1,6,0,7,11,35,21,5,1,2,22,7,8,0,0,7,6,11,7,11,50,21,22,7,14,0,73,0,64,6,20,7,0,55,0,10,8,0,0,7,8,1,0,7,6,11,7,11,115,21,22,7,0,37,0,28,6,20,7,0,19,0,10,8,2,0,7,8,0,0,7,6,11,7,11,125,21,22,7,9,0,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,10,0,7,6,11,7,11,126,21,22,15,4,2,3,151,6,20,7,0,141,0,45,10,0,7,1,1,34,1,-1,0,8,9,0,7,6,18,7,11,27,21,22,7,0,17,0,8,9,0,7,6,18,7,11,31,21,22,7,10,0,7,6,11,7,11,126,21,22,7,6,11,7,11,12,21,5,3,2,22,7,8,1,0,7,6,11,7,11,107,21,22,7,0,88,0,17,0,8,9,0,7,6,18,7,11,28,21,22,7,6,11,7,6,11,7,11,127,21,22,2,31,0,29,0,8,9,0,7,6,18,7,11,27,21,22,7,0,13,11,29,21,7,8,0,0,7,10,0,7,6,14,7,11,104,21,22,7,6,11,7,11,126,21,22,3,32,0,31,0,10,6,63,7,9,0,7,6,11,7,11,48,21,22,7,0,13,11,29,21,7,8,0,0,7,10,0,7,6,14,7,11,104,21,22,7,6,11,7,11,126,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,7,22,15,4,2,23,3,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,124,0,8,9,1,7,6,18,7,11,27,21,22,7,14,0,17,0,8,8,0,0,7,6,18,7,11,52,21,22,7,6,92,7,6,11,7,11,29,21,22,2,33,0,17,0,10,8,0,0,7,9,0,7,6,11,7,11,101,21,22,7,6,18,7,11,41,21,22,2,13,0,11,11,2,21,7,8,0,0,7,6,11,7,11,96,21,22,3,2,12,3,2,12,15,2,2,7,14,8,0,0,2,35,0,33,0,24,0,8,8,0,0,7,6,18,7,11,121,21,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,7,9,0,7,6,11,7,11,126,21,22,3,23,0,22,9,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,11,7,11,126,21,5,3,2,22,7,9,1,7,6,11,7,11,50,21,22,15,2,2,15,2,2,3,48,0,10,8,0,0,7,6,92,7,6,11,7,11,29,21,22,2,36,0,8,9,1,7,6,18,7,11,120,21,22,7,14,0,10,8,0,0,7,9,1,7,6,11,7,11,29,21,22,2,3,9,1,3,11,0,10,8,0,0,7,9,0,7,6,11,7,11,126,21,22,15,2,2,3,2,9,1,15,2,2,23,3,19,126,25],
-[1,0,11,2,1,9,1,7,9,0,7,6,11,7,11,126,21,5,3,3,22,19,128,25],
-[1,0,329,2,-1,9,1,2,325,0,8,9,1,7,6,18,7,11,52,21,22,7,14,0,10,8,0,0,7,6,92,7,6,11,7,11,29,21,22,2,21,0,19,9,1,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,3,282,0,10,8,0,0,7,6,48,7,6,11,7,11,29,21,22,2,254,0,15,0,8,9,1,7,6,18,7,11,27,21,22,7,6,18,7,11,65,21,22,2,19,0,17,0,8,9,1,7,6,18,7,11,129,21,22,7,6,130,7,6,11,7,11,29,21,22,3,2,12,2,125,0,123,0,8,9,1,7,6,18,7,11,131,21,22,7,0,107,0,98,6,33,7,0,89,0,19,6,65,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,62,0,19,6,27,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,35,0,15,0,8,9,1,7,6,18,7,11,132,21,22,7,6,18,7,11,65,21,22,2,10,0,8,9,1,7,6,18,7,11,133,21,22,3,2,12,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,3,36,0,35,0,8,9,1,7,6,18,7,11,27,21,22,7,0,19,6,27,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,134,21,22,7,14,0,8,8,0,0,7,6,18,7,11,27,21,22,7,14,0,44,8,1,0,7,0,35,0,8,9,1,7,6,18,7,11,32,21,22,7,0,19,6,32,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,134,21,22,7,6,11,7,11,13,21,22,15,4,2,3,18,0,17,0,10,6,135,7,9,1,7,6,11,7,11,13,21,22,7,6,18,7,11,57,21,22,15,2,2,3,2,12,23,3,19,134,25],
-[1,0,56,2,-1,1,0,25,1,-1,0,8,9,0,7,6,18,7,11,27,21,22,7,0,8,9,0,7,6,18,7,11,31,21,22,7,6,11,7,11,134,21,5,3,2,22,7,0,22,1,0,11,2,-1,9,1,7,9,0,7,6,11,7,11,12,21,5,3,3,22,7,9,1,7,9,0,7,6,14,7,11,106,21,22,7,6,11,7,11,107,21,5,3,3,22,19,125,25],
-[1,0,82,1,-1,0,8,9,0,7,6,18,7,11,65,21,22,2,26,0,24,0,15,0,8,9,0,7,6,18,7,11,27,21,22,7,6,18,7,11,52,21,22,7,6,92,7,6,11,7,11,29,21,22,3,2,12,2,17,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,11,123,21,5,2,2,22,3,29,9,0,2,26,0,17,0,8,9,0,7,6,18,7,11,52,21,22,7,6,92,7,6,11,7,11,29,21,22,7,6,18,7,11,41,21,5,2,2,22,3,2,12,23,2,19,123,25],
-[1,0,157,1,-1,9,0,2,153,0,8,9,0,7,6,18,7,11,52,21,22,7,14,0,10,8,0,0,7,6,92,7,6,11,7,11,29,21,22,2,10,0,8,9,0,7,6,18,7,11,12,21,22,3,121,0,10,8,0,0,7,6,48,7,6,11,7,11,29,21,22,2,93,0,8,9,0,7,6,18,7,11,27,21,22,7,14,0,8,8,0,0,7,6,18,7,11,65,21,22,2,19,0,17,0,8,8,0,0,7,6,18,7,11,27,21,22,7,6,130,7,6,11,7,11,29,21,22,3,2,12,2,17,0,15,0,8,8,0,0,7,6,18,7,11,31,21,22,7,6,18,7,11,12,21,22,3,9,0,8,8,0,0,7,6,18,7,11,136,21,22,15,2,2,7,14,0,24,0,15,0,8,9,0,7,6,18,7,11,32,21,22,7,6,18,7,11,136,21,22,7,8,0,0,7,6,11,7,11,13,21,22,15,2,2,3,18,0,17,0,10,6,135,7,9,0,7,6,11,7,11,13,21,22,7,6,18,7,11,57,21,22,15,2,2,3,2,12,23,2,19,136,25],
-[1,0,71,4,-1,9,2,2,67,0,8,9,2,7,6,18,7,11,27,21,22,7,14,0,10,9,3,7,8,0,0,7,6,11,7,11,137,21,22,7,14,8,0,0,2,11,0,9,9,1,7,8,0,0,7,6,11,7,9,0,22,3,31,0,30,9,3,7,0,8,9,2,7,6,18,7,11,32,21,22,7,0,10,6,18,7,9,1,7,6,11,7,11,13,21,22,7,9,0,7,6,16,7,11,138,21,22,15,4,2,3,2,12,23,5,19,138,25],
-[1,0,97,7,-1,0,21,9,6,7,0,8,9,5,7,6,18,7,11,27,21,22,7,6,0,7,9,3,7,6,16,7,11,138,21,22,7,14,8,0,0,2,3,8,0,0,3,68,0,17,9,6,7,0,8,9,5,7,6,18,7,11,31,21,22,7,6,11,7,11,137,21,22,7,14,8,0,0,2,9,0,7,8,0,0,7,6,18,7,9,2,22,3,38,0,17,9,6,7,0,8,9,5,7,6,18,7,11,42,21,22,7,6,11,7,11,137,21,22,7,14,8,0,0,2,9,0,7,8,0,0,7,6,18,7,9,1,22,3,8,0,7,9,6,7,6,18,7,9,0,22,15,2,2,15,2,2,15,2,2,23,8,19,139,25],
-[1,0,235,3,-1,9,2,7,9,1,7,9,0,7,9,0,7,1,1,38,2,-1,6,140,7,0,28,9,1,7,0,19,9,0,7,0,10,10,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,3,22,7,9,0,7,1,1,29,1,-1,6,141,7,0,19,9,0,7,0,10,10,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,2,22,7,9,0,7,1,1,29,1,-1,6,142,7,0,19,9,0,7,0,10,10,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,2,22,7,9,0,7,1,1,114,1,-1,9,0,7,14,0,10,8,0,0,7,12,7,6,11,7,11,29,21,22,2,21,6,143,7,0,10,10,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,4,22,3,78,0,10,8,0,0,7,13,7,6,11,7,11,29,21,22,2,21,6,144,7,0,10,10,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,4,22,3,47,6,145,7,0,37,9,0,7,0,28,0,19,6,146,7,0,10,10,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,4,22,15,2,2,23,2,7,6,147,7,11,139,21,5,8,4,22,19,148,25],
-[1,0,598,2,-1,0,8,9,1,7,6,18,7,11,52,21,22,7,14,0,10,8,0,0,7,6,92,7,6,11,7,11,29,21,22,2,30,0,17,0,10,9,1,7,9,0,7,6,11,7,11,101,21,22,7,6,18,7,11,41,21,22,2,10,9,1,7,6,18,7,11,12,21,5,2,5,22,3,2,12,3,546,0,10,8,0,0,7,6,48,7,6,11,7,11,29,21,22,2,534,0,8,9,1,7,6,18,7,11,27,21,22,7,14,0,10,8,0,0,7,6,15,7,6,11,7,11,29,21,22,2,21,0,19,1,0,3,1,0,12,23,2,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,491,0,10,8,0,0,7,6,10,7,6,11,7,11,29,21,22,2,50,0,48,9,0,7,1,1,30,2,-1,9,0,7,0,20,11,29,21,7,0,8,9,1,7,6,18,7,11,112,21,22,7,10,0,7,6,14,7,11,104,21,22,7,6,11,7,11,149,21,5,3,3,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,431,0,10,8,0,0,7,6,20,7,6,11,7,11,29,21,22,2,129,0,127,9,0,7,1,1,109,2,-1,0,18,11,27,21,7,0,8,9,1,7,6,18,7,11,26,21,22,7,6,11,7,11,50,21,22,7,0,18,11,31,21,7,0,8,9,1,7,6,18,7,11,26,21,22,7,6,11,7,11,50,21,22,7,14,11,29,21,7,0,36,0,29,0,22,10,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,11,7,11,149,21,5,3,2,22,7,8,0,0,7,6,11,7,11,50,21,22,7,6,18,7,11,150,21,22,7,6,18,7,11,151,21,22,7,0,22,9,0,7,0,13,11,29,21,7,8,0,1,7,10,0,7,6,14,7,11,104,21,22,7,6,11,7,11,149,21,22,7,6,14,7,11,104,21,5,4,6,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,292,0,10,8,0,0,7,6,63,7,6,11,7,11,29,21,22,2,57,0,55,9,0,7,1,1,37,1,0,0,29,0,22,10,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,11,7,11,149,21,5,3,2,22,7,9,0,7,6,11,7,11,50,21,22,7,6,18,7,11,150,21,22,7,6,18,7,11,151,21,5,2,2,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,225,0,10,8,0,0,7,6,30,7,6,11,7,11,29,21,22,2,57,0,55,9,0,7,1,1,37,1,0,0,29,0,22,10,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,11,7,11,149,21,5,3,2,22,7,9,0,7,6,11,7,11,50,21,22,7,6,18,7,11,150,21,22,7,6,18,7,11,151,21,5,2,2,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,158,0,10,8,0,0,7,6,6,7,6,11,7,11,29,21,22,2,70,0,68,9,0,7,1,1,50,2,-1,11,29,21,7,0,17,0,10,9,1,7,10,0,7,6,11,7,11,101,21,22,7,6,18,7,11,41,21,22,2,10,0,8,9,1,7,6,18,7,11,12,21,22,3,2,12,7,0,10,9,0,7,10,0,7,6,11,7,11,149,21,22,7,6,14,7,11,104,21,5,4,3,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,78,0,10,8,0,0,7,6,152,7,6,11,7,11,29,21,22,2,31,0,29,9,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,11,7,11,149,21,5,3,2,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,37,0,36,0,29,0,22,9,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,11,7,11,149,21,5,3,2,22,7,9,1,7,6,11,7,11,50,21,22,7,6,18,7,11,150,21,22,7,6,18,7,11,151,21,22,15,2,2,3,2,12,15,2,2,23,3,19,149,25],
-[1,0,545,2,-1,0,8,9,1,7,6,18,7,11,52,21,22,7,14,0,10,8,0,0,7,6,48,7,6,11,7,11,29,21,22,2,521,0,8,9,1,7,6,18,7,11,27,21,22,7,14,0,10,8,0,0,7,6,15,7,6,11,7,11,29,21,22,2,21,0,19,1,0,3,1,-1,12,23,2,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,478,0,10,8,0,0,7,6,10,7,6,11,7,11,29,21,22,2,47,0,45,9,0,7,1,1,27,2,-1,9,0,7,0,17,10,0,7,0,8,9,1,7,6,18,7,11,112,21,22,7,6,11,7,11,109,21,22,7,6,11,7,11,153,21,5,3,3,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,421,0,10,8,0,0,7,6,20,7,6,11,7,11,29,21,22,2,126,0,124,9,0,7,1,1,106,2,-1,0,18,11,27,21,7,0,8,9,1,7,6,18,7,11,26,21,22,7,6,11,7,11,50,21,22,7,0,18,11,31,21,7,0,8,9,1,7,6,18,7,11,26,21,22,7,6,11,7,11,50,21,22,7,14,11,29,21,7,0,36,0,29,0,22,10,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,11,7,11,153,21,5,3,2,22,7,8,0,0,7,6,11,7,11,50,21,22,7,6,18,7,11,150,21,22,7,6,18,7,11,151,21,22,7,0,19,9,0,7,0,10,10,0,7,8,0,1,7,6,11,7,11,109,21,22,7,6,11,7,11,153,21,22,7,6,14,7,11,104,21,5,4,6,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,285,0,10,8,0,0,7,6,63,7,6,11,7,11,29,21,22,2,57,0,55,9,0,7,1,1,37,1,0,0,29,0,22,10,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,11,7,11,153,21,5,3,2,22,7,9,0,7,6,11,7,11,50,21,22,7,6,18,7,11,150,21,22,7,6,18,7,11,151,21,5,2,2,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,218,0,10,8,0,0,7,6,30,7,6,11,7,11,29,21,22,2,57,0,55,9,0,7,1,1,37,1,0,0,29,0,22,10,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,11,7,11,153,21,5,3,2,22,7,9,0,7,6,11,7,11,50,21,22,7,6,18,7,11,150,21,22,7,6,18,7,11,151,21,5,2,2,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,151,0,10,8,0,0,7,6,6,7,6,11,7,11,29,21,22,2,63,0,61,9,0,7,1,1,43,2,-1,11,29,21,7,0,10,9,1,7,10,0,7,6,11,7,11,101,21,22,2,10,0,8,9,1,7,6,18,7,11,12,21,22,3,2,12,7,0,10,9,0,7,10,0,7,6,11,7,11,153,21,22,7,6,14,7,11,104,21,5,4,3,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,78,0,10,8,0,0,7,6,152,7,6,11,7,11,29,21,22,2,31,0,29,9,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,11,7,11,153,21,5,3,2,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,37,0,36,0,29,0,22,9,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,11,7,11,153,21,5,3,2,22,7,9,1,7,6,11,7,11,50,21,22,7,6,18,7,11,150,21,22,7,6,18,7,11,151,21,22,15,2,2,3,2,12,15,2,2,23,3,19,153,25],
-[1,0,138,3,-1,9,1,7,6,0,7,6,11,7,12,7,14,20,0,9,0,7,8,0,0,7,9,2,7,1,3,104,2,-1,9,1,2,100,0,17,0,8,9,1,7,6,18,7,11,27,21,22,7,10,0,7,6,11,7,11,101,21,22,2,55,6,154,7,0,44,9,0,7,0,35,0,26,0,8,9,1,7,6,18,7,11,32,21,22,7,0,10,9,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,10,1,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,3,22,3,27,0,8,9,1,7,6,18,7,11,32,21,22,7,0,10,9,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,10,1,21,5,3,3,22,3,2,10,2,23,3,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,5,3,4,22,19,155,25],
-[1,0,141,1,-1,0,17,0,8,9,0,7,6,18,7,11,27,21,22,7,6,156,7,6,11,7,11,29,21,22,2,17,0,8,9,0,7,6,18,7,11,31,21,22,7,6,18,7,11,157,21,5,2,2,22,3,106,0,17,0,8,9,0,7,6,18,7,11,27,21,22,7,6,158,7,6,11,7,11,29,21,22,2,10,9,0,7,6,18,7,11,31,21,5,2,2,22,3,79,0,17,0,8,9,0,7,6,18,7,11,27,21,22,7,6,159,7,6,11,7,11,29,21,22,2,26,0,24,0,15,0,8,9,0,7,6,18,7,11,160,21,22,7,6,18,7,11,129,21,22,7,6,158,7,6,11,7,11,29,21,22,3,2,12,2,33,0,8,9,0,7,6,18,7,11,31,21,22,7,0,15,0,8,9,0,7,6,18,7,11,160,21,22,7,6,18,7,11,131,21,22,7,6,11,7,11,13,21,5,3,2,22,3,2,12,23,2,19,157,25],
-[1,0,129,2,-1,0,8,9,1,7,6,18,7,11,27,21,22,7,14,0,10,8,0,0,7,6,159,7,6,11,7,11,29,21,22,2,69,6,159,7,0,58,0,17,0,8,9,1,7,6,18,7,11,31,21,22,7,9,0,7,6,11,7,11,13,21,22,7,0,33,0,8,9,1,7,6,18,7,11,161,21,22,7,0,17,0,8,9,1,7,6,18,7,11,162,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,5,22,3,38,6,159,7,0,28,9,0,7,0,19,9,0,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,5,22,15,2,2,23,3,19,163,25],
-[1,0,59,3,-1,0,8,9,2,7,6,18,7,11,41,21,22,2,3,9,0,3,47,0,8,9,2,7,6,18,7,11,32,21,22,7,9,1,7,0,28,0,8,9,2,7,6,18,7,11,27,21,22,7,9,1,7,0,10,6,164,7,9,0,7,6,11,7,11,12,21,22,7,6,14,7,11,148,21,22,7,6,14,7,11,165,21,5,4,4,22,23,4,19,165,25],
-[1,0,111,2,-1,9,1,2,107,0,8,9,0,7,6,18,7,11,27,21,22,7,0,8,9,0,7,6,18,7,11,31,21,22,7,0,8,9,0,7,6,18,7,11,42,21,22,7,14,0,76,8,0,0,7,8,0,1,7,8,0,2,7,1,3,61,1,-1,0,17,9,0,7,0,8,10,0,7,6,18,7,11,150,21,22,7,6,11,7,11,101,21,22,7,14,8,0,0,2,3,8,0,0,3,36,0,10,9,0,7,10,1,7,6,11,7,11,101,21,22,7,14,8,0,0,2,3,8,0,0,3,19,0,10,9,0,7,10,2,7,6,11,7,11,101,21,22,7,14,8,0,0,2,3,8,0,0,3,2,12,15,2,2,15,2,2,15,2,2,23,2,7,9,1,7,6,11,7,11,108,21,22,15,4,4,3,2,12,23,3,19,166,25],
-[1,0,1990,4,-1,0,8,9,3,7,6,18,7,11,52,21,22,7,14,0,10,8,0,0,7,6,92,7,6,11,7,11,29,21,22,2,45,9,3,7,9,2,7,0,10,9,3,7,9,1,7,6,11,7,11,101,21,22,2,21,0,19,6,146,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,3,2,9,0,7,6,14,7,11,148,21,5,4,7,22,3,1923,0,10,8,0,0,7,6,48,7,6,11,7,11,29,21,22,2,1822,0,8,9,3,7,6,18,7,11,27,21,22,7,14,0,10,8,0,0,7,6,15,7,6,11,7,11,29,21,22,2,112,0,110,9,0,7,1,1,92,1,-1,0,10,9,0,7,12,7,6,11,7,11,29,21,22,2,21,6,143,7,0,10,10,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,2,22,3,60,0,10,9,0,7,13,7,6,11,7,11,29,21,22,2,21,6,144,7,0,10,10,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,2,22,3,29,6,167,7,0,19,9,0,7,0,10,10,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,2,22,23,2,7,0,8,9,3,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,1688,0,10,8,0,0,7,6,10,7,6,11,7,11,29,21,22,2,270,0,268,9,0,7,9,1,7,9,2,7,1,3,246,2,-1,0,8,9,1,7,6,18,7,11,114,21,22,7,0,8,9,1,7,6,18,7,11,112,21,22,7,14,0,10,9,0,7,8,0,0,7,6,11,7,11,149,21,22,7,0,10,9,0,7,8,0,0,7,6,11,7,11,153,21,22,7,14,0,10,8,0,1,7,10,0,7,6,11,7,11,166,21,22,7,14,8,0,0,7,10,0,7,0,180,6,168,7,0,171,0,8,8,0,0,7,6,18,7,11,28,21,22,7,0,155,0,8,8,2,0,7,6,18,7,11,28,21,22,7,0,139,8,2,1,7,0,130,0,112,8,1,0,7,0,8,8,2,0,7,6,18,7,11,169,21,22,7,0,94,9,0,7,0,26,12,7,0,17,0,8,8,2,0,7,6,18,7,11,169,21,22,7,8,0,0,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,22,11,29,21,7,8,1,0,7,0,10,10,1,7,8,0,0,7,6,11,7,11,110,21,22,7,6,14,7,11,104,21,22,7,0,35,6,158,7,0,26,0,17,0,8,8,2,0,7,6,18,7,11,28,21,22,7,6,18,7,6,11,7,11,13,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,16,7,11,170,21,22,7,6,14,7,11,155,21,22,7,0,10,10,2,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,14,7,11,165,21,5,4,11,22,7,0,8,9,3,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,1408,0,10,8,0,0,7,6,20,7,6,11,7,11,29,21,22,2,346,0,344,9,0,7,9,1,7,9,2,7,1,3,322,2,-1,0,18,11,27,21,7,0,8,9,1,7,6,18,7,11,26,21,22,7,6,11,7,11,50,21,22,7,0,18,11,31,21,7,0,8,9,1,7,6,18,7,11,26,21,22,7,6,11,7,11,50,21,22,7,14,0,8,8,0,0,7,6,18,7,11,169,21,22,7,0,40,0,24,0,8,8,0,1,7,6,18,7,11,169,21,22,7,0,8,10,0,7,6,18,7,11,27,21,22,7,6,11,7,11,48,21,22,7,0,8,10,0,7,6,18,7,11,32,21,22,7,6,11,7,11,48,21,22,7,0,10,9,0,7,8,0,1,7,6,11,7,11,153,21,22,7,0,19,0,10,9,0,7,8,0,1,7,6,11,7,11,149,21,22,7,10,0,7,6,11,7,11,166,21,22,7,0,17,0,8,8,0,1,7,6,18,7,11,28,21,22,7,6,18,7,6,11,7,11,13,21,22,7,14,0,10,10,2,7,8,0,0,7,6,11,7,11,163,21,22,7,14,0,71,6,171,7,0,62,0,53,8,1,2,7,0,8,8,2,1,7,6,18,7,11,169,21,22,7,0,35,9,0,7,8,1,3,7,0,22,11,29,21,7,8,1,2,7,0,10,10,1,7,8,1,1,7,6,11,7,11,110,21,22,7,6,14,7,11,104,21,22,7,8,0,0,7,6,16,7,11,170,21,22,7,6,14,7,11,155,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,15,7,5,7,6,11,7,12,7,14,20,0,10,1,7,10,0,7,8,0,0,7,1,3,68,2,-1,0,8,9,1,7,6,18,7,11,41,21,22,2,3,9,0,3,56,0,8,9,1,7,6,18,7,11,32,21,22,7,0,39,0,8,9,1,7,6,18,7,11,27,21,22,7,10,1,7,10,2,7,0,19,6,164,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,16,7,11,170,21,22,7,6,11,7,10,0,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,5,3,6,22,7,0,8,9,3,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,1052,0,10,8,0,0,7,6,63,7,6,11,7,11,29,21,22,2,115,0,113,9,0,7,9,1,7,9,2,7,1,3,91,1,0,0,8,9,0,7,6,18,7,11,169,21,22,7,10,2,7,6,11,7,12,7,14,20,0,10,1,7,10,0,7,8,0,0,7,1,3,50,2,-1,0,8,9,1,7,6,18,7,11,41,21,22,2,3,9,0,3,38,0,8,9,1,7,6,18,7,11,32,21,22,7,0,21,0,8,9,1,7,6,18,7,11,27,21,22,7,10,1,7,10,2,7,9,0,7,6,16,7,11,170,21,22,7,6,11,7,10,0,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,5,3,2,22,7,0,8,9,3,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,927,0,10,8,0,0,7,6,30,7,6,11,7,11,29,21,22,2,142,0,140,9,0,7,9,1,7,9,2,7,1,3,118,3,-1,0,32,9,1,7,10,0,7,10,1,7,0,19,6,156,7,0,10,10,2,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,16,7,11,170,21,22,7,0,32,9,0,7,10,0,7,10,1,7,0,19,6,156,7,0,10,10,2,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,16,7,11,170,21,22,7,14,9,2,7,10,0,7,10,1,7,0,37,6,172,7,0,28,8,0,1,7,0,19,8,0,0,7,0,10,10,2,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,16,7,11,170,21,5,5,7,22,7,0,8,9,3,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,775,0,10,8,0,0,7,6,6,7,6,11,7,11,29,21,22,2,250,0,248,9,1,7,9,0,7,9,2,7,1,3,226,2,-1,9,1,7,10,0,7,10,1,7,10,1,7,10,2,7,10,0,7,9,0,7,1,4,51,2,-1,10,0,7,10,1,7,10,2,7,0,37,6,173,7,0,28,9,1,7,0,19,9,0,7,0,10,10,3,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,16,7,11,170,21,5,5,3,22,7,10,1,7,10,2,7,10,0,7,9,0,7,1,4,42,1,-1,10,0,7,10,1,7,10,2,7,0,28,6,174,7,0,19,9,0,7,0,10,10,3,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,16,7,11,170,21,5,5,2,22,7,10,1,7,10,2,7,10,0,7,9,0,7,1,4,42,1,-1,10,0,7,10,1,7,10,2,7,0,28,6,175,7,0,19,9,0,7,0,10,10,3,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,16,7,11,170,21,5,5,2,22,7,10,1,7,10,2,7,10,0,7,9,0,7,1,4,42,1,-1,10,0,7,10,1,7,10,2,7,0,28,6,176,7,0,19,9,0,7,0,10,10,3,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,16,7,11,170,21,5,5,2,22,7,6,147,7,11,139,21,5,8,3,22,7,0,8,9,3,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,515,0,10,8,0,0,7,6,152,7,6,11,7,11,29,21,22,2,234,0,232,9,0,7,9,1,7,9,2,7,1,3,210,1,-1,10,1,7,10,0,7,9,0,7,1,3,145,1,-1,6,177,7,0,135,9,0,7,0,126,0,117,6,164,7,0,108,0,99,6,167,7,0,90,6,18,7,0,81,0,72,6,164,7,0,63,0,54,10,0,7,10,1,7,10,2,7,0,10,6,0,7,9,0,7,6,11,7,11,127,21,22,2,30,0,28,6,178,7,0,19,6,11,7,0,10,9,0,7,6,179,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,3,2,6,180,7,6,16,7,11,170,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,2,22,7,14,0,8,10,2,7,6,18,7,11,157,21,22,7,14,8,0,0,2,9,8,0,0,7,6,18,7,8,1,0,5,2,6,22,3,35,6,181,7,0,25,10,2,7,0,16,0,7,6,0,7,6,18,7,8,1,0,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,6,22,15,4,2,23,2,7,0,8,9,3,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,22,3,271,0,270,0,45,0,38,0,8,9,3,7,6,18,7,11,32,21,22,7,0,22,0,15,0,8,9,3,7,6,18,7,11,32,21,22,7,6,18,7,11,28,21,22,7,6,18,7,11,12,21,22,7,6,11,7,11,13,21,22,7,6,18,7,11,169,21,22,7,0,86,0,8,9,3,7,6,18,7,11,27,21,22,7,9,2,7,9,1,7,0,8,9,0,7,6,18,7,11,157,21,22,7,14,8,0,0,2,53,0,51,6,178,7,0,42,0,24,0,15,0,8,9,3,7,6,18,7,11,32,21,22,7,6,18,7,11,28,21,22,7,6,18,7,6,11,7,11,13,21,22,7,0,10,8,0,0,7,6,179,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,3,2,6,180,15,2,2,7,6,16,7,11,170,21,22,7,6,11,7,12,7,14,20,0,9,1,7,9,2,7,8,0,0,7,9,0,7,1,4,106,2,-1,0,8,9,1,7,6,18,7,11,41,21,22,2,41,0,8,10,0,7,6,18,7,11,157,21,22,2,3,9,0,3,29,6,181,7,0,19,10,0,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,3,22,3,56,0,8,9,1,7,6,18,7,11,32,21,22,7,0,39,0,8,9,1,7,6,18,7,11,27,21,22,7,10,2,7,10,3,7,0,19,6,164,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,16,7,11,170,21,22,7,6,11,7,10,1,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,24,7,6,11,7,11,21,21,22,8,0,0,21,15,2,2,22,15,2,2,3,91,0,10,9,3,7,12,7,6,11,7,11,29,21,22,2,21,6,143,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,7,22,3,60,0,10,9,3,7,13,7,6,11,7,11,29,21,22,2,21,6,144,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,7,22,3,29,6,167,7,0,19,9,3,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,5,3,7,22,15,2,2,23,5,19,170,25],
-[1,0,1995,2,-1,0,8,9,1,7,6,18,7,11,27,21,22,7,14,0,10,8,0,0,7,6,181,7,6,11,7,11,29,21,22,2,122,9,0,7,1,1,102,2,-1,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,14,0,35,6,181,7,0,26,0,17,0,8,8,0,0,7,6,18,7,11,28,21,22,7,6,18,7,6,11,7,11,13,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,37,8,0,0,7,0,28,9,1,7,0,19,10,0,7,0,8,8,0,0,7,6,18,7,11,28,21,22,7,6,18,7,6,14,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,13,21,22,7,6,11,7,11,48,21,5,3,5,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,1851,0,10,8,0,0,7,6,168,7,6,11,7,11,29,21,22,2,149,9,0,7,1,1,129,5,-1,0,19,9,1,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,14,0,62,6,168,7,0,53,9,4,7,0,44,0,17,0,8,8,0,0,7,6,18,7,11,28,21,22,7,6,18,7,6,11,7,11,13,21,22,7,0,19,9,3,7,0,10,9,2,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,37,8,0,0,7,0,28,9,0,7,0,19,10,0,7,0,8,8,0,0,7,6,18,7,11,28,21,22,7,6,18,7,6,14,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,13,21,22,7,6,11,7,11,48,21,5,3,8,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,1692,0,10,8,0,0,7,6,172,7,6,11,7,11,29,21,22,2,198,9,0,7,1,1,178,3,-1,0,19,9,2,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,14,0,8,8,0,0,7,6,18,7,11,28,21,22,7,14,0,21,9,1,7,0,12,10,0,7,8,0,0,7,6,11,7,6,14,7,11,13,21,22,7,6,11,7,11,182,21,22,7,14,0,8,8,0,0,7,6,18,7,11,28,21,22,7,14,0,28,6,172,7,0,19,0,10,8,2,0,7,6,11,7,6,11,7,11,13,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,77,8,3,0,7,0,68,0,28,6,183,7,0,19,0,10,8,0,0,7,6,18,7,6,11,7,11,13,21,22,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,32,8,1,0,7,0,23,9,0,7,0,14,10,0,7,8,2,0,7,8,0,0,7,6,11,7,6,16,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,13,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,13,21,22,7,6,11,7,11,48,21,5,3,12,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,1484,0,10,8,0,0,7,6,177,7,6,11,7,11,29,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,177,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,3,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,1407,0,10,8,0,0,7,6,178,7,6,11,7,11,29,21,22,2,76,9,0,7,1,1,56,3,-1,0,28,6,178,7,0,19,9,2,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,4,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,1321,0,10,8,0,0,7,6,167,7,6,11,7,11,29,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,167,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,3,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,1244,0,10,8,0,0,7,6,164,7,6,11,7,11,29,21,22,2,49,9,0,7,1,1,29,1,-1,6,184,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,2,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,1185,0,10,8,0,0,7,6,140,7,6,11,7,11,29,21,22,2,76,9,0,7,1,1,56,3,-1,0,28,6,140,7,0,19,9,2,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,4,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,1099,0,10,8,0,0,7,6,141,7,6,11,7,11,29,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,141,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,3,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,1022,0,10,8,0,0,7,6,142,7,6,11,7,11,29,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,142,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,3,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,945,0,10,8,0,0,7,6,145,7,6,11,7,11,29,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,145,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,3,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,868,0,10,8,0,0,7,6,143,7,6,11,7,11,29,21,22,2,49,9,0,7,1,1,29,1,-1,6,185,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,2,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,809,0,10,8,0,0,7,6,144,7,6,11,7,11,29,21,22,2,49,9,0,7,1,1,29,1,-1,6,186,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,2,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,750,0,10,8,0,0,7,6,171,7,6,11,7,11,29,21,22,2,49,9,0,7,1,1,29,1,-1,6,187,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,2,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,691,0,10,8,0,0,7,6,159,7,6,11,7,11,29,21,22,2,76,9,0,7,1,1,56,3,-1,0,28,6,159,7,0,19,9,2,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,4,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,605,0,10,8,0,0,7,6,173,7,6,11,7,11,29,21,22,2,76,9,0,7,1,1,56,3,-1,0,28,6,173,7,0,19,9,2,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,4,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,519,0,10,8,0,0,7,6,174,7,6,11,7,11,29,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,174,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,3,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,442,0,10,8,0,0,7,6,175,7,6,11,7,11,29,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,175,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,3,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,365,0,10,8,0,0,7,6,176,7,6,11,7,11,29,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,176,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,3,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,288,0,10,8,0,0,7,6,154,7,6,11,7,11,29,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,154,7,0,10,9,1,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,3,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,211,0,10,8,0,0,7,6,146,7,6,11,7,11,29,21,22,2,49,9,0,7,1,1,29,1,-1,6,188,7,0,19,9,0,7,0,10,10,0,7,6,18,7,6,11,7,11,13,21,22,7,6,11,7,11,182,21,22,7,6,11,7,11,48,21,5,3,2,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,152,0,10,8,0,0,7,6,49,7,6,11,7,11,29,21,22,2,21,1,0,3,0,-1,6,179,23,1,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,121,0,10,8,0,0,7,6,158,7,6,11,7,11,29,21,22,2,47,1,0,29,1,-1,0,19,6,158,7,0,10,9,0,7,12,7,6,11,7,11,48,21,22,7,6,11,7,11,48,21,22,7,12,7,6,11,7,11,48,21,5,3,2,22,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,64,0,10,8,0,0,7,6,189,7,6,11,7,11,29,21,22,2,21,1,0,3,0,-1,6,190,23,1,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,33,0,10,8,0,0,7,6,156,7,6,11,7,11,29,21,22,2,21,1,0,3,1,-1,12,23,2,7,0,8,9,1,7,6,18,7,11,32,21,22,7,6,11,7,11,49,21,5,3,5,22,3,2,12,15,2,2,23,3,19,182,25],
-[1,0,33,1,-1,0,23,0,10,9,0,7,12,7,6,11,7,11,126,21,22,7,12,7,12,7,6,191,7,6,16,7,11,170,21,22,7,6,0,7,6,11,7,11,182,21,5,3,2,22,19,192,25],
+[0,8,6,0,7,6,1,7,11,2,21,22,25],
+[0,6,6,3,7,11,4,21,22,19,5,25],
+[0,6,6,3,7,11,4,21,22,19,6,25],
+[0,6,6,3,7,11,4,21,22,19,7,25],
+[0,119,11,5,21,7,0,107,6,8,7,1,0,98,3,2,9,0,2,65,6,9,7,9,2,7,0,52,6,10,7,6,5,7,0,30,6,11,7,6,12,7,0,19,0,10,6,13,7,9,1,7,6,14,7,11,15,21,22,7,9,0,7,6,14,7,11,16,21,22,7,6,17,7,11,15,21,22,7,0,10,6,18,7,9,2,7,6,14,7,11,15,21,22,7,6,19,7,11,15,21,22,7,6,17,7,11,15,21,5,4,4,22,3,31,6,11,7,6,12,7,0,19,0,10,6,13,7,9,2,7,6,14,7,11,15,21,22,7,9,1,7,6,14,7,11,16,21,22,7,6,17,7,11,15,21,5,4,4,22,23,4,7,6,14,7,11,11,21,22,7,6,8,7,6,17,7,11,10,21,22,19,8,25],
+[0,41,11,5,21,7,0,29,6,8,7,1,0,20,1,-1,6,13,7,0,8,6,20,7,6,1,7,11,15,21,22,7,9,0,7,6,17,7,11,15,21,5,4,2,22,7,6,14,7,11,11,21,22,7,6,21,7,6,17,7,11,10,21,22,19,21,25],
+[0,96,11,5,21,7,0,84,6,8,7,1,0,75,3,2,6,22,7,0,10,9,2,7,12,7,6,14,7,11,15,21,22,7,0,30,6,9,7,9,2,7,0,19,0,10,6,13,7,9,1,7,6,14,7,11,15,21,22,7,9,0,7,6,14,7,11,16,21,22,7,6,17,7,11,15,21,22,7,0,21,6,23,7,9,2,7,0,10,6,18,7,9,2,7,6,14,7,11,15,21,22,7,6,17,7,11,15,21,22,7,9,2,7,6,24,7,11,15,21,5,6,4,22,7,6,14,7,11,11,21,22,7,6,25,7,6,17,7,11,10,21,22,19,25,25],
+[0,43,11,5,21,7,0,31,6,8,7,1,0,22,2,1,0,12,6,25,7,6,26,7,9,1,7,6,17,7,11,15,21,22,7,9,0,7,6,14,7,11,16,21,5,3,3,22,7,6,14,7,11,11,21,22,7,6,27,7,6,17,7,11,10,21,22,19,27,25],
+[0,158,11,5,21,7,0,146,6,8,7,1,0,137,1,0,0,8,9,0,7,6,1,7,11,28,21,22,7,6,1,7,12,7,14,20,0,8,0,0,7,1,1,102,1,-1,0,8,9,0,7,6,1,7,11,29,21,22,7,14,0,17,0,8,8,0,0,7,6,1,7,11,30,21,22,7,6,14,7,6,14,7,11,31,21,22,2,44,6,32,7,0,8,8,0,0,7,6,1,7,11,29,21,22,7,0,8,8,0,0,7,6,1,7,11,33,21,22,7,0,15,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,10,0,21,22,7,6,19,7,11,15,21,5,5,4,22,3,29,0,17,0,8,8,0,0,7,6,1,7,11,30,21,22,7,6,1,7,6,14,7,11,31,21,22,2,10,8,0,0,7,6,1,7,11,29,21,5,2,4,22,3,2,12,15,2,2,23,2,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,5,2,2,22,7,6,14,7,11,11,21,22,7,6,35,7,6,17,7,11,10,21,22,19,35,25],
+[0,93,11,5,21,7,0,81,6,8,7,1,0,72,1,0,0,8,9,0,7,6,1,7,11,34,21,22,2,46,6,32,7,0,8,9,0,7,6,1,7,11,29,21,22,7,0,24,0,8,6,36,7,6,1,7,11,15,21,22,7,0,8,9,0,7,6,1,7,11,34,21,22,7,6,14,7,11,16,21,22,7,12,7,6,19,7,11,15,21,5,5,2,22,3,17,0,8,9,0,7,6,1,7,11,29,21,22,7,14,8,0,0,2,3,8,0,0,3,2,12,15,2,2,23,2,7,6,14,7,11,11,21,22,7,6,36,7,6,17,7,11,10,21,22,19,36,25],
+[0,100,11,5,21,7,0,88,6,8,7,1,0,79,1,0,9,0,2,75,0,6,6,3,7,11,37,21,22,7,14,0,64,6,22,7,0,17,8,0,0,7,0,8,9,0,7,6,1,7,11,29,21,22,7,6,14,7,11,15,21,22,7,0,37,6,32,7,8,0,0,7,8,0,0,7,0,24,0,8,6,38,7,6,1,7,11,15,21,22,7,0,8,9,0,7,6,1,7,11,34,21,22,7,6,14,7,11,16,21,22,7,6,19,7,11,15,21,22,7,6,17,7,11,15,21,22,15,2,2,3,2,12,23,2,7,6,14,7,11,11,21,22,7,6,38,7,6,17,7,11,10,21,22,19,38,25],
+[0,50,11,5,21,7,0,38,6,8,7,1,0,29,3,2,0,19,6,22,7,0,10,9,2,7,9,1,7,6,14,7,11,15,21,22,7,6,14,7,11,15,21,22,7,9,0,7,6,14,7,11,16,21,5,3,4,22,7,6,14,7,11,11,21,22,7,6,39,7,6,17,7,11,10,21,22,19,39,25],
+[0,52,11,5,21,7,0,40,6,8,7,1,0,31,3,2,6,9,7,9,2,7,0,19,0,10,6,13,7,9,1,7,6,14,7,11,15,21,22,7,9,0,7,6,14,7,11,16,21,22,7,6,17,7,11,15,21,5,4,4,22,7,6,14,7,11,11,21,22,7,6,40,7,6,17,7,11,10,21,22,19,40,25],
+[0,171,11,5,21,7,0,159,6,8,7,1,0,150,1,0,0,8,9,0,7,6,1,7,11,28,21,22,7,6,1,7,12,7,14,20,0,8,0,0,7,1,1,115,1,-1,0,8,9,0,7,6,1,7,11,29,21,22,7,14,0,17,0,8,8,0,0,7,6,1,7,11,30,21,22,7,6,14,7,6,14,7,11,31,21,22,2,57,6,39,7,6,41,7,0,8,8,0,0,7,6,1,7,11,29,21,22,7,0,35,6,32,7,6,41,7,0,8,8,0,0,7,6,1,7,11,33,21,22,7,0,15,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,10,0,21,22,7,6,19,7,11,15,21,22,7,6,19,7,11,15,21,5,5,4,22,3,29,0,17,0,8,8,0,0,7,6,1,7,11,30,21,22,7,6,1,7,6,14,7,11,31,21,22,2,10,8,0,0,7,6,1,7,11,29,21,5,2,4,22,3,2,12,15,2,2,23,2,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,5,2,2,22,7,6,14,7,11,11,21,22,7,6,42,7,6,17,7,11,10,21,22,19,42,25],
+[0,156,11,5,21,7,0,144,6,8,7,1,0,135,3,2,12,7,14,20,0,8,0,0,7,9,2,7,1,2,89,1,-1,0,15,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,11,43,21,22,2,10,9,0,7,6,1,7,11,29,21,5,2,2,22,3,63,6,35,7,0,28,6,31,7,10,0,7,0,17,6,18,7,0,8,9,0,7,6,1,7,11,29,21,22,7,6,14,7,11,15,21,22,7,6,17,7,11,15,21,22,7,0,8,9,0,7,6,1,7,11,33,21,22,7,0,15,0,8,9,0,7,6,1,7,11,44,21,22,7,6,1,7,10,1,21,22,7,6,19,7,11,15,21,5,5,2,22,23,2,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,7,14,6,39,7,9,2,7,9,1,7,0,7,9,0,7,6,1,7,8,0,0,22,7,6,19,7,11,15,21,5,5,6,22,7,6,14,7,11,11,21,22,7,6,45,7,6,17,7,11,10,21,22,19,45,25],
+[0,48,11,5,21,7,0,36,6,8,7,1,0,27,2,1,0,17,6,45,7,0,6,6,3,7,11,37,21,22,7,9,1,7,6,17,7,11,15,21,22,7,9,0,7,6,14,7,11,16,21,5,3,3,22,7,6,14,7,11,11,21,22,7,6,46,7,6,17,7,11,10,21,22,19,46,25],
+[0,220,11,5,21,7,0,208,6,8,7,1,0,199,2,1,0,17,0,8,9,0,7,6,1,7,11,30,21,22,7,6,1,7,6,14,7,11,47,21,22,7,14,0,10,8,0,0,7,9,0,7,6,14,7,11,48,21,22,7,0,10,8,0,0,7,9,0,7,6,14,7,11,49,21,22,7,14,6,46,7,0,147,0,19,6,29,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,120,0,111,11,16,21,7,12,7,0,99,9,1,7,1,1,88,1,-1,0,8,9,0,7,6,1,7,11,29,21,22,7,0,71,0,62,6,51,7,0,53,0,17,6,13,7,0,8,9,0,7,6,1,7,11,34,21,22,7,6,14,7,11,50,21,22,7,0,28,0,19,6,34,7,0,10,10,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,2,22,7,8,0,1,7,6,14,7,11,52,21,22,7,6,17,7,11,51,21,22,7,8,0,0,7,6,14,7,11,16,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,8,22,7,6,14,7,11,11,21,22,7,6,53,7,6,17,7,11,10,21,22,19,53,25],
+[1,0,164,1,-1,4,2,7,6,1,7,9,0,7,1,1,155,1,-1,10,0,7,6,1,7,12,7,14,20,0,8,0,0,7,9,0,7,1,2,125,1,-1,0,8,9,0,7,6,1,7,11,54,21,22,7,14,0,10,8,0,0,7,6,50,7,6,14,7,11,31,21,22,2,101,0,8,9,0,7,6,1,7,11,29,21,22,7,14,0,10,8,0,0,7,6,55,7,6,14,7,11,31,21,22,2,28,0,26,10,0,7,1,1,8,1,-1,13,7,6,1,7,10,0,5,2,2,22,7,0,8,9,0,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,51,0,10,8,0,0,7,6,56,7,6,14,7,11,31,21,22,2,28,0,26,10,0,7,1,1,8,1,-1,13,7,6,1,7,10,0,5,2,2,22,7,0,8,9,0,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,13,0,11,10,1,21,7,9,0,7,6,14,7,11,52,21,22,12,15,2,2,3,2,12,15,2,2,23,2,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,5,2,2,22,5,2,2,22,19,57,25],
+[1,0,474,1,-1,0,8,9,0,7,6,1,7,11,57,21,22,2,19,0,17,0,8,9,0,7,6,1,7,11,54,21,22,7,6,50,7,6,14,7,11,31,21,22,3,2,12,2,434,0,8,9,0,7,6,1,7,11,29,21,22,7,14,0,10,8,0,0,7,6,55,7,6,14,7,11,31,21,22,2,21,0,19,1,0,3,1,-1,9,0,23,2,7,0,8,9,0,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,391,0,10,8,0,0,7,6,56,7,6,14,7,11,31,21,22,2,27,0,25,1,0,9,1,-1,6,58,7,6,1,7,11,59,21,5,2,2,22,7,0,8,9,0,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,354,0,15,0,8,9,0,7,6,1,7,11,29,21,22,7,6,1,7,11,54,21,22,7,14,0,10,8,0,0,7,6,50,7,6,14,7,11,31,21,22,2,285,0,15,0,8,9,0,7,6,1,7,11,29,21,22,7,6,1,7,11,29,21,22,7,14,0,10,8,0,0,7,6,60,7,6,14,7,11,31,21,22,2,68,0,66,9,0,7,1,1,41,1,-1,6,50,7,0,15,0,8,9,0,7,6,1,7,11,61,21,22,7,6,1,7,11,62,21,22,7,0,15,0,8,10,0,7,6,1,7,11,34,21,22,7,6,1,7,11,62,21,22,7,6,17,7,11,15,21,5,4,2,22,7,0,15,0,8,9,0,7,6,1,7,11,29,21,22,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,188,0,10,8,0,0,7,6,55,7,6,14,7,11,31,21,22,2,54,0,52,9,0,7,1,1,27,1,-1,6,50,7,9,0,7,0,15,0,8,10,0,7,6,1,7,11,34,21,22,7,6,1,7,11,62,21,22,7,6,17,7,11,15,21,5,4,2,22,7,0,15,0,8,9,0,7,6,1,7,11,29,21,22,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,124,0,10,8,0,0,7,6,56,7,6,14,7,11,31,21,22,2,73,0,71,9,0,7,1,1,46,1,-1,0,15,0,8,10,0,7,6,1,7,11,34,21,22,7,6,1,7,11,43,21,22,2,3,9,0,3,27,6,16,7,9,0,7,0,15,0,8,10,0,7,6,1,7,11,34,21,22,7,6,1,7,11,62,21,22,7,6,17,7,11,15,21,5,4,2,22,23,2,7,0,15,0,8,9,0,7,6,1,7,11,29,21,22,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,41,0,40,6,50,7,0,15,0,8,9,0,7,6,1,7,11,29,21,22,7,6,1,7,11,62,21,22,7,0,15,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,11,62,21,22,7,6,17,7,11,15,21,22,15,2,2,3,41,0,40,6,50,7,0,15,0,8,9,0,7,6,1,7,11,29,21,22,7,6,1,7,11,62,21,22,7,0,15,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,11,62,21,22,7,6,17,7,11,15,21,22,15,2,2,15,2,2,3,11,6,18,7,9,0,7,6,14,7,11,15,21,5,3,2,22,23,2,19,62,25],
+[1,0,173,1,-1,0,8,9,0,7,6,1,7,11,57,21,22,2,19,0,17,0,8,9,0,7,6,1,7,11,54,21,22,7,6,50,7,6,14,7,11,31,21,22,3,2,12,2,133,0,8,9,0,7,6,1,7,11,29,21,22,7,14,0,10,8,0,0,7,6,60,7,6,14,7,11,31,21,22,2,34,0,32,1,0,16,1,-1,0,8,9,0,7,6,1,7,11,61,21,22,7,6,1,7,11,61,21,5,2,2,22,7,0,8,9,0,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,77,0,10,8,0,0,7,6,55,7,6,14,7,11,31,21,22,2,21,0,19,1,0,3,1,-1,9,0,23,2,7,0,8,9,0,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,46,0,10,8,0,0,7,6,56,7,6,14,7,11,31,21,22,2,27,0,25,1,0,9,1,-1,6,63,7,6,1,7,11,59,21,5,2,2,22,7,0,8,9,0,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,9,0,8,9,0,7,6,1,7,11,62,21,22,15,2,2,3,11,6,18,7,9,0,7,6,14,7,11,15,21,5,3,2,22,23,2,19,61,25],
+[0,30,11,5,21,7,0,18,6,8,7,1,0,9,1,-1,9,0,7,6,1,7,11,61,21,5,2,2,22,7,6,14,7,11,11,21,22,7,6,60,7,6,17,7,11,10,21,22,19,60,25],
+[1,0,84,2,-1,9,0,7,12,7,6,14,7,12,7,14,20,0,9,1,7,8,0,0,7,1,2,52,2,-1,9,1,2,41,0,8,9,1,7,6,1,7,11,34,21,22,7,0,23,0,14,0,8,9,1,7,6,1,7,11,29,21,22,7,6,1,7,10,1,22,7,9,0,7,6,14,7,11,50,21,22,7,6,14,7,10,0,21,5,3,3,22,3,9,9,0,7,6,1,7,11,64,21,5,2,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,5,3,3,22,19,52,25],
+[0,119,11,5,21,7,0,107,6,8,7,1,0,98,2,1,0,8,9,1,7,6,1,7,11,43,21,22,2,12,6,65,7,9,0,7,6,14,7,11,50,21,5,3,3,22,3,77,6,39,7,0,67,0,8,9,1,7,6,1,7,11,29,21,22,7,0,51,0,8,9,1,7,6,1,7,11,33,21,22,7,0,35,0,26,6,66,7,0,17,0,8,9,1,7,6,1,7,11,44,21,22,7,9,0,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,3,22,23,3,7,6,14,7,11,11,21,22,7,6,66,7,6,17,7,11,10,21,22,19,66,25],
+[0,192,11,5,21,7,0,180,6,8,7,1,0,171,2,1,0,8,9,1,7,6,1,7,11,67,21,22,2,97,6,22,7,0,86,0,77,11,16,21,7,12,7,0,65,1,0,56,1,-1,9,0,7,0,46,0,37,6,37,7,0,28,0,19,6,18,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,2,22,7,9,1,7,6,14,7,11,52,21,22,7,6,17,7,11,51,21,22,7,9,0,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,3,22,3,65,6,39,7,0,55,9,1,7,0,46,0,37,6,37,7,0,28,0,19,6,18,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,9,0,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,3,22,23,3,7,6,14,7,11,11,21,22,7,6,68,7,6,17,7,11,10,21,22,19,68,25],
+[0,177,11,5,21,7,0,165,6,8,7,1,0,156,1,0,0,8,6,69,7,6,1,7,11,37,21,22,7,14,6,13,7,0,136,8,0,0,7,0,127,0,118,9,0,7,6,1,7,12,7,14,20,0,8,1,0,7,8,0,0,7,1,2,89,1,-1,0,8,9,0,7,6,1,7,11,34,21,22,2,33,0,8,9,0,7,6,1,7,11,29,21,22,7,0,15,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,10,0,21,22,7,6,14,7,11,15,21,5,3,2,22,3,47,6,51,7,0,37,0,8,9,0,7,6,1,7,11,29,21,22,2,10,0,8,9,0,7,6,1,7,11,29,21,22,3,2,6,70,7,0,10,10,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,2,22,23,2,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,4,22,7,6,14,7,11,11,21,22,7,6,71,7,6,17,7,11,10,21,22,19,71,25],
+[1,0,22,1,-1,9,0,7,1,1,18,1,0,0,10,10,0,7,9,0,7,6,14,7,11,51,21,22,7,6,1,7,11,43,21,5,2,2,22,23,2,19,72,25],
+[0,86,11,5,21,7,0,74,6,8,7,1,0,65,2,1,6,73,7,0,55,0,19,6,18,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,28,0,19,6,18,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,3,22,7,6,14,7,11,11,21,22,7,6,74,7,6,17,7,11,10,21,22,19,74,25],
+[0,59,11,5,21,7,0,47,6,8,7,1,0,38,1,-1,6,2,7,0,28,0,19,6,18,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,2,22,7,6,14,7,11,11,21,22,7,6,75,7,6,17,7,11,10,21,22,19,75,25],
+[0,284,11,5,21,7,0,272,6,8,7,1,0,263,4,3,6,65,7,0,253,0,235,6,9,7,0,226,9,3,7,0,217,0,208,6,10,7,0,199,6,6,7,0,190,0,154,6,11,7,0,145,6,76,7,0,136,0,127,6,50,7,0,118,9,2,7,0,109,0,100,6,39,7,0,91,6,77,7,0,82,0,19,6,13,7,0,10,9,1,7,9,0,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,55,0,46,6,23,7,0,37,6,77,7,0,28,0,19,6,18,7,0,10,9,3,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,78,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,28,0,19,6,18,7,0,10,9,3,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,10,9,3,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,5,22,7,6,14,7,11,11,21,22,7,6,79,7,6,17,7,11,10,21,22,19,79,25],
+[0,82,11,6,21,7,0,70,6,80,7,0,61,0,10,6,81,7,6,82,7,6,14,7,11,11,21,22,7,1,0,29,2,-1,6,71,7,0,19,9,1,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,3,22,7,14,0,10,8,0,0,7,6,83,7,6,14,7,11,23,21,22,8,0,0,15,2,2,7,6,14,7,11,50,21,22,7,6,14,7,11,11,21,22,7,6,83,7,6,17,7,11,10,21,22,19,83,11,83,21,25],
+[0,73,11,6,21,7,0,61,6,80,7,0,52,0,10,6,81,7,6,84,7,6,14,7,11,11,21,22,7,1,0,20,1,-1,6,72,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,2,22,7,14,0,10,8,0,0,7,6,85,7,6,14,7,11,23,21,22,8,0,0,15,2,2,7,6,14,7,11,50,21,22,7,6,14,7,11,11,21,22,7,6,85,7,6,17,7,11,10,21,22,19,85,11,85,21,25],
+[0,73,11,6,21,7,0,61,6,80,7,0,52,0,10,6,81,7,6,86,7,6,14,7,11,11,21,22,7,1,0,20,2,-1,9,1,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,3,22,7,14,0,10,8,0,0,7,6,87,7,6,14,7,11,23,21,22,8,0,0,15,2,2,7,6,14,7,11,50,21,22,7,6,14,7,11,11,21,22,7,6,87,7,6,17,7,11,10,21,22,19,87,11,87,21,25],
+[0,91,11,6,21,7,0,79,6,80,7,0,70,0,10,6,81,7,6,88,7,6,14,7,11,11,21,22,7,1,0,38,2,-1,9,1,7,0,28,0,19,6,18,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,3,22,7,14,0,10,8,0,0,7,6,89,7,6,14,7,11,23,21,22,8,0,0,15,2,2,7,6,14,7,11,50,21,22,7,6,14,7,11,11,21,22,7,6,89,7,6,17,7,11,10,21,22,19,89,11,89,21,25],
+[0,82,11,6,21,7,0,70,6,80,7,0,61,0,10,6,81,7,6,90,7,6,14,7,11,11,21,22,7,1,0,29,2,-1,6,75,7,0,19,9,1,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,3,22,7,14,0,10,8,0,0,7,6,91,7,6,14,7,11,23,21,22,8,0,0,15,2,2,7,6,14,7,11,50,21,22,7,6,14,7,11,11,21,22,7,6,91,7,6,17,7,11,10,21,22,19,91,11,91,21,25],
+[0,178,11,5,21,7,0,166,6,8,7,1,0,157,3,2,6,9,7,0,147,0,30,0,21,6,92,7,0,10,9,2,7,6,93,7,6,14,7,11,94,21,22,7,6,95,7,6,17,7,11,16,21,22,7,6,96,7,6,14,7,11,94,21,22,7,0,109,0,100,6,10,7,0,91,6,7,7,0,82,0,46,6,11,7,0,37,6,97,7,0,28,0,19,6,13,7,0,10,9,1,7,9,0,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,28,0,19,6,18,7,0,10,9,2,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,4,22,7,6,14,7,11,11,21,22,7,6,98,7,6,17,7,11,10,21,22,19,98,25],
+[0,32,11,7,21,7,0,20,6,99,7,1,0,11,2,-1,9,1,7,9,0,7,6,14,7,11,100,21,5,3,3,22,7,6,14,7,11,11,21,22,7,6,50,7,6,17,7,11,10,21,22,19,101,25],
+[0,32,11,7,21,7,0,20,6,99,7,1,0,11,2,-1,9,1,7,9,0,7,6,14,7,11,100,21,5,3,3,22,7,6,14,7,11,11,21,22,7,6,4,7,6,17,7,11,10,21,22,19,102,25],
+[0,32,11,7,21,7,0,20,6,99,7,1,0,11,2,-1,9,1,7,9,0,7,6,14,7,11,100,21,5,3,3,22,7,6,14,7,11,11,21,22,7,6,93,7,6,17,7,11,10,21,22,19,103,25],
+[1,0,139,2,-1,0,10,9,0,7,6,93,7,6,14,7,11,104,21,22,2,38,0,19,9,1,7,0,10,9,0,7,6,50,7,6,14,7,11,94,21,22,7,6,14,7,11,105,21,22,7,14,8,0,0,2,12,0,10,8,0,0,7,6,93,7,6,14,7,11,94,21,22,3,2,12,15,2,2,3,90,0,10,9,1,7,6,13,7,6,14,7,11,104,21,22,2,69,9,0,7,6,1,7,12,7,14,20,0,8,0,0,7,9,1,7,1,2,38,1,-1,9,0,2,34,0,14,0,8,9,0,7,6,1,7,11,29,21,22,7,6,1,7,10,0,22,2,3,9,0,3,16,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,10,1,21,5,2,2,22,3,2,12,23,2,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,5,2,3,22,3,11,9,1,7,9,0,7,6,14,7,11,106,21,5,3,3,22,23,3,19,105,25],
+[1,0,32,3,-1,0,11,9,2,7,11,31,21,7,6,14,7,11,31,21,22,2,14,9,2,7,9,1,7,9,0,7,6,17,7,11,107,21,5,4,4,22,3,6,13,2,3,12,3,2,12,23,4,19,108,25],
+[1,0,294,2,1,0,20,1,0,11,1,-1,9,0,7,6,93,7,6,14,7,11,104,21,5,3,2,22,7,9,0,7,6,14,7,11,105,21,22,2,147,0,21,11,109,21,7,0,11,11,30,21,7,9,0,7,6,14,7,11,110,21,22,7,6,14,7,11,51,21,22,7,14,0,121,6,3,7,12,7,6,14,7,12,7,14,20,0,9,0,7,9,1,7,8,0,0,7,8,1,0,7,1,4,86,2,-1,0,10,9,1,7,10,0,7,6,14,7,11,31,21,22,2,19,0,8,9,0,7,6,1,7,11,64,21,22,7,6,93,7,6,14,7,11,94,21,5,3,3,22,3,56,0,10,9,1,7,6,1,7,6,14,7,11,16,21,22,7,0,37,0,28,10,2,7,0,19,9,1,7,1,1,8,1,-1,10,0,7,6,1,7,9,0,5,2,2,22,7,10,3,7,6,14,7,11,110,21,22,7,6,14,7,11,51,21,22,7,9,0,7,6,14,7,11,50,21,22,7,6,14,7,10,1,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,22,15,2,2,3,126,0,15,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,11,43,21,22,2,19,9,1,7,0,8,9,0,7,6,1,7,11,29,21,22,7,6,14,7,11,52,21,5,3,3,22,3,92,9,0,7,6,1,7,12,7,14,20,0,8,0,0,7,9,1,7,1,2,62,1,-1,0,11,11,43,21,7,9,0,7,6,14,7,11,105,21,22,2,3,12,3,47,0,20,10,0,7,0,11,11,29,21,7,9,0,7,6,14,7,11,52,21,22,7,6,14,7,11,51,21,22,7,0,18,0,11,11,34,21,7,9,0,7,6,14,7,11,52,21,22,7,6,1,7,10,1,21,22,7,6,14,7,11,50,21,5,3,2,22,23,2,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,5,2,3,22,23,3,19,110,25],
+[1,0,26,2,1,11,16,21,7,12,7,0,13,11,110,21,7,9,1,7,9,0,7,6,17,7,11,51,21,22,7,6,17,7,11,51,21,5,4,3,22,19,111,25],
+[1,0,34,2,-1,9,1,7,1,1,22,1,-1,0,7,9,0,7,6,1,7,10,0,22,2,12,9,0,7,12,7,6,14,7,11,50,21,5,3,2,22,3,2,12,23,2,7,9,0,7,6,14,7,11,111,21,5,3,3,22,19,112,25],
+[1,0,75,2,-1,9,1,2,71,0,17,0,8,9,1,7,6,1,7,11,29,21,22,7,9,0,7,6,14,7,11,106,21,22,2,19,0,8,9,1,7,6,1,7,11,34,21,22,7,9,0,7,6,14,7,11,113,21,5,3,3,22,3,34,0,8,9,1,7,6,1,7,11,29,21,22,7,0,17,0,8,9,1,7,6,1,7,11,34,21,22,7,9,0,7,6,14,7,11,113,21,22,7,6,14,7,11,50,21,5,3,3,22,3,2,12,23,3,19,113,25],
+[1,0,75,2,-1,9,1,2,71,0,17,0,8,9,1,7,6,1,7,11,29,21,22,7,9,0,7,6,14,7,11,106,21,22,2,35,0,8,9,1,7,6,1,7,11,29,21,22,7,0,17,0,8,9,1,7,6,1,7,11,34,21,22,7,9,0,7,6,14,7,11,114,21,22,7,6,14,7,11,50,21,5,3,3,22,3,18,0,8,9,1,7,6,1,7,11,34,21,22,7,9,0,7,6,14,7,11,114,21,5,3,3,22,3,2,12,23,3,19,114,25],
+[1,0,64,1,-1,0,8,9,0,7,6,1,7,11,43,21,22,2,3,12,3,52,0,8,9,0,7,6,1,7,11,115,21,22,2,12,9,0,7,12,7,6,14,7,11,50,21,5,3,2,22,3,32,0,8,9,0,7,6,1,7,11,29,21,22,7,0,15,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,11,116,21,22,7,6,14,7,11,50,21,5,3,2,22,23,2,19,116,25],
+[1,0,80,1,-1,9,0,7,6,3,7,6,14,7,12,7,14,20,0,8,0,0,7,1,1,50,2,-1,0,8,9,1,7,6,1,7,11,43,21,22,2,3,6,117,3,38,0,8,9,1,7,6,1,7,11,115,21,22,2,3,9,0,3,27,0,8,9,1,7,6,1,7,11,34,21,22,7,0,10,9,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,10,0,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,5,3,2,22,19,118,25],
+[1,0,129,3,2,0,8,9,0,7,6,1,7,11,67,21,22,2,10,0,8,9,0,7,6,1,7,11,29,21,22,3,2,12,2,19,9,2,7,14,8,0,0,2,3,8,0,0,3,10,9,1,7,14,8,0,0,2,3,8,0,0,3,2,12,15,2,2,15,2,2,3,2,12,7,14,8,0,0,2,3,8,0,0,3,14,9,2,2,3,9,1,3,2,12,7,14,8,0,0,2,3,8,0,0,3,2,12,15,2,2,15,2,2,2,67,0,8,9,2,7,6,1,7,11,29,21,22,7,0,49,0,8,9,1,7,6,1,7,11,29,21,22,7,0,33,0,8,9,2,7,6,1,7,11,34,21,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,0,8,9,0,7,6,1,7,11,29,21,22,7,6,17,7,11,119,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,4,22,3,2,12,23,4,19,119,25],
+[1,0,32,1,-1,0,8,9,0,7,6,1,7,11,67,21,22,2,17,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,11,120,21,5,2,2,22,3,6,9,0,2,3,13,3,2,12,23,2,19,120,25],
+[1,0,58,1,-1,0,15,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,11,43,21,22,2,10,9,0,7,6,1,7,11,29,21,5,2,2,22,3,32,0,8,9,0,7,6,1,7,11,29,21,22,7,0,15,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,11,121,21,22,7,6,14,7,11,50,21,5,3,2,22,23,2,19,121,25],
+[1,0,57,1,-1,0,8,9,0,7,6,1,7,11,67,21,22,2,33,0,8,9,0,7,6,1,7,11,29,21,22,7,0,15,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,11,122,21,22,7,6,14,7,11,50,21,5,3,2,22,3,15,9,0,2,12,9,0,7,12,7,6,14,7,11,50,21,5,3,2,22,3,2,12,23,2,19,122,25],
+[1,0,20,1,-1,0,10,9,0,7,13,7,6,14,7,11,123,21,22,7,14,8,0,0,2,3,8,0,0,3,2,9,0,15,2,2,23,2,19,124,25],
+[1,0,71,1,-1,0,17,0,8,9,0,7,6,1,7,11,54,21,22,7,6,50,7,6,14,7,11,31,21,22,2,20,0,18,11,5,21,7,0,8,9,0,7,6,1,7,11,29,21,22,7,6,14,7,11,100,21,22,3,2,12,7,14,8,0,0,2,26,0,8,8,0,0,7,6,1,7,11,125,21,22,7,0,8,9,0,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,4,22,3,2,9,0,15,2,2,23,2,19,126,25],
+[1,0,817,2,-1,0,8,9,1,7,6,1,7,11,54,21,22,7,14,0,10,8,0,0,7,6,50,7,6,14,7,11,31,21,22,2,747,0,8,9,1,7,6,1,7,11,29,21,22,7,14,0,10,8,0,0,7,6,18,7,6,14,7,11,31,21,22,2,29,0,27,1,0,11,1,0,6,18,7,9,0,7,6,14,7,11,50,21,5,3,2,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,696,0,10,8,0,0,7,6,13,7,6,14,7,11,31,21,22,2,241,0,239,9,0,7,1,1,221,2,1,0,8,9,1,7,6,1,7,11,127,21,22,2,91,0,8,6,128,7,6,1,7,11,37,21,22,7,14,0,69,6,13,7,0,60,8,0,0,7,0,51,0,42,6,22,7,0,33,0,24,0,8,9,1,7,6,1,7,11,15,21,22,7,0,8,8,0,0,7,6,1,7,11,15,21,22,7,6,14,7,11,129,21,22,7,9,0,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,15,2,2,7,10,0,7,6,14,7,11,130,21,5,3,3,22,3,121,6,13,7,0,111,9,1,7,0,102,0,17,0,8,9,0,7,6,1,7,11,30,21,22,7,6,14,7,6,14,7,11,131,21,22,2,38,0,36,0,8,9,0,7,6,1,7,11,29,21,22,7,0,20,11,31,21,7,0,8,9,1,7,6,1,7,11,116,21,22,7,10,0,7,6,17,7,11,108,21,22,7,6,14,7,11,130,21,22,3,39,0,38,0,10,6,65,7,9,0,7,6,14,7,11,50,21,22,7,0,20,11,31,21,7,0,8,9,1,7,6,1,7,11,116,21,22,7,10,0,7,6,17,7,11,108,21,22,7,6,14,7,11,130,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,3,22,23,3,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,445,0,10,8,0,0,7,6,22,7,6,14,7,11,31,21,22,2,311,0,309,9,0,7,1,1,291,2,1,0,8,9,1,7,6,1,7,11,28,21,22,7,14,0,11,11,29,21,7,8,0,0,7,6,14,7,11,52,21,22,7,14,0,8,8,0,0,7,6,1,7,11,127,21,22,2,107,0,11,11,33,21,7,8,1,0,7,6,14,7,11,52,21,22,7,14,0,16,1,0,7,1,-1,6,3,7,11,37,21,5,1,2,22,7,8,0,0,7,6,14,7,11,52,21,22,7,14,0,73,0,64,6,22,7,0,55,0,10,8,0,0,7,8,1,0,7,6,14,7,11,119,21,22,7,0,37,0,28,6,22,7,0,19,0,10,8,2,0,7,8,0,0,7,6,14,7,11,129,21,22,7,9,0,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,10,0,7,6,14,7,11,130,21,22,15,4,2,3,151,6,22,7,0,141,0,45,10,0,7,1,1,34,1,-1,0,8,9,0,7,6,1,7,11,29,21,22,7,0,17,0,8,9,0,7,6,1,7,11,33,21,22,7,10,0,7,6,14,7,11,130,21,22,7,6,14,7,11,15,21,5,3,2,22,7,8,1,0,7,6,14,7,11,111,21,22,7,0,88,0,17,0,8,9,0,7,6,1,7,11,30,21,22,7,6,14,7,6,14,7,11,131,21,22,2,31,0,29,0,8,9,0,7,6,1,7,11,29,21,22,7,0,13,11,31,21,7,8,0,0,7,10,0,7,6,17,7,11,108,21,22,7,6,14,7,11,130,21,22,3,32,0,31,0,10,6,65,7,9,0,7,6,14,7,11,50,21,22,7,0,13,11,31,21,7,8,0,0,7,10,0,7,6,17,7,11,108,21,22,7,6,14,7,11,130,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,7,22,15,4,2,23,3,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,124,0,8,9,1,7,6,1,7,11,29,21,22,7,14,0,17,0,8,8,0,0,7,6,1,7,11,54,21,22,7,6,96,7,6,14,7,11,31,21,22,2,33,0,17,0,10,8,0,0,7,9,0,7,6,14,7,11,105,21,22,7,6,1,7,11,43,21,22,2,13,0,11,11,5,21,7,8,0,0,7,6,14,7,11,100,21,22,3,2,12,3,2,12,15,2,2,7,14,8,0,0,2,35,0,33,0,24,0,8,8,0,0,7,6,1,7,11,125,21,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,7,9,0,7,6,14,7,11,130,21,22,3,23,0,22,9,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,14,7,11,130,21,5,3,2,22,7,9,1,7,6,14,7,11,52,21,22,15,2,2,15,2,2,3,48,0,10,8,0,0,7,6,96,7,6,14,7,11,31,21,22,2,36,0,8,9,1,7,6,1,7,11,124,21,22,7,14,0,10,8,0,0,7,9,1,7,6,14,7,11,31,21,22,2,3,9,1,3,11,0,10,8,0,0,7,9,0,7,6,14,7,11,130,21,22,15,2,2,3,2,9,1,15,2,2,23,3,19,130,25],
+[1,0,11,2,1,9,1,7,9,0,7,6,14,7,11,130,21,5,3,3,22,19,132,25],
+[1,0,329,2,-1,9,1,2,325,0,8,9,1,7,6,1,7,11,54,21,22,7,14,0,10,8,0,0,7,6,96,7,6,14,7,11,31,21,22,2,21,0,19,9,1,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,3,282,0,10,8,0,0,7,6,50,7,6,14,7,11,31,21,22,2,254,0,15,0,8,9,1,7,6,1,7,11,29,21,22,7,6,1,7,11,67,21,22,2,19,0,17,0,8,9,1,7,6,1,7,11,133,21,22,7,6,134,7,6,14,7,11,31,21,22,3,2,12,2,125,0,123,0,8,9,1,7,6,1,7,11,135,21,22,7,0,107,0,98,6,35,7,0,89,0,19,6,67,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,62,0,19,6,29,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,35,0,15,0,8,9,1,7,6,1,7,11,136,21,22,7,6,1,7,11,67,21,22,2,10,0,8,9,1,7,6,1,7,11,137,21,22,3,2,12,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,3,36,0,35,0,8,9,1,7,6,1,7,11,29,21,22,7,0,19,6,29,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,138,21,22,7,14,0,8,8,0,0,7,6,1,7,11,29,21,22,7,14,0,44,8,1,0,7,0,35,0,8,9,1,7,6,1,7,11,34,21,22,7,0,19,6,34,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,138,21,22,7,6,14,7,11,16,21,22,15,4,2,3,18,0,17,0,10,6,139,7,9,1,7,6,14,7,11,16,21,22,7,6,1,7,11,59,21,22,15,2,2,3,2,12,23,3,19,138,25],
+[1,0,56,2,-1,1,0,25,1,-1,0,8,9,0,7,6,1,7,11,29,21,22,7,0,8,9,0,7,6,1,7,11,33,21,22,7,6,14,7,11,138,21,5,3,2,22,7,0,22,1,0,11,2,-1,9,1,7,9,0,7,6,14,7,11,15,21,5,3,3,22,7,9,1,7,9,0,7,6,17,7,11,110,21,22,7,6,14,7,11,111,21,5,3,3,22,19,129,25],
+[1,0,82,1,-1,0,8,9,0,7,6,1,7,11,67,21,22,2,26,0,24,0,15,0,8,9,0,7,6,1,7,11,29,21,22,7,6,1,7,11,54,21,22,7,6,96,7,6,14,7,11,31,21,22,3,2,12,2,17,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,11,127,21,5,2,2,22,3,29,9,0,2,26,0,17,0,8,9,0,7,6,1,7,11,54,21,22,7,6,96,7,6,14,7,11,31,21,22,7,6,1,7,11,43,21,5,2,2,22,3,2,12,23,2,19,127,25],
+[1,0,157,1,-1,9,0,2,153,0,8,9,0,7,6,1,7,11,54,21,22,7,14,0,10,8,0,0,7,6,96,7,6,14,7,11,31,21,22,2,10,0,8,9,0,7,6,1,7,11,15,21,22,3,121,0,10,8,0,0,7,6,50,7,6,14,7,11,31,21,22,2,93,0,8,9,0,7,6,1,7,11,29,21,22,7,14,0,8,8,0,0,7,6,1,7,11,67,21,22,2,19,0,17,0,8,8,0,0,7,6,1,7,11,29,21,22,7,6,134,7,6,14,7,11,31,21,22,3,2,12,2,17,0,15,0,8,8,0,0,7,6,1,7,11,33,21,22,7,6,1,7,11,15,21,22,3,9,0,8,8,0,0,7,6,1,7,11,140,21,22,15,2,2,7,14,0,24,0,15,0,8,9,0,7,6,1,7,11,34,21,22,7,6,1,7,11,140,21,22,7,8,0,0,7,6,14,7,11,16,21,22,15,2,2,3,18,0,17,0,10,6,139,7,9,0,7,6,14,7,11,16,21,22,7,6,1,7,11,59,21,22,15,2,2,3,2,12,23,2,19,140,25],
+[1,0,71,4,-1,9,2,2,67,0,8,9,2,7,6,1,7,11,29,21,22,7,14,0,10,9,3,7,8,0,0,7,6,14,7,11,141,21,22,7,14,8,0,0,2,11,0,9,9,1,7,8,0,0,7,6,14,7,9,0,22,3,31,0,30,9,3,7,0,8,9,2,7,6,1,7,11,34,21,22,7,0,10,6,1,7,9,1,7,6,14,7,11,16,21,22,7,9,0,7,6,19,7,11,142,21,22,15,4,2,3,2,12,23,5,19,142,25],
+[1,0,97,7,-1,0,21,9,6,7,0,8,9,5,7,6,1,7,11,29,21,22,7,6,3,7,9,3,7,6,19,7,11,142,21,22,7,14,8,0,0,2,3,8,0,0,3,68,0,17,9,6,7,0,8,9,5,7,6,1,7,11,33,21,22,7,6,14,7,11,141,21,22,7,14,8,0,0,2,9,0,7,8,0,0,7,6,1,7,9,2,22,3,38,0,17,9,6,7,0,8,9,5,7,6,1,7,11,44,21,22,7,6,14,7,11,141,21,22,7,14,8,0,0,2,9,0,7,8,0,0,7,6,1,7,9,1,22,3,8,0,7,9,6,7,6,1,7,9,0,22,15,2,2,15,2,2,15,2,2,23,8,19,143,25],
+[1,0,235,3,-1,9,2,7,9,1,7,9,0,7,9,0,7,1,1,38,2,-1,6,144,7,0,28,9,1,7,0,19,9,0,7,0,10,10,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,3,22,7,9,0,7,1,1,29,1,-1,6,145,7,0,19,9,0,7,0,10,10,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,2,22,7,9,0,7,1,1,29,1,-1,6,146,7,0,19,9,0,7,0,10,10,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,2,22,7,9,0,7,1,1,114,1,-1,9,0,7,14,0,10,8,0,0,7,12,7,6,14,7,11,31,21,22,2,21,6,147,7,0,10,10,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,4,22,3,78,0,10,8,0,0,7,13,7,6,14,7,11,31,21,22,2,21,6,148,7,0,10,10,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,4,22,3,47,6,149,7,0,37,9,0,7,0,28,0,19,6,150,7,0,10,10,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,4,22,15,2,2,23,2,7,6,151,7,11,143,21,5,8,4,22,19,152,25],
+[1,0,598,2,-1,0,8,9,1,7,6,1,7,11,54,21,22,7,14,0,10,8,0,0,7,6,96,7,6,14,7,11,31,21,22,2,30,0,17,0,10,9,1,7,9,0,7,6,14,7,11,105,21,22,7,6,1,7,11,43,21,22,2,10,9,1,7,6,1,7,11,15,21,5,2,5,22,3,2,12,3,546,0,10,8,0,0,7,6,50,7,6,14,7,11,31,21,22,2,534,0,8,9,1,7,6,1,7,11,29,21,22,7,14,0,10,8,0,0,7,6,18,7,6,14,7,11,31,21,22,2,21,0,19,1,0,3,1,0,12,23,2,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,491,0,10,8,0,0,7,6,13,7,6,14,7,11,31,21,22,2,50,0,48,9,0,7,1,1,30,2,-1,9,0,7,0,20,11,31,21,7,0,8,9,1,7,6,1,7,11,116,21,22,7,10,0,7,6,17,7,11,108,21,22,7,6,14,7,11,153,21,5,3,3,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,431,0,10,8,0,0,7,6,22,7,6,14,7,11,31,21,22,2,129,0,127,9,0,7,1,1,109,2,-1,0,18,11,29,21,7,0,8,9,1,7,6,1,7,11,28,21,22,7,6,14,7,11,52,21,22,7,0,18,11,33,21,7,0,8,9,1,7,6,1,7,11,28,21,22,7,6,14,7,11,52,21,22,7,14,11,31,21,7,0,36,0,29,0,22,10,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,14,7,11,153,21,5,3,2,22,7,8,0,0,7,6,14,7,11,52,21,22,7,6,1,7,11,154,21,22,7,6,1,7,11,155,21,22,7,0,22,9,0,7,0,13,11,31,21,7,8,0,1,7,10,0,7,6,17,7,11,108,21,22,7,6,14,7,11,153,21,22,7,6,17,7,11,108,21,5,4,6,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,292,0,10,8,0,0,7,6,65,7,6,14,7,11,31,21,22,2,57,0,55,9,0,7,1,1,37,1,0,0,29,0,22,10,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,14,7,11,153,21,5,3,2,22,7,9,0,7,6,14,7,11,52,21,22,7,6,1,7,11,154,21,22,7,6,1,7,11,155,21,5,2,2,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,225,0,10,8,0,0,7,6,32,7,6,14,7,11,31,21,22,2,57,0,55,9,0,7,1,1,37,1,0,0,29,0,22,10,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,14,7,11,153,21,5,3,2,22,7,9,0,7,6,14,7,11,52,21,22,7,6,1,7,11,154,21,22,7,6,1,7,11,155,21,5,2,2,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,158,0,10,8,0,0,7,6,9,7,6,14,7,11,31,21,22,2,70,0,68,9,0,7,1,1,50,2,-1,11,31,21,7,0,17,0,10,9,1,7,10,0,7,6,14,7,11,105,21,22,7,6,1,7,11,43,21,22,2,10,0,8,9,1,7,6,1,7,11,15,21,22,3,2,12,7,0,10,9,0,7,10,0,7,6,14,7,11,153,21,22,7,6,17,7,11,108,21,5,4,3,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,78,0,10,8,0,0,7,6,156,7,6,14,7,11,31,21,22,2,31,0,29,9,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,14,7,11,153,21,5,3,2,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,37,0,36,0,29,0,22,9,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,14,7,11,153,21,5,3,2,22,7,9,1,7,6,14,7,11,52,21,22,7,6,1,7,11,154,21,22,7,6,1,7,11,155,21,22,15,2,2,3,2,12,15,2,2,23,3,19,153,25],
+[1,0,545,2,-1,0,8,9,1,7,6,1,7,11,54,21,22,7,14,0,10,8,0,0,7,6,50,7,6,14,7,11,31,21,22,2,521,0,8,9,1,7,6,1,7,11,29,21,22,7,14,0,10,8,0,0,7,6,18,7,6,14,7,11,31,21,22,2,21,0,19,1,0,3,1,-1,12,23,2,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,478,0,10,8,0,0,7,6,13,7,6,14,7,11,31,21,22,2,47,0,45,9,0,7,1,1,27,2,-1,9,0,7,0,17,10,0,7,0,8,9,1,7,6,1,7,11,116,21,22,7,6,14,7,11,113,21,22,7,6,14,7,11,157,21,5,3,3,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,421,0,10,8,0,0,7,6,22,7,6,14,7,11,31,21,22,2,126,0,124,9,0,7,1,1,106,2,-1,0,18,11,29,21,7,0,8,9,1,7,6,1,7,11,28,21,22,7,6,14,7,11,52,21,22,7,0,18,11,33,21,7,0,8,9,1,7,6,1,7,11,28,21,22,7,6,14,7,11,52,21,22,7,14,11,31,21,7,0,36,0,29,0,22,10,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,14,7,11,157,21,5,3,2,22,7,8,0,0,7,6,14,7,11,52,21,22,7,6,1,7,11,154,21,22,7,6,1,7,11,155,21,22,7,0,19,9,0,7,0,10,10,0,7,8,0,1,7,6,14,7,11,113,21,22,7,6,14,7,11,157,21,22,7,6,17,7,11,108,21,5,4,6,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,285,0,10,8,0,0,7,6,65,7,6,14,7,11,31,21,22,2,57,0,55,9,0,7,1,1,37,1,0,0,29,0,22,10,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,14,7,11,157,21,5,3,2,22,7,9,0,7,6,14,7,11,52,21,22,7,6,1,7,11,154,21,22,7,6,1,7,11,155,21,5,2,2,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,218,0,10,8,0,0,7,6,32,7,6,14,7,11,31,21,22,2,57,0,55,9,0,7,1,1,37,1,0,0,29,0,22,10,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,14,7,11,157,21,5,3,2,22,7,9,0,7,6,14,7,11,52,21,22,7,6,1,7,11,154,21,22,7,6,1,7,11,155,21,5,2,2,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,151,0,10,8,0,0,7,6,9,7,6,14,7,11,31,21,22,2,63,0,61,9,0,7,1,1,43,2,-1,11,31,21,7,0,10,9,1,7,10,0,7,6,14,7,11,105,21,22,2,10,0,8,9,1,7,6,1,7,11,15,21,22,3,2,12,7,0,10,9,0,7,10,0,7,6,14,7,11,157,21,22,7,6,17,7,11,108,21,5,4,3,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,78,0,10,8,0,0,7,6,156,7,6,14,7,11,31,21,22,2,31,0,29,9,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,14,7,11,157,21,5,3,2,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,37,0,36,0,29,0,22,9,0,7,1,1,11,1,-1,9,0,7,10,0,7,6,14,7,11,157,21,5,3,2,22,7,9,1,7,6,14,7,11,52,21,22,7,6,1,7,11,154,21,22,7,6,1,7,11,155,21,22,15,2,2,3,2,12,15,2,2,23,3,19,157,25],
+[1,0,138,3,-1,9,1,7,6,3,7,6,14,7,12,7,14,20,0,9,0,7,8,0,0,7,9,2,7,1,3,104,2,-1,9,1,2,100,0,17,0,8,9,1,7,6,1,7,11,29,21,22,7,10,0,7,6,14,7,11,105,21,22,2,55,6,158,7,0,44,9,0,7,0,35,0,26,0,8,9,1,7,6,1,7,11,34,21,22,7,0,10,9,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,10,1,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,3,22,3,27,0,8,9,1,7,6,1,7,11,34,21,22,7,0,10,9,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,10,1,21,5,3,3,22,3,2,10,2,23,3,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,5,3,4,22,19,159,25],
+[1,0,141,1,-1,0,17,0,8,9,0,7,6,1,7,11,29,21,22,7,6,160,7,6,14,7,11,31,21,22,2,17,0,8,9,0,7,6,1,7,11,33,21,22,7,6,1,7,11,161,21,5,2,2,22,3,106,0,17,0,8,9,0,7,6,1,7,11,29,21,22,7,6,162,7,6,14,7,11,31,21,22,2,10,9,0,7,6,1,7,11,33,21,5,2,2,22,3,79,0,17,0,8,9,0,7,6,1,7,11,29,21,22,7,6,163,7,6,14,7,11,31,21,22,2,26,0,24,0,15,0,8,9,0,7,6,1,7,11,164,21,22,7,6,1,7,11,133,21,22,7,6,162,7,6,14,7,11,31,21,22,3,2,12,2,33,0,8,9,0,7,6,1,7,11,33,21,22,7,0,15,0,8,9,0,7,6,1,7,11,164,21,22,7,6,1,7,11,135,21,22,7,6,14,7,11,16,21,5,3,2,22,3,2,12,23,2,19,161,25],
+[1,0,129,2,-1,0,8,9,1,7,6,1,7,11,29,21,22,7,14,0,10,8,0,0,7,6,163,7,6,14,7,11,31,21,22,2,69,6,163,7,0,58,0,17,0,8,9,1,7,6,1,7,11,33,21,22,7,9,0,7,6,14,7,11,16,21,22,7,0,33,0,8,9,1,7,6,1,7,11,165,21,22,7,0,17,0,8,9,1,7,6,1,7,11,166,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,5,22,3,38,6,163,7,0,28,9,0,7,0,19,9,0,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,5,22,15,2,2,23,3,19,167,25],
+[1,0,59,3,-1,0,8,9,2,7,6,1,7,11,43,21,22,2,3,9,0,3,47,0,8,9,2,7,6,1,7,11,34,21,22,7,9,1,7,0,28,0,8,9,2,7,6,1,7,11,29,21,22,7,9,1,7,0,10,6,168,7,9,0,7,6,14,7,11,15,21,22,7,6,17,7,11,152,21,22,7,6,17,7,11,169,21,5,4,4,22,23,4,19,169,25],
+[1,0,111,2,-1,9,1,2,107,0,8,9,0,7,6,1,7,11,29,21,22,7,0,8,9,0,7,6,1,7,11,33,21,22,7,0,8,9,0,7,6,1,7,11,44,21,22,7,14,0,76,8,0,0,7,8,0,1,7,8,0,2,7,1,3,61,1,-1,0,17,9,0,7,0,8,10,0,7,6,1,7,11,154,21,22,7,6,14,7,11,105,21,22,7,14,8,0,0,2,3,8,0,0,3,36,0,10,9,0,7,10,1,7,6,14,7,11,105,21,22,7,14,8,0,0,2,3,8,0,0,3,19,0,10,9,0,7,10,2,7,6,14,7,11,105,21,22,7,14,8,0,0,2,3,8,0,0,3,2,12,15,2,2,15,2,2,15,2,2,23,2,7,9,1,7,6,14,7,11,112,21,22,15,4,4,3,2,12,23,3,19,170,25],
+[1,0,1990,4,-1,0,8,9,3,7,6,1,7,11,54,21,22,7,14,0,10,8,0,0,7,6,96,7,6,14,7,11,31,21,22,2,45,9,3,7,9,2,7,0,10,9,3,7,9,1,7,6,14,7,11,105,21,22,2,21,0,19,6,150,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,3,2,9,0,7,6,17,7,11,152,21,5,4,7,22,3,1923,0,10,8,0,0,7,6,50,7,6,14,7,11,31,21,22,2,1822,0,8,9,3,7,6,1,7,11,29,21,22,7,14,0,10,8,0,0,7,6,18,7,6,14,7,11,31,21,22,2,112,0,110,9,0,7,1,1,92,1,-1,0,10,9,0,7,12,7,6,14,7,11,31,21,22,2,21,6,147,7,0,10,10,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,2,22,3,60,0,10,9,0,7,13,7,6,14,7,11,31,21,22,2,21,6,148,7,0,10,10,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,2,22,3,29,6,171,7,0,19,9,0,7,0,10,10,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,2,22,23,2,7,0,8,9,3,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,1688,0,10,8,0,0,7,6,13,7,6,14,7,11,31,21,22,2,270,0,268,9,0,7,9,1,7,9,2,7,1,3,246,2,-1,0,8,9,1,7,6,1,7,11,118,21,22,7,0,8,9,1,7,6,1,7,11,116,21,22,7,14,0,10,9,0,7,8,0,0,7,6,14,7,11,153,21,22,7,0,10,9,0,7,8,0,0,7,6,14,7,11,157,21,22,7,14,0,10,8,0,1,7,10,0,7,6,14,7,11,170,21,22,7,14,8,0,0,7,10,0,7,0,180,6,172,7,0,171,0,8,8,0,0,7,6,1,7,11,30,21,22,7,0,155,0,8,8,2,0,7,6,1,7,11,30,21,22,7,0,139,8,2,1,7,0,130,0,112,8,1,0,7,0,8,8,2,0,7,6,1,7,11,173,21,22,7,0,94,9,0,7,0,26,12,7,0,17,0,8,8,2,0,7,6,1,7,11,173,21,22,7,8,0,0,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,22,11,31,21,7,8,1,0,7,0,10,10,1,7,8,0,0,7,6,14,7,11,114,21,22,7,6,17,7,11,108,21,22,7,0,35,6,162,7,0,26,0,17,0,8,8,2,0,7,6,1,7,11,30,21,22,7,6,1,7,6,14,7,11,16,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,19,7,11,174,21,22,7,6,17,7,11,159,21,22,7,0,10,10,2,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,17,7,11,169,21,5,4,11,22,7,0,8,9,3,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,1408,0,10,8,0,0,7,6,22,7,6,14,7,11,31,21,22,2,346,0,344,9,0,7,9,1,7,9,2,7,1,3,322,2,-1,0,18,11,29,21,7,0,8,9,1,7,6,1,7,11,28,21,22,7,6,14,7,11,52,21,22,7,0,18,11,33,21,7,0,8,9,1,7,6,1,7,11,28,21,22,7,6,14,7,11,52,21,22,7,14,0,8,8,0,0,7,6,1,7,11,173,21,22,7,0,40,0,24,0,8,8,0,1,7,6,1,7,11,173,21,22,7,0,8,10,0,7,6,1,7,11,29,21,22,7,6,14,7,11,50,21,22,7,0,8,10,0,7,6,1,7,11,34,21,22,7,6,14,7,11,50,21,22,7,0,10,9,0,7,8,0,1,7,6,14,7,11,157,21,22,7,0,19,0,10,9,0,7,8,0,1,7,6,14,7,11,153,21,22,7,10,0,7,6,14,7,11,170,21,22,7,0,17,0,8,8,0,1,7,6,1,7,11,30,21,22,7,6,1,7,6,14,7,11,16,21,22,7,14,0,10,10,2,7,8,0,0,7,6,14,7,11,167,21,22,7,14,0,71,6,175,7,0,62,0,53,8,1,2,7,0,8,8,2,1,7,6,1,7,11,173,21,22,7,0,35,9,0,7,8,1,3,7,0,22,11,31,21,7,8,1,2,7,0,10,10,1,7,8,1,1,7,6,14,7,11,114,21,22,7,6,17,7,11,108,21,22,7,8,0,0,7,6,19,7,11,174,21,22,7,6,17,7,11,159,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,15,7,5,7,6,14,7,12,7,14,20,0,10,1,7,10,0,7,8,0,0,7,1,3,68,2,-1,0,8,9,1,7,6,1,7,11,43,21,22,2,3,9,0,3,56,0,8,9,1,7,6,1,7,11,34,21,22,7,0,39,0,8,9,1,7,6,1,7,11,29,21,22,7,10,1,7,10,2,7,0,19,6,168,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,19,7,11,174,21,22,7,6,14,7,10,0,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,5,3,6,22,7,0,8,9,3,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,1052,0,10,8,0,0,7,6,65,7,6,14,7,11,31,21,22,2,115,0,113,9,0,7,9,1,7,9,2,7,1,3,91,1,0,0,8,9,0,7,6,1,7,11,173,21,22,7,10,2,7,6,14,7,12,7,14,20,0,10,1,7,10,0,7,8,0,0,7,1,3,50,2,-1,0,8,9,1,7,6,1,7,11,43,21,22,2,3,9,0,3,38,0,8,9,1,7,6,1,7,11,34,21,22,7,0,21,0,8,9,1,7,6,1,7,11,29,21,22,7,10,1,7,10,2,7,9,0,7,6,19,7,11,174,21,22,7,6,14,7,10,0,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,5,3,2,22,7,0,8,9,3,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,927,0,10,8,0,0,7,6,32,7,6,14,7,11,31,21,22,2,142,0,140,9,0,7,9,1,7,9,2,7,1,3,118,3,-1,0,32,9,1,7,10,0,7,10,1,7,0,19,6,160,7,0,10,10,2,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,19,7,11,174,21,22,7,0,32,9,0,7,10,0,7,10,1,7,0,19,6,160,7,0,10,10,2,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,19,7,11,174,21,22,7,14,9,2,7,10,0,7,10,1,7,0,37,6,176,7,0,28,8,0,1,7,0,19,8,0,0,7,0,10,10,2,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,19,7,11,174,21,5,5,7,22,7,0,8,9,3,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,775,0,10,8,0,0,7,6,9,7,6,14,7,11,31,21,22,2,250,0,248,9,1,7,9,0,7,9,2,7,1,3,226,2,-1,9,1,7,10,0,7,10,1,7,10,1,7,10,2,7,10,0,7,9,0,7,1,4,51,2,-1,10,0,7,10,1,7,10,2,7,0,37,6,177,7,0,28,9,1,7,0,19,9,0,7,0,10,10,3,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,19,7,11,174,21,5,5,3,22,7,10,1,7,10,2,7,10,0,7,9,0,7,1,4,42,1,-1,10,0,7,10,1,7,10,2,7,0,28,6,178,7,0,19,9,0,7,0,10,10,3,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,19,7,11,174,21,5,5,2,22,7,10,1,7,10,2,7,10,0,7,9,0,7,1,4,42,1,-1,10,0,7,10,1,7,10,2,7,0,28,6,179,7,0,19,9,0,7,0,10,10,3,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,19,7,11,174,21,5,5,2,22,7,10,1,7,10,2,7,10,0,7,9,0,7,1,4,42,1,-1,10,0,7,10,1,7,10,2,7,0,28,6,180,7,0,19,9,0,7,0,10,10,3,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,19,7,11,174,21,5,5,2,22,7,6,151,7,11,143,21,5,8,3,22,7,0,8,9,3,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,515,0,10,8,0,0,7,6,156,7,6,14,7,11,31,21,22,2,234,0,232,9,0,7,9,1,7,9,2,7,1,3,210,1,-1,10,1,7,10,0,7,9,0,7,1,3,145,1,-1,6,181,7,0,135,9,0,7,0,126,0,117,6,168,7,0,108,0,99,6,171,7,0,90,6,1,7,0,81,0,72,6,168,7,0,63,0,54,10,0,7,10,1,7,10,2,7,0,10,6,3,7,9,0,7,6,14,7,11,131,21,22,2,30,0,28,6,182,7,0,19,6,14,7,0,10,9,0,7,6,183,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,3,2,6,184,7,6,19,7,11,174,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,2,22,7,14,0,8,10,2,7,6,1,7,11,161,21,22,7,14,8,0,0,2,9,8,0,0,7,6,1,7,8,1,0,5,2,6,22,3,35,6,185,7,0,25,10,2,7,0,16,0,7,6,3,7,6,1,7,8,1,0,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,6,22,15,4,2,23,2,7,0,8,9,3,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,22,3,271,0,270,0,45,0,38,0,8,9,3,7,6,1,7,11,34,21,22,7,0,22,0,15,0,8,9,3,7,6,1,7,11,34,21,22,7,6,1,7,11,30,21,22,7,6,1,7,11,15,21,22,7,6,14,7,11,16,21,22,7,6,1,7,11,173,21,22,7,0,86,0,8,9,3,7,6,1,7,11,29,21,22,7,9,2,7,9,1,7,0,8,9,0,7,6,1,7,11,161,21,22,7,14,8,0,0,2,53,0,51,6,182,7,0,42,0,24,0,15,0,8,9,3,7,6,1,7,11,34,21,22,7,6,1,7,11,30,21,22,7,6,1,7,6,14,7,11,16,21,22,7,0,10,8,0,0,7,6,183,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,3,2,6,184,15,2,2,7,6,19,7,11,174,21,22,7,6,14,7,12,7,14,20,0,9,1,7,9,2,7,8,0,0,7,9,0,7,1,4,106,2,-1,0,8,9,1,7,6,1,7,11,43,21,22,2,41,0,8,10,0,7,6,1,7,11,161,21,22,2,3,9,0,3,29,6,185,7,0,19,10,0,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,3,22,3,56,0,8,9,1,7,6,1,7,11,34,21,22,7,0,39,0,8,9,1,7,6,1,7,11,29,21,22,7,10,2,7,10,3,7,0,19,6,168,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,19,7,11,174,21,22,7,6,14,7,10,1,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,26,7,6,14,7,11,23,21,22,8,0,0,21,15,2,2,22,15,2,2,3,91,0,10,9,3,7,12,7,6,14,7,11,31,21,22,2,21,6,147,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,7,22,3,60,0,10,9,3,7,13,7,6,14,7,11,31,21,22,2,21,6,148,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,7,22,3,29,6,171,7,0,19,9,3,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,5,3,7,22,15,2,2,23,5,19,174,25],
+[1,0,1995,2,-1,0,8,9,1,7,6,1,7,11,29,21,22,7,14,0,10,8,0,0,7,6,185,7,6,14,7,11,31,21,22,2,122,9,0,7,1,1,102,2,-1,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,14,0,35,6,185,7,0,26,0,17,0,8,8,0,0,7,6,1,7,11,30,21,22,7,6,1,7,6,14,7,11,16,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,37,8,0,0,7,0,28,9,1,7,0,19,10,0,7,0,8,8,0,0,7,6,1,7,11,30,21,22,7,6,1,7,6,17,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,16,21,22,7,6,14,7,11,50,21,5,3,5,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,1851,0,10,8,0,0,7,6,172,7,6,14,7,11,31,21,22,2,149,9,0,7,1,1,129,5,-1,0,19,9,1,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,14,0,62,6,172,7,0,53,9,4,7,0,44,0,17,0,8,8,0,0,7,6,1,7,11,30,21,22,7,6,1,7,6,14,7,11,16,21,22,7,0,19,9,3,7,0,10,9,2,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,37,8,0,0,7,0,28,9,0,7,0,19,10,0,7,0,8,8,0,0,7,6,1,7,11,30,21,22,7,6,1,7,6,17,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,16,21,22,7,6,14,7,11,50,21,5,3,8,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,1692,0,10,8,0,0,7,6,176,7,6,14,7,11,31,21,22,2,198,9,0,7,1,1,178,3,-1,0,19,9,2,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,14,0,8,8,0,0,7,6,1,7,11,30,21,22,7,14,0,21,9,1,7,0,12,10,0,7,8,0,0,7,6,14,7,6,17,7,11,16,21,22,7,6,14,7,11,186,21,22,7,14,0,8,8,0,0,7,6,1,7,11,30,21,22,7,14,0,28,6,176,7,0,19,0,10,8,2,0,7,6,14,7,6,14,7,11,16,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,77,8,3,0,7,0,68,0,28,6,187,7,0,19,0,10,8,0,0,7,6,1,7,6,14,7,11,16,21,22,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,32,8,1,0,7,0,23,9,0,7,0,14,10,0,7,8,2,0,7,8,0,0,7,6,14,7,6,19,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,16,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,16,21,22,7,6,14,7,11,50,21,5,3,12,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,1484,0,10,8,0,0,7,6,181,7,6,14,7,11,31,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,181,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,3,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,1407,0,10,8,0,0,7,6,182,7,6,14,7,11,31,21,22,2,76,9,0,7,1,1,56,3,-1,0,28,6,182,7,0,19,9,2,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,4,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,1321,0,10,8,0,0,7,6,171,7,6,14,7,11,31,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,171,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,3,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,1244,0,10,8,0,0,7,6,168,7,6,14,7,11,31,21,22,2,49,9,0,7,1,1,29,1,-1,6,188,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,2,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,1185,0,10,8,0,0,7,6,144,7,6,14,7,11,31,21,22,2,76,9,0,7,1,1,56,3,-1,0,28,6,144,7,0,19,9,2,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,4,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,1099,0,10,8,0,0,7,6,145,7,6,14,7,11,31,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,145,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,3,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,1022,0,10,8,0,0,7,6,146,7,6,14,7,11,31,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,146,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,3,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,945,0,10,8,0,0,7,6,149,7,6,14,7,11,31,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,149,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,3,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,868,0,10,8,0,0,7,6,147,7,6,14,7,11,31,21,22,2,49,9,0,7,1,1,29,1,-1,6,189,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,2,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,809,0,10,8,0,0,7,6,148,7,6,14,7,11,31,21,22,2,49,9,0,7,1,1,29,1,-1,6,190,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,2,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,750,0,10,8,0,0,7,6,175,7,6,14,7,11,31,21,22,2,49,9,0,7,1,1,29,1,-1,6,191,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,2,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,691,0,10,8,0,0,7,6,163,7,6,14,7,11,31,21,22,2,76,9,0,7,1,1,56,3,-1,0,28,6,163,7,0,19,9,2,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,4,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,605,0,10,8,0,0,7,6,177,7,6,14,7,11,31,21,22,2,76,9,0,7,1,1,56,3,-1,0,28,6,177,7,0,19,9,2,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,4,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,519,0,10,8,0,0,7,6,178,7,6,14,7,11,31,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,178,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,3,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,442,0,10,8,0,0,7,6,179,7,6,14,7,11,31,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,179,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,3,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,365,0,10,8,0,0,7,6,180,7,6,14,7,11,31,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,180,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,3,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,288,0,10,8,0,0,7,6,158,7,6,14,7,11,31,21,22,2,67,9,0,7,1,1,47,2,-1,0,19,6,158,7,0,10,9,1,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,3,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,211,0,10,8,0,0,7,6,150,7,6,14,7,11,31,21,22,2,49,9,0,7,1,1,29,1,-1,6,192,7,0,19,9,0,7,0,10,10,0,7,6,1,7,6,14,7,11,16,21,22,7,6,14,7,11,186,21,22,7,6,14,7,11,50,21,5,3,2,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,152,0,10,8,0,0,7,6,51,7,6,14,7,11,31,21,22,2,21,1,0,3,0,-1,6,183,23,1,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,121,0,10,8,0,0,7,6,162,7,6,14,7,11,31,21,22,2,47,1,0,29,1,-1,0,19,6,162,7,0,10,9,0,7,12,7,6,14,7,11,50,21,22,7,6,14,7,11,50,21,22,7,12,7,6,14,7,11,50,21,5,3,2,22,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,64,0,10,8,0,0,7,6,193,7,6,14,7,11,31,21,22,2,21,1,0,3,0,-1,6,194,23,1,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,33,0,10,8,0,0,7,6,160,7,6,14,7,11,31,21,22,2,21,1,0,3,1,-1,12,23,2,7,0,8,9,1,7,6,1,7,11,34,21,22,7,6,14,7,11,51,21,5,3,5,22,3,2,12,15,2,2,23,3,19,186,25],
+[1,0,33,1,-1,0,23,0,10,9,0,7,12,7,6,14,7,11,130,21,22,7,12,7,12,7,6,195,7,6,19,7,11,174,21,22,7,6,3,7,6,14,7,11,186,21,5,3,2,22,19,196,25],
 ]);
-preload_vals.push(["0","table","***macros***","***special_syntax***","***type_functions***","mac","assign","sref","annotate","(quote mac)","fn","2","list","+","3","quote","4","_","1","%shortfn","with","fn-name","5","rfn","self","afn","%pair","car","len","is","%if","cadr","cdr","if","and","uniq","or","let","def","it","aif","no","cddr","caselet","case","-","firstn","nthcdr","cons","apply","map1","reccase","type","unquote","unquote-splicing","find-qq-eval","\"cannot use ,@ after .\"","err","quasiquote","expand-qq","qq-pair","\",@ cannot be used immediately after `\"","nrev","do","withs","acons","w/uniq","g","idfn","compose","complement","(quote special-syntax)","x","(x)","defss","special-syntax","regexp","\"^(.*[^:]):([^:].*)$\"","compose-ss","\"^\\\\~(.+)$\"","complement-ss","\"^(.+)\\\\.(.+)$\"","sexp-ss","\"^(.+)\\\\!(.+)$\"","sexp-with-quote-ss","\"^(.+?)::(.+)$\"","ns","namespace","\"***\"","string","coerce","\"_type_fn***\"","sym","(quote type-function)","deftf","type-function","ref","***cons_type_fn***","***table_type_fn***","***string_type_fn***","isa","mem","%mem","%union","union","min","map","mappend","keep","set-minus","set-intersect","atom","dotted-to-proper","-1","dotted-pos","zip","dotted","dottify","undottify","ssyntax","ssexpand","rep","macex1","%complex-args?","arg","%complex-args","%macex","<","macex","caar","o","cadar","cddar","caddar","%%complex-args","\"Can't understand vars list\"","%complex-args-get-var","%pos","compile-lookup-let","compile-lookup","refer-let","refer-local","refer-free","refer-nil","refer-t","refer-global","indirect","7","compile-refer","find-free","flat","dedup","ccc","find-sets","box","make-boxes","ignore","tailp","return","exit-let","cdddr","caddr","cadddr","reduce-nest-exit","argument","collect-free","remove-globs","constant","close","rev","compile","enter-let","test","assign-let","assign-local","assign-free","assign-global","conti","shift","((apply))","(apply)","frame","preproc","jump","(argument)","(refer-nil)","(refer-t)","(enter-let)","(indirect)","halt","((halt))","(halt)","do-compile"]);
+preload_vals.push(["arc.core.compiler","1","***ns***","0","table","***macros***","***special_syntax***","***type_functions***","mac","assign","sref","annotate","(quote mac)","fn","2","list","+","3","quote","4","_","%shortfn","with","fn-name","5","rfn","self","afn","%pair","car","len","is","%if","cadr","cdr","if","and","uniq","or","let","def","it","aif","no","cddr","caselet","case","-","firstn","nthcdr","cons","apply","map1","reccase","type","unquote","unquote-splicing","find-qq-eval","\"cannot use ,@ after .\"","err","quasiquote","expand-qq","qq-pair","\",@ cannot be used immediately after `\"","nrev","do","withs","acons","w/uniq","g","idfn","compose","complement","***defns***","defns","ns","(quote special-syntax)","x","(x)","defss","special-syntax","regexp","\"^(.*[^:]):([^:].*)$\"","compose-ss","\"^\\\\~(.+)$\"","complement-ss","\"^(.+)\\\\.(.+)$\"","sexp-ss","\"^(.+)\\\\!(.+)$\"","sexp-with-quote-ss","\"^(.+?)::(.+)$\"","namespace","\"***\"","string","coerce","\"_type_fn***\"","sym","(quote type-function)","deftf","type-function","ref","***cons_type_fn***","***table_type_fn***","***string_type_fn***","isa","mem","%mem","%union","union","min","map","mappend","keep","set-minus","set-intersect","atom","dotted-to-proper","-1","dotted-pos","zip","dotted","dottify","undottify","ssyntax","ssexpand","rep","macex1","%complex-args?","arg","%complex-args","%macex","<","macex","caar","o","cadar","cddar","caddar","%%complex-args","\"Can't understand vars list\"","%complex-args-get-var","%pos","compile-lookup-let","compile-lookup","refer-let","refer-local","refer-free","refer-nil","refer-t","refer-global","indirect","7","compile-refer","find-free","flat","dedup","ccc","find-sets","box","make-boxes","ignore","tailp","return","exit-let","cdddr","caddr","cadddr","reduce-nest-exit","argument","collect-free","remove-globs","constant","close","rev","compile","enter-let","test","assign-let","assign-local","assign-free","assign-global","conti","shift","((apply))","(apply)","frame","preproc","jump","(argument)","(refer-nil)","(refer-t)","(enter-let)","(indirect)","halt","((halt))","(halt)","do-compile"]);
 /** @} */
 // arclib
 /** @file arc.fasl { */
 /** @} */
-/** @} */
-/** @file namespace.js { */
-var NameSpace = classify('NameSpace', {
-  property: {
-    name:     null,
-    includes: null,
-    primary:  {}
-  },
-  static: {
-    root: null,
-    stack: [null],
-    push: function(x) {
-      this.stack.push(x);
-      return x;
-    },
-    pop: function() {
-      return this.stack.pop();
-    }
-  },
-  method: {
-    init: function(name, includes) {
-      this.name = name;
-      this.includes = includes;
-    },
-    set: function(name, val) {
-      this.primary[name] = val;
-    },
-    setBox: function(name, val) {
-      this.primary[name] = new Box(val);
-    },
-    get: function(name) {
-      var v = this.primary[name];
-      if (v) return v;
-      for (var i = 0, l = this.includes.length; i<l; i++) {
-        v = this.includes[i].primary[name];
-        if (v) return v;
-      }
-      throw new Error('Unbound variable ' + stringify_for_disp(Symbol.get(name)));
-    },
-    has: function(name) {
-      if (name in this.primary) return true;
-      for (var i = 0, l = this.includes.length; i<l; i++)
-        if (name in this.includes[i].primary) return true;
-      return false;
-    }
-  }
-});
-NameSpace.root = new NameSpace('***root_namespace***', []);
-ArcJS.NameSpace = NameSpace;
 /** @} */
 /** @file vm.js { */
 var VM = classify("VM", {
@@ -1783,12 +1851,18 @@ var VM = classify("VM", {
   },
   method: {
     init: function() {
-      this.ns = NameSpace.root;
-      for (var p in primitives) {
-        this.ns.setBox(p, primitives[p]);
+      var prim_all = Primitives.all;
+      for (var i = 0, l = prim_all.length; i<l; i++) {
+        var prm = prim_all[i];
+        var vars = prm.vars;
+        for (var p in vars) {
+          prm.ns.setBox(p, vars[p]);
+        }
       }
+      this.ns = NameSpace.get('arc.core.compiler');
       this.reader = new Reader();
       this.init_def(preloads, preload_vals);
+      this.ns = NameSpace.create_default('user');
     },
     init_def: function(preloads, preload_vals) {
       var ops = VM.operators;
@@ -1922,11 +1996,7 @@ var VM = classify("VM", {
       this.warn = "";
       if (globalp) {
         this.x = null;
-        NameSpace.root = new NameSpace('***root_namespace***', []);
-        this.ns = NameSpace.root;
-        for (var p in primitives) {
-          this.ns.setBox(p, primitives[p]);
-        }
+        this.ns = NameSpace.create_default('user');
       }
     },
     step: function() {

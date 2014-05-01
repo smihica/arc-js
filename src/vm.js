@@ -21,12 +21,18 @@ var VM = classify("VM", {
   },
   method: {
     init: function() {
-      this.ns = NameSpace.root;
-      for (var p in primitives) {
-        this.ns.setBox(p, primitives[p]);
+      var prim_all = Primitives.all;
+      for (var i = 0, l = prim_all.length; i<l; i++) {
+        var prm = prim_all[i];
+        var vars = prm.vars;
+        for (var p in vars) {
+          prm.ns.setBox(p, vars[p]);
+        }
       }
+      this.ns = NameSpace.get('arc.core.compiler');
       this.reader = new Reader();
       this.init_def(preloads, preload_vals);
+      this.ns = NameSpace.create_default('user');
     },
     init_def: function(preloads, preload_vals) {
       var ops = VM.operators;
@@ -160,11 +166,7 @@ var VM = classify("VM", {
       this.warn = "";
       if (globalp) {
         this.x = null;
-        NameSpace.root = new NameSpace('***root_namespace***', []);
-        this.ns = NameSpace.root;
-        for (var p in primitives) {
-          this.ns.setBox(p, primitives[p]);
-        }
+        this.ns = NameSpace.create_default('user');
       }
     },
     step: function() {
