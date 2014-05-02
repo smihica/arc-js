@@ -21,6 +21,8 @@ var VM = classify("VM", {
   },
   method: {
     init: function() {
+      this.reader = new Reader();
+      // initializing primitives.
       var prim_all = Primitives.all;
       for (var i = 0, l = prim_all.length; i<l; i++) {
         var prm = prim_all[i];
@@ -29,10 +31,11 @@ var VM = classify("VM", {
           prm.ns.setBox(p, vars[p]);
         }
       }
+      // starting with compiler namespace.
       this.ns = NameSpace.get('arc.core.compiler');
-      this.reader = new Reader();
       this.init_def(preloads, preload_vals);
-      this.ns = NameSpace.create_default('user');
+      // changing to user namespace.
+      this.ns = NameSpace.create_with_default('user');
     },
     init_def: function(preloads, preload_vals) {
       var ops = VM.operators;
@@ -166,7 +169,7 @@ var VM = classify("VM", {
       this.warn = "";
       if (globalp) {
         this.x = null;
-        this.ns = NameSpace.create_default('user');
+        this.ns = NameSpace.create_with_default('user');
       }
     },
     step: function() {
@@ -228,23 +231,7 @@ var VM = classify("VM", {
           this.p++;
           break;
         case 'refer-global':
-          // var name = op[1]; // symbol name
-          // var value = void(0);
-          // var ns = this.ns;
           this.a = this.ns.get(op[1]);
-          /*
-          while (value === void(0)) {
-            value = vars[name];
-            if (ns.upper === null) {
-              if (value === void(0))
-                throw new Error('Unbound variable ' + stringify_for_disp(Symbol.get(name)));
-              else break;
-            }
-            ns = ns.upper;
-            vars = ns.vars;
-          }
-          */
-          // this.a = value;
           this.p++;
           break;
         case 'refer-nil':

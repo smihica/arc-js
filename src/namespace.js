@@ -32,7 +32,7 @@ var NameSpace = classify('NameSpace', {
       }
       return rt;
     },
-    create_default: function(name, imports) {
+    create_with_default: function(name, imports) {
       var df = NameSpace.default_ns_names;
       var default_ns = [];
       for (var i = 0, l = df.length; i < l; i++) {

@@ -745,7 +745,7 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
         imports.push(NameSpace.get(import_name));
       }
     }
-    var _ = NameSpace.create_default(name, imports);
+    var _ = NameSpace.create_with_default(name, imports);
     return nil;
   }],
   '***ns***': [{dot: -1}, function(name) {
