@@ -742,7 +742,7 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
       var import_name = coerce(opts[i], s_string);
       if (import_name === ':import') { import_flag = true; continue; }
       if (import_flag) {
-        imports.unshift(NameSpace.get(import_name));
+        imports.push(NameSpace.get(import_name));
       }
     }
     var _ = NameSpace.create_default(name, imports);

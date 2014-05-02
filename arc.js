@@ -635,9 +635,13 @@ var NameSpace = classify('NameSpace', {
     tbl: {},
     root:  null,
     stack: [null],
-    default_ns: ['arc.core.primitives',
-                 'arc.core.compiler',
-                 'arc.core'],
+    global_ns: null,
+    default_ns_names: [
+      '***global***',
+      'arc.core.primitives',
+      'arc.core.compiler',
+      'arc.core'
+    ],
     push: function(x) {
       this.stack.push(x);
       return x;
@@ -656,13 +660,14 @@ var NameSpace = classify('NameSpace', {
       return rt;
     },
     create_default: function(name, imports) {
-      imports = imports || [];
-      var df = NameSpace.default_ns;
-      for (var i = df.length-1; -1 < i; i--) {
+      var df = NameSpace.default_ns_names;
+      var default_ns = [];
+      for (var i = 0, l = df.length; i < l; i++) {
         var ns = NameSpace.tbl[df[i]];
-        if (ns) imports = imports.concat([ns]);
+        if (ns) default_ns.push(ns);
       }
-      return new NameSpace(name, imports);
+      imports = imports || [];
+      return new NameSpace(name, default_ns.concat(imports));
     }
   },
   method: {
@@ -672,15 +677,19 @@ var NameSpace = classify('NameSpace', {
       NameSpace.tbl[name] = this;
     },
     set: function(name, val) {
-      this.primary[name] = val;
+      if (name.match(/\*\*\*.+\*\*\*/)) {
+        NameSpace.global_ns.primary[name] = val;
+      } else {
+        this.primary[name] = val;
+      }
     },
     setBox: function(name, val) {
-      this.primary[name] = new Box(val);
+      this.set(name, new Box(val));
     },
     get: function(name) {
       var v = this.primary[name];
       if (v) return v;
-      for (var i = 0, l = this.imports.length; i<l; i++) {
+      for (var i = this.imports.length-1; -1<i; i--) {
         v = this.imports[i].primary[name];
         if (v) return v;
       }
@@ -688,16 +697,19 @@ var NameSpace = classify('NameSpace', {
     },
     has: function(name) {
       if (name in this.primary) return true;
-      for (var i = 0, l = this.imports.length; i<l; i++)
+      for (var i = this.imports.length-1; -1<i; i--)
         if (name in this.imports[i].primary) return true;
       return false;
     }
   }
 });
-var primitives_ns = new NameSpace('arc.core.primitives', []);
-var compiler_ns   = new NameSpace('arc.core.compiler', [primitives_ns]);
-var arc_ns        = new NameSpace('arc.core', [compiler_ns, primitives_ns]);
 ArcJS.NameSpace = NameSpace;
+var global_ns     = new NameSpace('***global***', []);
+NameSpace.global_ns = global_ns;
+var primitives_ns = new NameSpace('arc.core.primitives', [global_ns]);
+var compiler_ns   = new NameSpace('arc.core.compiler',   [global_ns, primitives_ns]);
+var arc_ns        = new NameSpace('arc.core',            [global_ns, primitives_ns, compiler_ns]);
+
 /** @} */
 /** @file primitives.js { */
 var Primitives = classify('Primitives', {
@@ -1656,7 +1668,7 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
       var import_name = coerce(opts[i], s_string);
       if (import_name === ':import') { import_flag = true; continue; }
       if (import_flag) {
-        imports.unshift(NameSpace.get(import_name));
+        imports.push(NameSpace.get(import_name));
       }
     }
     var _ = NameSpace.create_default(name, imports);

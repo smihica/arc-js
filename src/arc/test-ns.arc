@@ -15,6 +15,16 @@
      nil))
 
 (unit-tests
+
+  ;; bound
+  (defns A)                  nil
+  (ns A)                     nil
+  (assign x 1)               1
+  (bound 'x)                 t
+  (ns user)                  nil
+  (bound 'x)                 nil
+
+  ;; shadowing
   (defns A)                  nil
   (ns A)                     nil
   (assign x 1)               1
@@ -36,4 +46,20 @@
   x                          1
   (ns user)                  nil
   (bound 'x)                 nil
+
+  ;; global
+  (defns A)                  nil
+  (ns A)                     nil
+  (assign X 10)              10
+  (assign ***X*** 20)        20
+  X                          10
+  ***X***                    20
+  (ns user)                  nil
+  (bound 'X)                 nil
+  (bound '***X***)           t
+  ***X***                    20
+  (assign ***X*** 30)        30
+  ***X***                    30
+  (ns A)                     nil
+  ***X***                    30
 )
