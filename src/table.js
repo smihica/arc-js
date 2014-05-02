@@ -73,6 +73,12 @@ var Table = classify("Table", {
       }
       return this;
     },
+    load_from_js_hash: function(h) {
+      for (var k in h) {
+        this.put(Symbol.get(k), h[k]);
+      }
+      return this;
+    },
     stringify_content: function() {
       return '()'; // TODO: mendokuse.
     }

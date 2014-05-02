@@ -11,7 +11,7 @@
                            ,sexp "returned")
                       (prn "OK ... " ',exp))))))
          (%pair exps))
-     (prn "--- PASSED_ALL ---")
+     (prn "--- PASSED-ALL ---")
      nil))
 
 (unit-tests
@@ -62,4 +62,13 @@
   ***X***                    30
   (ns A)                     nil
   ***X***                    30
+
+  ;; ***curr-ns***
+  (defns A)                  nil
+  (ns A)                     nil
+  (do (def x () (***curr-ns***)) (x)) 'A
+  (ns user)                  nil
+  (defns B :import A)        nil
+  (ns B)                     nil
+  (x)                        'B
 )

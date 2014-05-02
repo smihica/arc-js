@@ -7,15 +7,16 @@ var t = true;
 
 var is_nodejs = (typeof module !== 'undefined' && module.exports);
 
-var s_int    = Symbol.get('int');
-var s_num    = Symbol.get('num');
-var s_string = Symbol.get('string');
-var s_sym    = Symbol.get('sym');
-var s_char   = Symbol.get('char');
-var s_table  = Symbol.get('table');
-var s_cons   = Symbol.get('cons');
-var s_fn     = Symbol.get('fn');
-var s_mac    = Symbol.get('mac');
+var s_int                = Symbol.get('int');
+var s_num                = Symbol.get('num');
+var s_string             = Symbol.get('string');
+var s_sym                = Symbol.get('sym');
+var s_char               = Symbol.get('char');
+var s_table              = Symbol.get('table');
+var s_cons               = Symbol.get('cons');
+var s_fn                 = Symbol.get('fn');
+var s_mac                = Symbol.get('mac');
+var s_internal_reference = Symbol.get('internal-reference');
 
 var list_to_javascript_arr = function(lis) {
   if (lis !== nil && type(lis).name !== 'cons') return [lis];
@@ -87,7 +88,7 @@ var stringify = function(x) {
     return '#<tagged ' + type_name + ' ' + stringify(x.obj) + '>';
   }
   if (x instanceof Box)
-    return '#<%boxing ' + stringify(x.unbox()) + '>';
+    return '#<internal-reference ' + stringify(x.unbox()) + '>';
   return JSON.stringify(JSON.decycle(x));
 }
 
@@ -262,6 +263,7 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
       if (x instanceof Char)     return s_char;
       if (x instanceof Table)    return s_table;
       if (x instanceof Tagged)   return x.tag;
+      if (x instanceof Box)      return s_internal_reference;
     default:
       return Symbol.get('%javascript-' + type);
     }
@@ -752,10 +754,24 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
     name = coerce(name, s_string);
     var ns = NameSpace.get(name);
     this.ns = ns;
+    this.current_ns = ns;
     return nil;
   }],
   '***curr-ns***': [{dot: -1}, function() {
-    return Symbol.get(this.ns.name);
+    return Symbol.get(this.current_ns.name);
+  }],
+  'collect-bounds-in-ns': [{dot: 1}, function(ns_s, type_s) {
+    var name = coerce(ns_s, s_string);
+    var ns = NameSpace.get(name);
+    var bounds = ((1 < arguments.length) ?
+                  ns.collect_bounds(type_s.name) :
+                  ns.collect_bounds());
+    var rt = new Table();
+    return rt.load_from_js_hash(bounds);
+  }],
+  'indirect': [{dot: -1}, function(x) {
+    if (x instanceof Box) return x.unbox();
+    throw new Error(stringify(x) + ' is not internal-reference type.');
   }]
 });
 

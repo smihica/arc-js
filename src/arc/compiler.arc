@@ -20,6 +20,8 @@
                                (list 'annotate ''mac (+ (list 'fn name) vars)))))
               'mac))
 
+(assign ***macro*** (fn () (collect-bounds-in-ns (***curr-ns***) 'mac)))
+
 ;; TODO:
 ;; support
 ;; - _0 ~ _9 (arg)
@@ -321,8 +323,8 @@
   (aif (ssyntax s t) it s))
 
 (def macex1 (x)
-  (aif (and (is (type x) 'cons) (ref ***macros*** (car x)))
-       (apply (rep it) (cdr x))
+  (aif (and (is (type x) 'cons) (ref (***macro***) (car x)))
+       (apply (rep (indirect it)) (cdr x))
        x))
 
 (def %macex (x e)
@@ -360,9 +362,9 @@
            (aif (let top (car x)
                   (and (is (type top) 'sym)
                        (no (mem top e))
-                       (ref ***macros*** top)))
+                       (ref (***macro***) top)))
                 (%macex
-                  (apply (rep it) (cdr x)) e)
+                  (apply (rep (indirect it)) (cdr x)) e)
                 (map1 [%macex _ e] x)))
 
     sym (let expanded (ssexpand x)
@@ -793,6 +795,7 @@
     nil))
 
 (def do-compile (x)
+  ;; (prn (***curr-ns***))
   (preproc
     (compile
       (%macex x nil)

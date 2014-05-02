@@ -2,7 +2,8 @@ var NameSpace = classify('NameSpace', {
   property: {
     name:     null,
     imports: null,
-    primary:  {}
+    primary:  {},
+    by_type:  {}
   },
   static: {
     tbl: {},
@@ -16,11 +17,14 @@ var NameSpace = classify('NameSpace', {
       'arc.core'
     ],
     push: function(x) {
+      // console.log('*** ns-push (' + this.stack.length + ') ' + x.name);
       this.stack.push(x);
       return x;
     },
     pop: function() {
-      return this.stack.pop();
+      var rt = this.stack.pop();
+      // console.log('*** ns-pop  (' + this.stack.length + ') ' + rt.name);
+      return rt;
     },
     get: function(name, create) {
       var rt = NameSpace.tbl[name];
@@ -49,15 +53,16 @@ var NameSpace = classify('NameSpace', {
       this.imports = imports;
       NameSpace.tbl[name] = this;
     },
-    set: function(name, val) {
-      if (name.match(/\*\*\*.+\*\*\*/)) {
-        NameSpace.global_ns.primary[name] = val;
-      } else {
-        this.primary[name] = val;
-      }
+    _set: function(name, val, type_name) {
+      var ns = (name.match(/\*\*\*.+\*\*\*/)) ? NameSpace.global_ns : this;
+      ns.primary[name] = val;
+      //
+      var by_type = ns.by_type[type_name] || {};
+      by_type[name] = val;
+      ns.by_type[type_name] = by_type;
     },
     setBox: function(name, val) {
-      this.set(name, new Box(val));
+      this._set(name, new Box(val), type(val).name);
     },
     get: function(name) {
       var v = this.primary[name];
@@ -73,6 +78,37 @@ var NameSpace = classify('NameSpace', {
       for (var i = this.imports.length-1; -1<i; i--)
         if (name in this.imports[i].primary) return true;
       return false;
+    },
+    collect_bounds: function(type_name) {
+      var rt = {};
+      if (arguments.length < 1) {
+        for (var i = 0, l = this.imports.length; i<l; i++) {
+          var tbl = this.imports[i].primary;
+          for (var k in tbl) {
+            rt[k] = tbl[k];
+          }
+        }
+        var tbl = this.primary;
+        for (var k in tbl) {
+          rt[k] = tbl[k];
+        }
+      } else {
+        for (var i = 0, l = this.imports.length; i<l; i++) {
+          var tbl = this.imports[i].by_type[type_name];
+          if (tbl) {
+            for (var k in tbl) {
+              rt[k] = tbl[k];
+            }
+          }
+        }
+        var tbl = this.by_type[type_name];
+        if (tbl) {
+          for (var k in tbl) {
+            rt[k] = tbl[k];
+          }
+        }
+      }
+      return rt;
     }
   }
 });

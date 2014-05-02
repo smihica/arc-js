@@ -14,7 +14,8 @@ var VM = classify("VM", {
     count: 0,
     stack: null,
     reader: null,
-    namespace: null,
+    ns: null,
+    current_ns: null,
     call_stack: null,
     recent_call_args: null,
     warn: null,
@@ -36,6 +37,7 @@ var VM = classify("VM", {
       this.init_def(preloads, preload_vals);
       // changing to user namespace.
       this.ns = NameSpace.create_with_default('user');
+      this.current_ns = this.ns;
     },
     init_def: function(preloads, preload_vals) {
       var ops = VM.operators;
@@ -170,6 +172,7 @@ var VM = classify("VM", {
       if (globalp) {
         this.x = null;
         this.ns = NameSpace.create_with_default('user');
+        this.current_ns = this.ns;
       }
     },
     step: function() {
