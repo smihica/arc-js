@@ -33,4 +33,8 @@ restore_compiler:
 		mv $(shell ls backup/*.compiler.fasl | sort -r | sed '1!d') src/compiler.fasl
 		make
 
+install_web:	arc.min.js
+		cp arc.js _site/js/arc.js
+		cp arc.min.js _site/js/arc.min.js
+
 .PHONY:		all clean

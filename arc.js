@@ -2074,6 +2074,7 @@ var VM = classify("VM", {
           break;
         case 'refer-global':
           this.a = this.ns.get(op[1]);
+          this.x.splice(this.p, 1, ['constant', this.a]); // optimization
           this.p++;
           break;
         case 'refer-nil':
