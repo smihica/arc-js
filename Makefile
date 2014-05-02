@@ -3,6 +3,7 @@ CONSTRUCT=tools/jsconstruct
 COMPILE_ARC=bin/arcjsc
 DATETIME=$(shell date +'%Y%m%d%H%M%S')
 BUILDDIR=.
+CURRENT_BRANCH=$(shell git branch | grep \* | sed -e "s/^\* //")
 
 all:		arc.js arc.min.js
 
@@ -34,7 +35,14 @@ restore_compiler:
 		make
 
 install_web:	arc.min.js
-		cp arc.js _site/js/arc.js
-		cp arc.min.js _site/js/arc.min.js
+		cp arc.js arc.js.bk
+		cp arc.min.js arc.min.js.bk
+		git checkout gh-pages
+		mv arc.js.bk js/arc.js
+		mv arc.min.js.bk js/arc.min.js
+		git add js/
+		git commit -m 'Installed new arc.js.'
+		git checkout $(CURRENT_BRANCH)
+		rm -f arc.js.bk arc.min.js.bk
 
 .PHONY:		all clean
