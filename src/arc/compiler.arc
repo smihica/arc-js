@@ -1,4 +1,4 @@
-;(ns arc.core.compiler)
+(ns 'arc.core.compiler)
 
 ;;;;;;;;;;;;;;;;;;;;; layer 0
 (assign ***type_functions*** (table))
@@ -215,8 +215,13 @@
 (defss sexp-with-quote-ss #/^(.+)\!(.+)$/ (a b)
        `(,a ',b))
 
-;;(defss namespace #/^(.+?)::(.+)$/ (a b)
-;;       `(do (ns ,a ,b)))
+(defss namespace-ss #/^(.+?)::(.+)$/ (a b)
+       (w/uniq (orig rt)
+         `(let ,orig (***curr-ns***)
+            (ns ',a)
+            (let ,rt ,b
+              (ns ,orig)
+              ,rt))))
 
 ;; type functions.
 (mac deftf (type vars . body)

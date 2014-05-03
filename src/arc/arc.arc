@@ -1,3 +1,5 @@
+(ns 'arc.core)
+
 (def pair (xs (o f list))
   (if (is f list) (%pair xs)
       ((afn (xs f)
@@ -8,12 +10,6 @@
        xs f)))
 
 (def exact (n) (if (is (type n) 'int) t))
-
-(mac ns (name . body)
-  (let x (uniq)
-    `(let ,x (do (in-ns ',name) ,@body)
-       (exit-ns)
-       ,x)))
 
 (mac make-br-fn (body) `(fn (_) ,body))
 
