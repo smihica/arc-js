@@ -23,4 +23,5 @@
  "apply",
  "return",
  "continue-return",
+ "ns",
  "halt"]

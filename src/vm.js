@@ -34,6 +34,7 @@ var VM = classify("VM", {
       }
       // starting with compiler namespace.
       this.ns = NameSpace.get('arc.core.compiler');
+      this.current_ns = this.ns;
       this.init_def(preloads, preload_vals);
       // changing to user namespace.
       this.ns = NameSpace.create_with_default('user');
@@ -73,6 +74,7 @@ var VM = classify("VM", {
                   break;
                 case 'refer-global':
                 case 'assign-global':
+                case 'ns':
                   asm.push([op, vals[line[++k]|0]]);
                   break;
                 case 'constant':
@@ -134,6 +136,7 @@ var VM = classify("VM", {
           break;
         case 'refer-global':
         case 'assign-global':
+        case 'ns':
           c[1] = (c[1].name);
           break;
         case 'constant':
@@ -234,8 +237,9 @@ var VM = classify("VM", {
           this.p++;
           break;
         case 'refer-global':
+          // console.log(' *** refer -- ' + op[1] + ' ns: ' + this.ns.name);
           this.a = this.ns.get(op[1]);
-          this.x.splice(this.p, 1, ['constant', this.a]); // optimization
+          // this.x.splice(this.p, 1, ['constant', this.a]); // optimization
           this.p++;
           break;
         case 'refer-nil':
@@ -297,13 +301,14 @@ var VM = classify("VM", {
           this.p++;
           break;
         case 'assign-global':
-          this.ns.setBox(op[1], this.a);
+          this.current_ns.setBox(op[1], this.a);
+          // console.log(' *** assign -- ' + op[1] + ' ns: ' + this.current_ns.name);
           this.p++;
           break;
         case 'frame':
           n = op[1];
           this.s = this.stack.push(
-            [this.x, this.p + n],
+            [this.x, this.p + n, this.ns],
             this.stack.push(
               this.f,
               this.stack.push(
@@ -321,7 +326,7 @@ var VM = classify("VM", {
           n = op[1];
           m = op[2];
           this.s = this.stack.shift(n, m, this.s);
-          this.ns = NameSpace.pop();
+          // this.ns = NameSpace.pop();
           this.call_stack.shift();
           this.p++;
           break;
@@ -362,7 +367,7 @@ var VM = classify("VM", {
             this.x = fn.body;
             this.p = fn.pc;
             this.c = fn;
-            NameSpace.push(this.ns);
+            // NameSpace.push(this.ns);
             this.ns = fn.namespace;
             if (-1 < dotpos) {
               var lis = nil;
@@ -392,6 +397,7 @@ var VM = classify("VM", {
               var xp = this.stack.index(this.s, vlen + 1);
               this.x = xp[0];
               this.p = xp[1];
+              this.ns = xp[2];
               this.f = this.stack.index(this.s, vlen + 2); // for continuation
               this.l = this.stack.index(this.s, vlen + 3); // for continuation
               this.c = this.stack.index(this.s, vlen + 4); // for continuation
@@ -400,7 +406,7 @@ var VM = classify("VM", {
           }
           break;
         case 'return':
-          this.ns = NameSpace.pop();
+          // this.ns = NameSpace.pop();
           this.call_stack.shift();
           // don't break !!
         case 'continue-return':
@@ -409,6 +415,7 @@ var VM = classify("VM", {
           var xp = this.stack.index(ns, 0);
           this.x = xp[0];
           this.p = xp[1];
+          this.ns = xp[2];
           this.f = this.stack.index(ns, 1);
           this.l = this.stack.index(ns, 2);
           this.c = this.stack.index(ns, 3);
@@ -423,6 +430,12 @@ var VM = classify("VM", {
           var stack = op[1];
           this.p++;
           this.s = this.stack.restore(stack);
+          break;
+        case 'ns':
+          this.ns = NameSpace.get(op[1]);
+          this.current_ns = this.ns;
+          this.a = nil;
+          this.p++;
           break;
         default:
           throw new Error('Error: Unknown operand. ' + code);

@@ -71,4 +71,13 @@
   (defns B :import A)        nil
   (ns B)                     nil
   (x)                        'B
-)
+
+  ;; ***macro***
+  (ns user)                  nil
+  (do (mac m (a b) `(- ,a ,b)) nil) nil
+  (ns A)                     nil
+  (do (mac m (a b) `(+ ,a ,b)) nil) nil
+  (car (macex '(m 20 10)))   '+
+  (ns user)                  nil
+  (car (macex '(m 20 10)))   '-
+  )

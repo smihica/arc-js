@@ -1,4 +1,4 @@
-(***ns*** 'arc.core.compiler)
+; (***ns*** 'arc.core.compiler)
 
 ;;;;;;;;;;;;;;;;;;;;; layer 0
 
@@ -202,8 +202,8 @@
 (mac defns (name . options)
   `(***defns*** ',name ',options))
 
-(mac ns (name)
-  `(***ns*** ',name))
+;(mac ns (name)
+;  `(***ns*** ',name))
 
 ;; special syntax.
 (mac defss (name regex vars . body)
@@ -478,6 +478,8 @@
 
            (ccc (exp) (find-free exp b))
 
+           (ns (name) nil)
+
            (dedup (flat (map1 [find-free _ b] x)))
 
            )))
@@ -510,6 +512,8 @@
                           (find-sets x v)))
 
            (ccc (exp) (find-sets exp v))
+
+           (ns (name) nil)
 
            (dedup (flat (map1 [find-sets _ v] x))))))
 
@@ -668,6 +672,8 @@
                        (c it)
                        `(frame ,next ,(c 0)))))
 
+           (ns (name) `(ns ,name ,next))
+
            ((afn (args c)
               (if (no args)
                   (if (tailp next)
@@ -775,6 +781,10 @@
     (assign-global (n x)
                    `((assign-global ,n)
                      ,@(preproc x (+ i 1))))
+
+    (ns (n x)
+        `((ns ,n)
+          ,@(preproc x (+ i 1))))
 
     (box         (n x)
                  `((box ,n)

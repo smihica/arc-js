@@ -652,7 +652,7 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
     throw new Error("Can't coerce " + from_type + " to " + to_type);
   }],
   'bound': [{dot: -1}, function(symbol) {
-    return this.ns.has(symbol.name) ? t : nil;
+    return this.current_ns.has(symbol.name) ? t : nil;
   }],
   'newstring': [{dot: 1}, function(n, $$) {
     var c = Char.get("\u0000");
@@ -758,6 +758,7 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
     return nil;
   }],
   '***curr-ns***': [{dot: -1}, function() {
+    // console.log(' *** current: ' + this.current_ns.name + ' internal: ' + this.ns.name);
     return Symbol.get(this.current_ns.name);
   }],
   'collect-bounds-in-ns': [{dot: 1}, function(ns_s, type_s) {

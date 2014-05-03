@@ -17,13 +17,13 @@ var NameSpace = classify('NameSpace', {
       'arc.core'
     ],
     push: function(x) {
-      // console.log('*** ns-push (' + this.stack.length + ') ' + x.name);
+      console.log('*** ns-push (' + this.stack.length + ') ' + x.name);
       this.stack.push(x);
       return x;
     },
     pop: function() {
       var rt = this.stack.pop();
-      // console.log('*** ns-pop  (' + this.stack.length + ') ' + rt.name);
+       console.log('*** ns-pop  (' + this.stack.length + ') ' + rt.name);
       return rt;
     },
     get: function(name, create) {
