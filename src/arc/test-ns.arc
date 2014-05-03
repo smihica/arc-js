@@ -17,67 +17,68 @@
 (unit-tests
 
   ;; bound
-  (defns A)                  nil
-  (ns A)                     nil
-  (assign x 1)               1
-  (bound 'x)                 t
-  (ns user)                  nil
-  (bound 'x)                 nil
+  (do (defns A)
+      (ns 'A)
+      (assign x 1))             1
+  (bound 'x)                    t
+  (do (ns 'user)
+      (bound 'x))               nil
 
   ;; shadowing
-  (defns A)                  nil
-  (ns A)                     nil
-  (assign x 1)               1
-  (bound 'x)                 t
-  (defns B)                  nil
-  (ns B)                     nil
-  (assign x 2)               2
-  (defns C)                  nil
-  (ns C)                     nil
-  (assign x 3)               3
-  (defns D :import A B C)    nil
-  (ns D)                     nil
-  x                          3
-  (ns C)                     nil
-  x                          3
-  (ns B)                     nil
-  x                          2
-  (ns A)                     nil
-  x                          1
-  (ns user)                  nil
-  (bound 'x)                 nil
+  (do (defns A)
+      (ns 'A)
+      (assign x 1))             1
+  (bound 'x)                    t
+  (do (defns B)
+      (ns 'B)
+      (assign x 2))             2
+  (do (defns C)
+      (ns 'C)
+      (assign x 3))             3
+  (do (defns D :import A B C)
+      (ns 'D)
+      x)                        3
+  (do (ns 'C)
+      x)                        3
+  (do (ns 'B)
+      x)                        2
+  (do (ns 'A)
+      x)                        1
+  (do (ns 'user)
+      (bound 'x))               nil
 
   ;; global
-  (defns A)                  nil
-  (ns A)                     nil
-  (assign X 10)              10
-  (assign ***X*** 20)        20
-  X                          10
-  ***X***                    20
-  (ns user)                  nil
-  (bound 'X)                 nil
-  (bound '***X***)           t
-  ***X***                    20
-  (assign ***X*** 30)        30
-  ***X***                    30
-  (ns A)                     nil
-  ***X***                    30
+  (do (defns A)
+      (ns 'A)
+      (assign X 10))            10
+  (assign ***X*** 20)           20
+  X                             10
+  ***X***                       20
+  (do (ns 'user)
+      (bound 'X))               nil
+  (bound '***X***)              t
+  ***X***                       20
+  (assign ***X*** 30)           30
+  ***X***                       30
+  (do (ns 'A)
+      ***X***)                  30
 
   ;; ***curr-ns***
-  (defns A)                  nil
-  (ns A)                     nil
-  (do (def x () (***curr-ns***)) (x)) 'A
-  (ns user)                  nil
-  (defns B :import A)        nil
-  (ns B)                     nil
-  (x)                        'B
+  (do (defns A)
+      (ns 'A)
+      (do (def x () (***curr-ns***)))
+      (is (x) (ns 'A)))         t
+  (do (ns 'user)
+      (defns B :import A)
+      (ns 'B)
+      (is (x) (ns 'B)))         t
 
   ;; ***macro***
-  (ns user)                  nil
-  (do (mac m (a b) `(- ,a ,b)) nil) nil
-  (ns A)                     nil
-  (do (mac m (a b) `(+ ,a ,b)) nil) nil
-  (car (macex '(m 20 10)))   '+
-  (ns user)                  nil
-  (car (macex '(m 20 10)))   '-
+  (do (ns 'user)
+      (do (mac m (a b) `(- ,a ,b)) nil)
+      (ns 'A)
+      (do (mac m (a b) `(+ ,a ,b)) nil)
+      (car (macex '(m 20 10))))   '+
+  (do (ns 'user)
+      (car (macex '(m 20 10))))   '-
   )

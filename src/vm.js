@@ -74,12 +74,12 @@ var VM = classify("VM", {
                   break;
                 case 'refer-global':
                 case 'assign-global':
-                case 'ns':
                   asm.push([op, vals[line[++k]|0]]);
                   break;
                 case 'constant':
                   asm.push([op, this.reader.read(vals[line[++k]|0])]);
                   break;
+                case 'ns':
                 case 'indirect':
                 case 'halt':
                 case 'argument':
@@ -136,9 +136,9 @@ var VM = classify("VM", {
           break;
         case 'refer-global':
         case 'assign-global':
-        case 'ns':
           c[1] = (c[1].name);
           break;
+        case 'ns':
         case 'constant':
         case 'indirect':
         case 'halt':
@@ -429,9 +429,16 @@ var VM = classify("VM", {
           this.s = this.stack.restore(stack);
           break;
         case 'ns':
-          this.ns = NameSpace.get(op[1]);
+          var ns = this.a;
+          if (ns instanceof NameSpace) {
+            this.ns = ns;
+          } else if (ns instanceof Symbol) {
+            this.ns = NameSpace.get(ns.name);
+          } else if (typeof ns === 'string') {
+            this.ns = NameSpace.get(ns);
+          }
           this.current_ns = this.ns;
-          this.a = nil;
+          this.a = this.ns;
           this.p++;
           break;
         default:

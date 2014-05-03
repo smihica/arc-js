@@ -17,6 +17,7 @@ var s_cons               = Symbol.get('cons');
 var s_fn                 = Symbol.get('fn');
 var s_mac                = Symbol.get('mac');
 var s_internal_reference = Symbol.get('internal-reference');
+var s_namespace          = Symbol.get('namespace');
 
 var list_to_javascript_arr = function(lis) {
   if (lis !== nil && type(lis).name !== 'cons') return [lis];
@@ -89,6 +90,8 @@ var stringify = function(x) {
   }
   if (x instanceof Box)
     return '#<internal-reference ' + stringify(x.unbox()) + '>';
+  if (x instanceof NameSpace)
+    return '#<namespace ' + x.name + '>';
   return JSON.stringify(JSON.decycle(x));
 }
 
@@ -257,13 +260,14 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
     case 'function':
       return s_fn;
     case 'object':
-      if (x instanceof Symbol)   return s_sym;
-      if (x instanceof Cons)     return s_cons;
-      if (x instanceof Closure)  return s_fn;
-      if (x instanceof Char)     return s_char;
-      if (x instanceof Table)    return s_table;
-      if (x instanceof Tagged)   return x.tag;
-      if (x instanceof Box)      return s_internal_reference;
+      if (x instanceof Symbol)    return s_sym;
+      if (x instanceof Cons)      return s_cons;
+      if (x instanceof Closure)   return s_fn;
+      if (x instanceof Char)      return s_char;
+      if (x instanceof Table)     return s_table;
+      if (x instanceof Tagged)    return x.tag;
+      if (x instanceof Box)       return s_internal_reference;
+      if (x instanceof NameSpace) return s_namespace;
     default:
       return Symbol.get('%javascript-' + type);
     }
@@ -747,16 +751,14 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
         imports.push(NameSpace.get(import_name));
       }
     }
-    var _ = NameSpace.create_with_default(name, imports);
-    return nil;
+    var ns = NameSpace.create_with_default(name, imports);
+    return ns;
   }],
   '***curr-ns***': [{dot: -1}, function() {
     // console.log(' *** current: ' + this.current_ns.name + ' internal: ' + this.ns.name);
-    return Symbol.get(this.current_ns.name);
+    return this.current_ns;
   }],
-  'collect-bounds-in-ns': [{dot: 1}, function(ns_s, type_s) {
-    var name = coerce(ns_s, s_string);
-    var ns = NameSpace.get(name);
+  'collect-bounds-in-ns': [{dot: 1}, function(ns, type_s) {
     var bounds = ((1 < arguments.length) ?
                   ns.collect_bounds(type_s.name) :
                   ns.collect_bounds());

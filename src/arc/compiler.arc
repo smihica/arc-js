@@ -1,26 +1,16 @@
-; (***ns*** 'arc.core.compiler)
+;(ns arc.core.compiler)
 
 ;;;;;;;;;;;;;;;;;;;;; layer 0
-
-(assign ***macros*** (table))
-(assign ***special_syntax*** (table))
 (assign ***type_functions*** (table))
 
-;(mac mac (name vars . body)
-;(if body
-;      `(assign ,name (sref ***macros*** (annotate 'mac (fn ,vars ,@body)) ',name))
-;      `(annotate 'mac (fn ,name ,@vars))))
-
 (assign mac
-        (sref ***macros***
-              (annotate 'mac
-                        (fn (name vars . body)
-                          (%if body
-                               (list 'assign name (list 'sref '***macros*** (list 'annotate ''mac (+ (list 'fn vars) body)) (list 'quote name)))
-                               (list 'annotate ''mac (+ (list 'fn name) vars)))))
-              'mac))
+        (annotate 'mac
+                  (fn (name vars . body)
+                    (%if body
+                         (list 'assign name (list 'annotate ''mac (+ (list 'fn vars) body)))
+                         (list 'annotate ''mac (+ (list 'fn name) vars))))))
 
-(assign ***macro*** (fn () (collect-bounds-in-ns (***curr-ns***) 'mac)))
+(assign ***macros*** (fn () (collect-bounds-in-ns (***curr-ns***) 'mac)))
 
 ;; TODO:
 ;; support
@@ -203,6 +193,8 @@
   `(***defns*** ',name ',options))
 
 ;; special syntax.
+(assign ***special_syntax*** (table))
+
 (mac defss (name regex vars . body)
   `(do
      (assign ,name
@@ -223,8 +215,8 @@
 (defss sexp-with-quote-ss #/^(.+)\!(.+)$/ (a b)
        `(,a ',b))
 
-(defss namespace #/^(.+?)::(.+)$/ (a b)
-       `(ns ,a ,b))
+;;(defss namespace #/^(.+?)::(.+)$/ (a b)
+;;       `(do (ns ,a ,b)))
 
 ;; type functions.
 (mac deftf (type vars . body)
@@ -320,7 +312,7 @@
   (aif (ssyntax s t) it s))
 
 (def macex1 (x)
-  (aif (and (is (type x) 'cons) (ref (***macro***) (car x)))
+  (aif (and (is (type x) 'cons) (ref (***macros***) (car x)))
        (apply (rep (indirect it)) (cdr x))
        x))
 
@@ -359,7 +351,7 @@
            (aif (let top (car x)
                   (and (is (type top) 'sym)
                        (no (mem top e))
-                       (ref (***macro***) top)))
+                       (ref (***macros***) top)))
                 (%macex
                   (apply (rep (indirect it)) (cdr x)) e)
                 (map1 [%macex _ e] x)))
@@ -475,7 +467,7 @@
 
            (ccc (exp) (find-free exp b))
 
-           (ns (name) nil)
+           (ns (exp) (find-free exp b))
 
            (dedup (flat (map1 [find-free _ b] x)))
 
@@ -510,7 +502,7 @@
 
            (ccc (exp) (find-sets exp v))
 
-           (ns (name) nil)
+           (ns (exp) (find-sets exp v))
 
            (dedup (flat (map1 [find-sets _ v] x))))))
 
@@ -669,7 +661,7 @@
                        (c it)
                        `(frame ,next ,(c 0)))))
 
-           (ns (name) `(ns ,name ,next))
+           (ns (exp) (compile exp e s `(ns ,next)))
 
            ((afn (args c)
               (if (no args)
@@ -779,9 +771,7 @@
                    `((assign-global ,n)
                      ,@(preproc x (+ i 1))))
 
-    (ns (n x)
-        `((ns ,n)
-          ,@(preproc x (+ i 1))))
+    (ns (x) `((ns) ,@(preproc x (+ i 1))))
 
     (box         (n x)
                  `((box ,n)
