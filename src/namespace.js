@@ -8,7 +8,6 @@ var NameSpace = classify('NameSpace', {
   static: {
     tbl: {},
     root:  null,
-    stack: [null],
     global_ns: null,
     default_ns_names: [
       '***global***',
@@ -16,16 +15,6 @@ var NameSpace = classify('NameSpace', {
       'arc.core.compiler',
       'arc.core'
     ],
-    push: function(x) {
-      console.log('*** ns-push (' + this.stack.length + ') ' + x.name);
-      this.stack.push(x);
-      return x;
-    },
-    pop: function() {
-      var rt = this.stack.pop();
-       console.log('*** ns-pop  (' + this.stack.length + ') ' + rt.name);
-      return rt;
-    },
     get: function(name, create) {
       var rt = NameSpace.tbl[name];
       if (!rt) {

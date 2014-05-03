@@ -326,7 +326,6 @@ var VM = classify("VM", {
           n = op[1];
           m = op[2];
           this.s = this.stack.shift(n, m, this.s);
-          // this.ns = NameSpace.pop();
           this.call_stack.shift();
           this.p++;
           break;
@@ -367,7 +366,6 @@ var VM = classify("VM", {
             this.x = fn.body;
             this.p = fn.pc;
             this.c = fn;
-            // NameSpace.push(this.ns);
             this.ns = fn.namespace;
             if (-1 < dotpos) {
               var lis = nil;
@@ -406,7 +404,6 @@ var VM = classify("VM", {
           }
           break;
         case 'return':
-          // this.ns = NameSpace.pop();
           this.call_stack.shift();
           // don't break !!
         case 'continue-return':

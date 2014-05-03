@@ -202,9 +202,6 @@
 (mac defns (name . options)
   `(***defns*** ',name ',options))
 
-;(mac ns (name)
-;  `(***ns*** ',name))
-
 ;; special syntax.
 (mac defss (name regex vars . body)
   `(do

@@ -641,7 +641,6 @@ var NameSpace = classify('NameSpace', {
   static: {
     tbl: {},
     root:  null,
-    stack: [null],
     global_ns: null,
     default_ns_names: [
       '***global***',
@@ -649,16 +648,6 @@ var NameSpace = classify('NameSpace', {
       'arc.core.compiler',
       'arc.core'
     ],
-    push: function(x) {
-      console.log('*** ns-push (' + this.stack.length + ') ' + x.name);
-      this.stack.push(x);
-      return x;
-    },
-    pop: function() {
-      var rt = this.stack.pop();
-       console.log('*** ns-pop  (' + this.stack.length + ') ' + rt.name);
-      return rt;
-    },
     get: function(name, create) {
       var rt = NameSpace.tbl[name];
       if (!rt) {
@@ -1718,13 +1707,6 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
     var _ = NameSpace.create_with_default(name, imports);
     return nil;
   }],
-  '***ns***': [{dot: -1}, function(name) {
-    name = coerce(name, s_string);
-    var ns = NameSpace.get(name);
-    this.ns = ns;
-    this.current_ns = ns;
-    return nil;
-  }],
   '***curr-ns***': [{dot: -1}, function() {
     // console.log(' *** current: ' + this.current_ns.name + ' internal: ' + this.ns.name);
     return Symbol.get(this.current_ns.name);
@@ -2227,7 +2209,6 @@ var VM = classify("VM", {
           n = op[1];
           m = op[2];
           this.s = this.stack.shift(n, m, this.s);
-          // this.ns = NameSpace.pop();
           this.call_stack.shift();
           this.p++;
           break;
@@ -2268,7 +2249,6 @@ var VM = classify("VM", {
             this.x = fn.body;
             this.p = fn.pc;
             this.c = fn;
-            // NameSpace.push(this.ns);
             this.ns = fn.namespace;
             if (-1 < dotpos) {
               var lis = nil;
@@ -2307,7 +2287,6 @@ var VM = classify("VM", {
           }
           break;
         case 'return':
-          // this.ns = NameSpace.pop();
           this.call_stack.shift();
           // don't break !!
         case 'continue-return':

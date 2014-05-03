@@ -750,13 +750,6 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
     var _ = NameSpace.create_with_default(name, imports);
     return nil;
   }],
-  '***ns***': [{dot: -1}, function(name) {
-    name = coerce(name, s_string);
-    var ns = NameSpace.get(name);
-    this.ns = ns;
-    this.current_ns = ns;
-    return nil;
-  }],
   '***curr-ns***': [{dot: -1}, function() {
     // console.log(' *** current: ' + this.current_ns.name + ' internal: ' + this.ns.name);
     return Symbol.get(this.current_ns.name);
