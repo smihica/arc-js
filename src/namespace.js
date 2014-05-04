@@ -1,7 +1,7 @@
 var NameSpace = classify('NameSpace', {
   property: {
     name:     null,
-    imports: null,
+    imports:  null,
     primary:  {},
     by_type:  {}
   },
