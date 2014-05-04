@@ -53,6 +53,8 @@ $(function() {
     }
     cm.setValue('');
     if (!err) {
+      var saved_ns         = runner.vm.ns;
+      var saved_current_ns = runner.vm.current_ns;
       try {
         var s = new Date();
         var compiled = runner.compile(expr);
@@ -63,9 +65,10 @@ $(function() {
         var e = new Date();
         eval_time = e - s;
         result = ArcJS.stringify(res);
-        // console.log(ArcJS.NameSpace.stack);
       } catch (e) {
         result = e.toString();
+        runner.vm.ns = saved_ns;
+        runner.vm.current_ns = saved_current_ns;
         err = true;
       }
     }
@@ -89,12 +92,8 @@ $(function() {
         return r + '<br>';
       })(result_list.join('<br>'));
 
-    var ns = runner.vm.namespace;
-    var nss = '';
-    while (ns !== ArcJS.NameSpace.root) {
-      nss = '::' + ns.name + nss;
-      ns = ns.upper;
-    }
+    var ns = runner.vm.current_ns;
+    var nss = (ns.name !== 'user') ? ':' + ns.name : '';
     txt.html(org + _new + 'arc' + nss + '&gt;<br>');
     var last_pos = holder.position();
     var next_pos = {
