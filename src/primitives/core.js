@@ -58,42 +58,84 @@ var flat_iter = function(lis, max_depth) {
   return rt;
 };
 
-// use decycle from https://raw.github.com/douglascrockford/JSON-js/master/cycle.js
-include("../../lib/json/cycle.js");
-var stringify = function(x) {
-  var type_name = type(x).name;
-  switch (type_name) {
-  case 'int':
-    if (x === Infinity)  return '+inf.0';
-    if (x === -Infinity) return '-inf.0';
-    break;
-  case 'num':
-  case 'string':
-    break;
-  case 'sym':
-    if (x === nil) return 'nil';
-    if (x === t) return 't';
-    return (x.evaluable_name) ? '|' + x.name + '|' : x.name;
-  case 'cons':
-    return "(" + stringify_list(x) + ")";
-  case 'fn':
-    return "#<" + (typeof x === 'function' ?
-                   'prim' + (x.prim_name ? (":"+x.prim_name) : "") :
-                   'fn' + (x.name ? (":"+x.name) : "")) + ">";
-  case 'char':
-    return "#\\" + x.c;
-  case 'table':
-    return '#<table n=' + x.n + /* ' | ' + x.stringify_content() + */ '>';
-  }
-  if (x instanceof Tagged) {
-    return '#<tagged ' + type_name + ' ' + stringify(x.obj) + '>';
-  }
-  if (x instanceof Box)
-    return '#<internal-reference ' + stringify(x.unbox()) + '>';
-  if (x instanceof NameSpace)
-    return '#<namespace ' + x.name + '>';
-  return JSON.stringify(JSON.decycle(x));
-}
+var stringify = function stringify(x) {
+
+  var objects = [], paths = [];
+
+  var str_or_obj = (function stringify_iter(x, path) {
+    var type_name = type(x).name;
+    switch (type_name) {
+    case 'int':
+      if (x === Infinity)  return '+inf.0';
+      if (x === -Infinity) return '-inf.0';
+      return x+'';
+    case 'num':
+    case 'string':
+      return JSON.stringify(x);
+    case 'sym':
+      if (x === nil) return 'nil';
+      if (x === t) return 't';
+      return (x.evaluable_name) ? '|' + x.name + '|' : x.name;
+    case 'cons':
+      return "(" + stringify_list(x) + ")";
+    case 'fn':
+      return "#<" + (typeof x === 'function' ?
+                     'prim' + (x.prim_name ? (":"+x.prim_name) : "") :
+                     'fn' + (x.name ? (":"+x.name) : "")) + ">";
+    case 'char':
+      return "#\\" + x.c;
+    case 'table':
+      return '#<table n=' + x.n + /* ' | ' + x.stringify_content() + */ '>';
+    default:
+      if (x instanceof Tagged) return '#<tagged ' + type_name + ' ' + stringify(x.obj) + '>';
+      if (x instanceof Box)    return '#<internal-reference ' + stringify(x.unbox()) + '>';
+      if (x instanceof NameSpace) return '#<namespace ' + x.name + '>';
+
+      // decycle and stringify
+      {
+        var i, name, nu;
+        if (typeof x === 'object' && x !== null &&
+            !(x instanceof Boolean) &&
+            !(x instanceof Date)    &&
+            !(x instanceof Number)  &&
+            !(x instanceof RegExp)  &&
+            !(x instanceof String)) {
+
+          for (i = 0; i < objects.length; i += 1) {
+            if (objects[i] === x) {
+              return {$ref: paths[i]};
+            }
+          }
+
+          objects.push(x);
+          paths.push(path);
+
+
+          if (Object.prototype.toString.apply(x) === '[object Array]') {
+            nu = [];
+            for (i = 0; i < x.length; i += 1) {
+              nu[i] = stringify_iter(x[i], path + '[' + i + ']');
+            }
+          } else {
+            nu = {};
+            for (name in x) {
+              if (Object.prototype.hasOwnProperty.call(x, name)) {
+                nu[name] = stringify_iter(x[name], path + '[' + JSON.stringify(name) + ']');
+              }
+            }
+          }
+          return nu;
+        }
+        return x + '';
+      }
+    }
+  })(x, '$');
+
+  return ((typeof str_or_obj === 'string') ?
+          str_or_obj :
+          '#<JS ' + JSON.stringify(str_or_obj) + '>');
+
+};
 
 var stringify_list = function(cons) {
   var a = car(cons), d = cdr(cons);
