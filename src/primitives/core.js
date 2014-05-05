@@ -19,14 +19,20 @@ var s_mac                = Symbol.get('mac');
 var s_internal_reference = Symbol.get('internal-reference');
 var s_namespace          = Symbol.get('namespace');
 
-var list_to_javascript_arr = function(lis) {
-  if (lis !== nil && type(lis).name !== 'cons') return [lis];
-  var rt = [];
-  while (lis !== nil) {
-    rt.push(car(lis));
-    lis = cdr(lis);
-  }
-  return rt;
+var list_to_javascript_arr = function(lis, depth) {
+  var rt = (function list_to_javascript_arr_iter(lis, depth) {
+    if (lis !== nil && type(lis).name !== 'cons') return lis;
+    var rt = [], itm = null;
+    while (lis !== nil) {
+      itm = car(lis);
+      rt.push( 0 < depth ?
+               list_to_javascript_arr_iter(itm, depth-1) :
+               itm );
+      lis = cdr(lis);
+    }
+    return rt;
+  })(lis, depth ? (depth === true ? Infinity : depth) : 0); // not-set => 0, true => Infinity, num => num
+  return (rt instanceof Array) ? rt : [rt];
 }
 
 var javascript_arr_to_list = function(arr) {
@@ -781,19 +787,11 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
     }
     return coerce(name || nil, s_sym);
   }],
-  '***defns***': [{dot: -1}, function(name, opts) {
+  '***defns***': [{dot: -1}, function(name, imports, exports) {
     name = coerce(name, s_string);
-    opts = list_to_javascript_arr(opts);
-    var import_flag = false;
-    var imports = [];
-    for (var i=0, l=opts.length; i<l; i++) {
-      var import_name = coerce(opts[i], s_string);
-      if (import_name === ':import') { import_flag = true; continue; }
-      if (import_flag) {
-        imports.push(NameSpace.get(import_name));
-      }
-    }
-    var ns = NameSpace.create_with_default(name, imports);
+    imports = list_to_javascript_arr(imports, true);
+    exports = list_to_javascript_arr(exports, true);
+    var ns = NameSpace.create_with_default(name, imports, exports);
     return ns;
   }],
   '***curr-ns***': [{dot: -1}, function() {

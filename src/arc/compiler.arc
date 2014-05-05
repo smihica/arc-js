@@ -190,7 +190,19 @@
 
 ;; namespace
 (mac defns (name . options)
-  `(***defns*** ',name ',options))
+  `(***defns***
+     ',name
+     ,@((afn (opts m i e)
+          (let x (car opts)
+            (case x
+              nil     (list `',(nrev i) `',(nrev e))
+              :import (self (cdr opts) 'i i e)
+              :export (self (cdr opts) 'e i e)
+              (case m
+                i (self (cdr opts) m (cons x i) e)
+                e (self (cdr opts) m i (cons x e))
+                (err (+ "The name \"" x "\" is not specified how to use."))))))
+        options nil nil nil)))
 
 ;; special syntax.
 (assign ***special_syntax*** (table))

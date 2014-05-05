@@ -81,4 +81,24 @@
       (car (macex '(m 20 10))))   '+
   (do (ns 'user)
       (car (macex '(m 20 10))))   '-
+
+  ;; export and :: syntax
+  (do (ns (defns A :export a b))
+      (= a 10)
+      (= b 20)
+      (= c 30)
+      (ns (defns B :import A :export c))
+      a) 10
+  b 20
+  (bound 'c) nil
+  A::c       30
+  (= c 40)   40
+  c          40
+  B::c       40
+  (do (ns (defns C :import A B))
+      a)     10
+  b          20
+  c          40
+  A::c       30
+
   )
