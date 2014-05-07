@@ -4,21 +4,17 @@ var NameSpace = classify('NameSpace', {
     imports:         null,
     export_names:    null,
     export_all:      false,
-    exports:         {},
-    exports_by_type: {},
+    exports:         null,
+    exports_by_type: null,
     primary:         {},
     primary_by_type: {},
+    parent:          null
   },
   static: {
     tbl: {},
     root:  null,
     global_ns: null,
-    default_ns_names: [
-      '***global***',
-      'arc.core.primitives',
-      'arc.core.compiler',
-      'arc.core'
-    ],
+    default_ns: null,
     get: function(name, create) {
       var rt = NameSpace.tbl[name];
       if (!rt) {
@@ -29,7 +25,10 @@ var NameSpace = classify('NameSpace', {
       }
       return rt;
     },
-    create: function(name, imports, exports) {
+    create: function(name, extend, imports, exports) {
+      var extend_name = ((extend instanceof Symbol) ? extend.name :
+                         ((typeof extend === 'string') ? extend : null));
+      extend = (extend_name !== null ? NameSpace.get(extend_name) : null);
       imports = imports || [];
       for (var i = 0, l = imports.length, acc = []; i<l; i++) {
         var itm = imports[i];
@@ -46,22 +45,81 @@ var NameSpace = classify('NameSpace', {
         acc[i] = n;
       }
       exports = acc;
-      return new NameSpace(name, imports, exports);
+      return new NameSpace(name, extend, imports, exports);
     },
-    create_with_default: function(name, imports, exports) {
-      imports = imports || [];
-      return NameSpace.create(name, NameSpace.default_ns_names.concat(imports), exports);
+    create_with_default: function(name, extend, imports, exports) {
+      extend = extend || NameSpace.default_ns.name;
+      return NameSpace.create(name, extend, imports, exports);
     }
   },
   method: {
-    init: function(name, imports, exports) {
+    init: function(name, extend, imports, exports) {
+      function _copy(o, depth) {
+        var i, rt;
+        if (depth === void(0)) depth = 1;
+        if (depth <= 0) return o;
+        if (o instanceof Array) {
+          // this is an array.
+          rt = [];
+          for (i = o.length-1; -1<i; i--) {
+            rt[i] = _copy(o[i], depth - 1);
+          }
+        } else if (typeof o === 'object') {
+          // this is a object.
+          rt = {};
+          for (i in o) {
+            rt[i] = _copy(o[i], depth - 1);
+          }
+        } else {
+          // this is a simple value.
+          return o;
+        }
+        return rt;
+      }
       this.name = name;
-      this.imports = imports;
-      this.export_names = exports;
-      this.export_all = (this.export_names.length < 1);
-      if (this.export_all) {
-        this.exports         = this.primary;
-        this.exports_by_type = this.primary_by_type;
+      if (extend !== null) {
+        this.parent            = extend;
+        this.primary           = _copy(extend.primary);
+        this.primary_by_type   = _copy(extend.primary_by_type, 2);
+        this.imports           = _copy(extend.imports);
+        this.export_names      = _copy(extend.export_names);
+        this.export_all        = extend.export_all;
+        if (this.export_all) { // all
+          this.exports         = this.primary;
+          this.exports_by_type = this.primary_by_type;
+        } else { // not-all
+          this.exports         = _copy(extend.exports);
+          this.exports_by_type = _copy(extend.exports_by_type, 2);
+        }
+      } else {
+        this.imports           = [];
+        this.export_names      = [];
+        this.export_all        = (exports.length < 1);
+        if (this.export_all) { // all
+          this.exports         = this.primary;
+          this.exports_by_type = this.primary_by_type;
+        } else { // not-all
+          this.exports         = {};
+          this.exports_by_type = {};
+        }
+      }
+      this.imports             = this.imports.concat(imports);
+      this.export_names        = this.export_names.concat(exports);
+      var export_all = (exports.length < 1);
+      if (this.export_all !== export_all) {
+        this.export_all = export_all;
+        if (this.export_all) {
+          // parent not-all -> me all
+          // nothing to do.
+        } else {
+          // parent all     -> me not-all
+          this.exports         = _copy(this.primary);
+          this.exports_by_type = _copy(this.primary_by_type, 2);
+        }
+      } else {
+        // all     -> all
+        // not-all -> not-all
+        // nothing to do.
       }
       NameSpace.tbl[name] = this;
     },
@@ -71,7 +129,7 @@ var NameSpace = classify('NameSpace', {
       var by_type = ns.primary_by_type[type_name] || {};
       by_type[name] = val;
       ns.primary_by_type[type_name] = by_type;
-      if (!ns.export_all && -1 < ns.export_names.indexOf(name)) {
+      if (ns.export_all || -1 < ns.export_names.indexOf(name)) {
         ns.exports[name] = val;
         var by_type = ns.exports_by_type[type_name] || {};
         by_type[name] = val;
@@ -130,8 +188,10 @@ var NameSpace = classify('NameSpace', {
   }
 });
 ArcJS.NameSpace = NameSpace;
-var global_ns     = new NameSpace('***global***', [], []);
+var global_ns     = new NameSpace('***global***', null, [], []);
 NameSpace.global_ns = global_ns;
-var primitives_ns = new NameSpace('arc.core.primitives', [global_ns], []);
-var compiler_ns   = new NameSpace('arc.core.compiler',   [global_ns, primitives_ns], []);
-var arc_ns        = new NameSpace('arc.core',            [global_ns, primitives_ns, compiler_ns], []);
+var primitives_ns = new NameSpace('arc.core.primitives', null, [global_ns], []);
+var compiler_ns   = new NameSpace('arc.core.compiler',   null, [global_ns, primitives_ns], []);
+var arc_ns        = new NameSpace('arc.core',            null, [global_ns, primitives_ns, compiler_ns], []);
+var default_ns    = new NameSpace('arc.user_default',    null, [global_ns, primitives_ns, compiler_ns, arc_ns], []);
+NameSpace.default_ns = default_ns;

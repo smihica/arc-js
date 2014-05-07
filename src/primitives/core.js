@@ -787,11 +787,12 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
     }
     return coerce(name || nil, s_sym);
   }],
-  '***defns***': [{dot: -1}, function(name, imports, exports) {
+  '***defns***': [{dot: -1}, function(name, extend, imports, exports) {
     name = coerce(name, s_string);
+    extend  = extend === nil ? null : extend;
     imports = list_to_javascript_arr(imports, true);
     exports = list_to_javascript_arr(exports, true);
-    var ns = NameSpace.create_with_default(name, imports, exports);
+    var ns = NameSpace.create_with_default(name, extend, imports, exports);
     return ns;
   }],
   '***curr-ns***': [{dot: -1}, function() {

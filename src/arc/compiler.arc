@@ -7,7 +7,10 @@
         (annotate 'mac
                   (fn (name vars . body)
                     (%if body
-                         (list 'assign name (list 'annotate ''mac (+ (list 'fn vars) body)))
+                         (list 'assign name
+                               (list 'with (list name (+ (list 'fn vars) body))
+                                     (list 'fn-name name (list 'quote name))
+                                     (list 'annotate ''mac name)))
                          (list 'annotate ''mac (+ (list 'fn name) vars))))))
 
 (assign ***macros*** (fn () (collect-bounds-in-ns (***curr-ns***) 'mac)))
@@ -192,17 +195,19 @@
 (mac defns (name . options)
   `(***defns***
      ',name
-     ,@((afn (opts m i e)
+     ,@((afn (opts m s i e)
           (let x (car opts)
             (case x
-              nil     (list `',(nrev i) `',(nrev e))
-              :import (self (cdr opts) 'i i e)
-              :export (self (cdr opts) 'e i e)
+              nil     (list s `',(nrev i) `',(nrev e))
+              :extend (self (cdr opts) 's s i e)
+              :import (self (cdr opts) 'i s i e)
+              :export (self (cdr opts) 'e s i e)
               (case m
-                i (self (cdr opts) m (cons x i) e)
-                e (self (cdr opts) m i (cons x e))
+                s (self (cdr opts) m (list 'quote x) i e)
+                i (self (cdr opts) m s (cons x i) e)
+                e (self (cdr opts) m s i (cons x e))
                 (err (+ "The name \"" x "\" is not specified how to use."))))))
-        options nil nil nil)))
+        options nil nil nil nil)))
 
 ;; special syntax.
 (assign ***special_syntax*** (table))

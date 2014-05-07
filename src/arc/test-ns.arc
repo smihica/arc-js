@@ -101,4 +101,79 @@
   c          40
   A::c       30
 
+  ;; extend
+  (do (ns (defns A :export a b)) 
+      (= a 10)
+      (= b 20)
+      (= c 30)
+      (ns (defns B :import A))
+      (= d 40)
+      (= f 50)
+      a)     10
+  b          20
+  (bound 'c) nil
+  A::c       30
+
+  (do (ns (defns C :extend B)) ;; can access parent's import
+      a)     10
+  b          20
+  (bound 'c) nil
+
+  (do (ns (defns D :extend A)) ;; can access parent's private
+      (= dd  10)
+      (= ff  20)
+      a)     10
+  b          20
+  (bound 'c) t
+  c          30
+  D::c       30
+
+  (do (ns (defns E :import D)) ;; parent not-all -> me all
+      a)     10
+  b          20
+  (bound 'c) nil
+  dd         10
+  ff         20
+
+  (do (ns (defns F :extend A :export c)) ;; parent not-all -> me not-all
+      a)     10
+  b          20
+  c          30
+  (do (ns (defns G :import F))
+      a)     10
+  b          20
+  (bound 'c) nil
+  ;; even if the ns export the var,
+  ;; it doesn't export extended private var automatically.
+  ;; if you want to do this.
+  (do (ns 'F)
+      (= c c)) 30 ;; define c in itself as extended private c.
+  (do (ns 'G)
+      c)       30
+
+  (do (ns (defns H :extend B)) ;; parent all -> me all
+      (= g 60)
+      (bound 'c)) nil
+  a          10
+  f          50
+  (do (ns (defns I :import H))
+      (bound 'a)) nil
+  (bound 'b) nil
+  d          40
+  f          50
+  g          60
+
+  (do (ns (defns J :extend B :export g)) ;; parent all -> me not-all
+      (= g 60)
+      (= h 70)) 70
+  (do (ns (defns K :import J))
+      g) 60
+  (bound 'h) nil
+  (bound 'a) nil
+  (bound 'b) nil
+  d          40
+  f          50
+  g          60
+  (bound 'h) nil
+
   )
