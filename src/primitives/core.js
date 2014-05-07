@@ -799,6 +799,30 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
     // console.log(' *** current: ' + this.current_ns.name + ' internal: ' + this.ns.name);
     return this.current_ns;
   }],
+  '***export***': [{dot: -1}, function(ns, exports) {
+    exports = list_to_javascript_arr(exports, true);
+    if (!(ns instanceof NameSpace)) {
+      if (ns instanceof Symbol) {
+        ns = NameSpace.get(ns.name);
+      } else if (typeof ns === 'string') {
+        ns = NameSpace.get(ns);
+      }
+    }
+    ns.add_exports(exports);
+    return ns;
+  }],
+  '***import***': [{dot: -1}, function(ns, imports) {
+    imports = list_to_javascript_arr(imports, true);
+    if (!(ns instanceof NameSpace)) {
+      if (ns instanceof Symbol) {
+        ns = NameSpace.get(ns.name);
+      } else if (typeof ns === 'string') {
+        ns = NameSpace.get(ns);
+      }
+    }
+    ns.add_imports(imports);
+    return ns;
+  }],
   'collect-bounds-in-ns': [{dot: 1}, function(ns, type_s) {
     var bounds = ((1 < arguments.length) ?
                   ns.collect_bounds(type_s.name) :

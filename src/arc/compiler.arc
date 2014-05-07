@@ -209,6 +209,12 @@
                 (err (+ "The name \"" x "\" is not specified how to use."))))))
         options nil nil nil nil)))
 
+(mac export es
+  `(***export*** (***curr-ns***) ',es))
+
+(mac import is
+  `(***import*** (***curr-ns***) ',is))
+
 ;; special syntax.
 (assign ***special_syntax*** (table))
 

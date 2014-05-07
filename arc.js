@@ -631,6 +631,42 @@ var Reader = classify("Reader", {
 ArcJS.Reader = Reader;
 /** @} */
 /** @file namespace.js { */
+var NameSpace = (function() {
+
+function _copy(o, depth) {
+  var i, rt;
+  if (depth === void(0)) depth = 1;
+  if (depth <= 0) return o;
+  if (o instanceof Array) {
+    // this is an array.
+    rt = [];
+    for (i = o.length-1; -1<i; i--) {
+      rt[i] = _copy(o[i], depth - 1);
+    }
+  } else if (typeof o === 'object') {
+    // this is a object.
+    rt = {};
+    for (i in o) {
+      rt[i] = _copy(o[i], depth - 1);
+    }
+  } else {
+    // this is a simple value.
+    return o;
+  }
+  return rt;
+}
+
+function _normalize(arr, filter, err_msg) {
+  arr = arr || [];
+  for (var i = 0, l = arr.length, acc = []; i<l; i++) {
+    var itm = arr[i];
+    var n = ((itm instanceof Symbol) ? itm.name : ((typeof itm === 'string') ? itm : null));
+    if (n === null) { throw new Error(err_msg + ' must be given symbol or string.'); }
+    acc[i] = filter ? filter(n) : n;
+  }
+  return acc;
+}
+
 var NameSpace = classify('NameSpace', {
   property: {
     name:            null,
@@ -662,22 +698,8 @@ var NameSpace = classify('NameSpace', {
       var extend_name = ((extend instanceof Symbol) ? extend.name :
                          ((typeof extend === 'string') ? extend : null));
       extend = (extend_name !== null ? NameSpace.get(extend_name) : null);
-      imports = imports || [];
-      for (var i = 0, l = imports.length, acc = []; i<l; i++) {
-        var itm = imports[i];
-        var n = ((itm instanceof Symbol) ? itm.name : ((typeof itm === 'string') ? itm : null));
-        if (n === null) { throw new Error('NameSpace name must be given symbol or string.'); }
-        acc[i] = NameSpace.get(n);
-      }
-      imports = acc;
-      exports = exports || [];
-      for (var i = 0, l = exports.length, acc = []; i<l; i++) {
-        var itm = exports[i];
-        var n = ((itm instanceof Symbol) ? itm.name : ((typeof itm === 'string') ? itm : null));
-        if (n === null) { throw new Error('export name must be given symbol or string.'); }
-        acc[i] = n;
-      }
-      exports = acc;
+      imports = _normalize(imports, function(n) { return NameSpace.get(n); }, 'NameSpace name');
+      exports = _normalize(exports, null, 'export name');
       return new NameSpace(name, extend, imports, exports);
     },
     create_with_default: function(name, extend, imports, exports) {
@@ -687,28 +709,6 @@ var NameSpace = classify('NameSpace', {
   },
   method: {
     init: function(name, extend, imports, exports) {
-      function _copy(o, depth) {
-        var i, rt;
-        if (depth === void(0)) depth = 1;
-        if (depth <= 0) return o;
-        if (o instanceof Array) {
-          // this is an array.
-          rt = [];
-          for (i = o.length-1; -1<i; i--) {
-            rt[i] = _copy(o[i], depth - 1);
-          }
-        } else if (typeof o === 'object') {
-          // this is a object.
-          rt = {};
-          for (i in o) {
-            rt[i] = _copy(o[i], depth - 1);
-          }
-        } else {
-          // this is a simple value.
-          return o;
-        }
-        return rt;
-      }
       this.name = name;
       if (extend !== null) {
         this.parent            = extend;
@@ -736,25 +736,28 @@ var NameSpace = classify('NameSpace', {
           this.exports_by_type = {};
         }
       }
-      this.imports             = this.imports.concat(imports);
-      this.export_names        = this.export_names.concat(exports);
+      this.add_imports(imports);
+      this.add_exports(exports);
+      NameSpace.tbl[name] = this;
+    },
+    add_imports: function(imports) {
+      this.imports = this.imports.concat(imports);
+    },
+    add_exports: function(exports) {
+      this.export_names = this.export_names.concat(exports);
       var export_all = (exports.length < 1);
       if (this.export_all !== export_all) {
         this.export_all = export_all;
         if (this.export_all) {
-          // parent not-all -> me all
-          // nothing to do.
+          // not-all -> all (nothing to do)
         } else {
-          // parent all     -> me not-all
+          // all     -> not-all
           this.exports         = _copy(this.primary);
           this.exports_by_type = _copy(this.primary_by_type, 2);
         }
       } else {
-        // all     -> all
-        // not-all -> not-all
-        // nothing to do.
+        // all -> all or not-all -> not-all (nothing to do)
       }
-      NameSpace.tbl[name] = this;
     },
     _set: function(name, val, type_name) {
       var ns = (name.match(/\*\*\*.+\*\*\*/)) ? NameSpace.global_ns : this;
@@ -820,7 +823,7 @@ var NameSpace = classify('NameSpace', {
     }
   }
 });
-ArcJS.NameSpace = NameSpace;
+
 var global_ns     = new NameSpace('***global***', null, [], []);
 NameSpace.global_ns = global_ns;
 var primitives_ns = new NameSpace('arc.core.primitives', null, [global_ns], []);
@@ -828,6 +831,12 @@ var compiler_ns   = new NameSpace('arc.core.compiler',   null, [global_ns, primi
 var arc_ns        = new NameSpace('arc.core',            null, [global_ns, primitives_ns, compiler_ns], []);
 var default_ns    = new NameSpace('arc.user_default',    null, [global_ns, primitives_ns, compiler_ns, arc_ns], []);
 NameSpace.default_ns = default_ns;
+
+return NameSpace;
+
+})();
+
+ArcJS.NameSpace = NameSpace;
 /** @} */
 /** @file primitives.js { */
 var Primitives = classify('Primitives', {
@@ -1669,6 +1678,30 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
   '***curr-ns***': [{dot: -1}, function() {
     // console.log(' *** current: ' + this.current_ns.name + ' internal: ' + this.ns.name);
     return this.current_ns;
+  }],
+  '***export***': [{dot: -1}, function(ns, exports) {
+    exports = list_to_javascript_arr(exports, true);
+    if (!(ns instanceof NameSpace)) {
+      if (ns instanceof Symbol) {
+        ns = NameSpace.get(ns.name);
+      } else if (typeof ns === 'string') {
+        ns = NameSpace.get(ns);
+      }
+    }
+    ns.add_exports(exports);
+    return ns;
+  }],
+  '***import***': [{dot: -1}, function(ns, imports) {
+    imports = list_to_javascript_arr(imports, true);
+    if (!(ns instanceof NameSpace)) {
+      if (ns instanceof Symbol) {
+        ns = NameSpace.get(ns.name);
+      } else if (typeof ns === 'string') {
+        ns = NameSpace.get(ns);
+      }
+    }
+    ns.add_imports(imports);
+    return ns;
   }],
   'collect-bounds-in-ns': [{dot: 1}, function(ns, type_s) {
     var bounds = ((1 < arguments.length) ?
