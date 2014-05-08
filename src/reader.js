@@ -115,7 +115,7 @@ var Reader = classify("Reader", {
 
     read_blist: function() {
       var body = this.read_list(true);
-      return cons(Symbol.get('%shortfn'), cons(body, nil));
+      return cons(Symbol.get('***cut-fn***'), cons(body, nil));
     },
 
     read_thing: function() {

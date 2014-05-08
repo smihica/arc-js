@@ -51,22 +51,15 @@ var NameSpace = classify('NameSpace', {
     root:  null,
     global_ns: null,
     default_ns: null,
-    get: function(name, create) {
+    get: function(name) {
       var rt = NameSpace.tbl[name];
-      if (!rt) {
-        if (!create)
-          throw new Error('the namespace "' + name + '" is not found.');
-        else
-          return new NameSpace(name, [], []);
-      }
+      if (!rt) throw new Error('the namespace "' + name + '" is not found.');
       return rt;
     },
     create: function(name, extend, imports, exports) {
       var extend_name = ((extend instanceof Symbol) ? extend.name :
                          ((typeof extend === 'string') ? extend : null));
       extend = (extend_name !== null ? NameSpace.get(extend_name) : null);
-      imports = _normalize(imports, function(n) { return NameSpace.get(n); }, 'NameSpace name');
-      exports = _normalize(exports, null, 'export name');
       return new NameSpace(name, extend, imports, exports);
     },
     create_with_default: function(name, extend, imports, exports) {
@@ -108,9 +101,11 @@ var NameSpace = classify('NameSpace', {
       NameSpace.tbl[name] = this;
     },
     add_imports: function(imports) {
+      imports = _normalize(imports, function(n) { return NameSpace.get(n); }, 'NameSpace name');
       this.imports = this.imports.concat(imports);
     },
     add_exports: function(exports) {
+      exports = _normalize(exports, null, 'export name');
       this.export_names = this.export_names.concat(exports);
       var export_all = (exports.length < 1);
       if (this.export_all !== export_all) {
@@ -193,10 +188,10 @@ var NameSpace = classify('NameSpace', {
 
 var global_ns     = new NameSpace('***global***', null, [], []);
 NameSpace.global_ns = global_ns;
-var primitives_ns = new NameSpace('arc.core.primitives', null, [global_ns], []);
-var compiler_ns   = new NameSpace('arc.core.compiler',   null, [global_ns, primitives_ns], []);
-var arc_ns        = new NameSpace('arc.core',            null, [global_ns, primitives_ns, compiler_ns], []);
-var default_ns    = new NameSpace('arc.user_default',    null, [global_ns, primitives_ns, compiler_ns, arc_ns], []);
+var primitives_ns = new NameSpace('arc.core.primitives', null, ['***global***'], []);
+var compiler_ns   = new NameSpace('arc.core.compiler',   null, ['***global***', 'arc.core.primitives'], []);
+var arc_ns        = new NameSpace('arc.core',            null, ['***global***', 'arc.core.primitives', 'arc.core.compiler'], []);
+var default_ns    = new NameSpace('arc.user_default',    null, ['***global***', 'arc.core.primitives', 'arc.core.compiler', 'arc.core'], []);
 NameSpace.default_ns = default_ns;
 
 return NameSpace;
