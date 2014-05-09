@@ -20,7 +20,7 @@ function compile(expr) {
     ['argument'],
     ['constant', 1],
     ['argument'],
-    ['refer-global', 'do-compile'],
+    ['refer-global', 'compile'],
     ['indirect'],
     ['apply'],
     ['halt']
@@ -61,7 +61,8 @@ function onenter(code) {
       }
     }
     if (!err) {
-      var called_ns = vm.namespace;
+      var called_ns = vm.ns;
+      var called_current_ns = vm.current_ns;
       try {
         var compiled = compile(expr);
         vm.cleanup();
@@ -70,7 +71,8 @@ function onenter(code) {
         result = ArcJS.stringify(res);
       } catch (e) {
         result = e.toString();
-        vm.namespace = called_ns;
+        vm.ns = called_ns;
+        vm.current_ns = called_current_ns;
         err = true;
       }
     }
@@ -88,15 +90,11 @@ function onenter(code) {
     code_hist = '';
     code_all = vm.reader.str.slice(vm.reader.i);
 
-  } while (code_all !== '');
+    term = 'arc' + ((vm.current_ns.name !== 'user') ?
+                    ':' + vm.current_ns.name :
+                    '') + '> ';
 
-  var ns = vm.namespace;
-  var nss = '';
-  while (ns !== ArcJS.NameSpace.root) {
-    nss = '::' + ns.name + nss;
-    ns = ns.upper;
-  }
-  term = 'arc' + nss + '> ';
+  } while (code_all !== '');
 
   return false;
 }

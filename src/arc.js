@@ -12,10 +12,11 @@ var ArcJS = (function() {
   include("continuation.js");
   include("tagged.js");
   include("box.js");
+  include("regexp.js");
   include("reader.js");
+  include("namespace.js");
   include("primitives.js");
   include("preload.js");
-  include("namespace.js");
   include("vm.js");
   include("context.js");
   return ArcJS;

@@ -1,34 +1,51 @@
+(ns 'arc.core.compiler)
+
+(***export***
+  (***curr-ns***)
+  '(
+  ;; layer 0
+  mac rfn afn if and or let def aif
+  ;; layer 1
+  caselet case quasiquote
+  ;; layer 2
+  map1 withs w/uniq compose complement
+  ;; ns
+  defns export import
+  ;; ss
+  defss namespace-ss compose-ss complement-ss sexp-ss sexp-with-quote-ss keyword-ss
+  ;; tf
+  deftf cons-tf table-tf string-tf
+  ;; ---
+  mem union map mappend keep
+  ;; layer 3
+  set-minus set-intersect zip ssexpand macex1 macex
+  ;; layer 4
+  compile
+  ))
+
 ;;;;;;;;;;;;;;;;;;;;; layer 0
-
-(assign %___macros___ (table))
-(assign %___special_syntax___ (table))
-(assign %___special_syntax_list___ nil)
-(assign %___type_functions___ (table))
-
-;(mac mac (name vars . body)
-;(if body
-;      `(assign ,name (sref %___macros___ (annotate 'mac (fn ,vars ,@body)) ',name))
-;      `(annotate 'mac (fn ,name ,@vars))))
-
 (assign mac
-        (sref %___macros___
-              (annotate 'mac
-                        (fn (name vars . body)
-                          (%if body
-                               (list 'assign name (list 'sref '%___macros___ (list 'annotate ''mac (+ (list 'fn vars) body)) (list 'quote name)))
-                               (list 'annotate ''mac (+ (list 'fn name) vars)))))
-              'mac))
+        (annotate 'mac
+                  (fn (name vars . body)
+                    (%if body
+                         (list 'assign name
+                               (list 'with (list name (+ (list 'fn vars) body))
+                                     (list 'fn-name name (list 'quote name))
+                                     (list 'annotate ''mac name)))
+                         (list 'annotate ''mac (+ (list 'fn name) vars))))))
+
+(assign ***macros*** (fn () (collect-bounds-in-ns (***curr-ns***) 'mac)))
 
 ;; TODO:
 ;; support
 ;; - _0 ~ _9 (arg)
 ;; - _* (args-all)
 ;; - _$ self
-(mac %shortfn (body) (list 'fn (list '_) body))
+(mac ***cut-fn*** (body) (list 'fn (list '_) body))
 
 (mac rfn (name vars . body)
   (list 'with (list name nil)
-        (list 'assign name (+ (list 'fn vars) body))
+        (list 'assign  name (+ (list 'fn vars) body))
         (list 'fn-name name (list 'quote name))
         name))
 
@@ -62,7 +79,7 @@
   (+ (list 'with (list var val)) body))
 
 (mac def (name vars . body)
-  (list 'assign name (+ (list 'fn vars) body)))
+  (list 'assign name (+ (list 'rfn name vars) body)))
 
 (mac aif args
   ((afn (ps)
@@ -195,17 +212,49 @@
 
 (def complement (f) (fn args (no (apply f args))))
 
+;; namespace
+(mac defns (name . options)
+  `(***defns***
+     ',name
+     ,@((afn (opts m s i e)
+          (let x (car opts)
+            (case x
+              nil     (list s `',(nrev i) `',(nrev e))
+              :extend (self (cdr opts) 's s i e)
+              :import (self (cdr opts) 'i s i e)
+              :export (self (cdr opts) 'e s i e)
+              (case m
+                s (self (cdr opts) m (list 'quote x) i e)
+                i (self (cdr opts) m s (cons x i) e)
+                e (self (cdr opts) m s i (cons x e))
+                (err (+ "The name \"" x "\" is not specified how to use."))))))
+        options nil nil nil nil)))
+
+(mac export es
+  `(***export*** (***curr-ns***) ',es))
+
+(mac import is
+  `(***import*** (***curr-ns***) ',is))
+
 ;; special syntax.
+(assign ***special-syntax-order*** 0)
+
 (mac defss (name regex vars . body)
   `(do
      (assign ,name
-             (sref %___special_syntax___
-                   (annotate 'special-syntax (cons ,regex (fn ,vars ,@body)))
-                   ',name))
-     (assign %___special_syntax_list___
-             (map1 (fn (x) (rep (cadr x)))
-                   (coerce %___special_syntax___ 'cons)))
+             (annotate 'special-syntax
+                       (list ,regex
+                             ***special-syntax-order***
+                             (rfn ,name ,vars ,@body))))
+     (assign ***special-syntax-order***
+             (+ ***special-syntax-order*** 1))
      ,name))
+
+(defss namespace-ss #/^(.+?)::(.+)$/ (a b)
+       (w/uniq (orig rt)
+         `(let ,orig (***curr-ns***)
+            (ns ',a)
+            (let ,rt ,b (ns ,orig) ,rt))))
 
 (defss compose-ss #/^(.*[^:]):([^:].*)$/ (a b)
        `(compose ,a ,b))
@@ -213,21 +262,19 @@
 (defss complement-ss #/^\~(.+)$/ (a)
        `(complement ,a))
 
-(defss sexp-ss #/^(.+)\.(.+)$/ (a b)
+(defss sexp-ss #/^(.*[^.])\.([^.].*)$/ (a b)
        `(,a ,b))
 
 (defss sexp-with-quote-ss #/^(.+)\!(.+)$/ (a b)
        `(,a ',b))
 
-(defss namespace #/^(.+?)::(.+)$/ (a b)
-       `(ns ,a ,b))
+(defss keyword-ss #/^:(.+)$/ (sym) `(keyword ',sym))
 
 ;; type functions.
 (mac deftf (type vars . body)
-  `(assign ,(coerce (+ "%___" (coerce type 'string) "_type_fn___") 'sym)
-           (sref %___type_functions___
-                 (annotate 'type-function (fn ,vars ,@body))
-                 ',type)))
+  (let name (coerce (+ (coerce type 'string) "-tf") 'sym)
+    `(assign ,name
+             (annotate 'type-fn (rfn ,name ,vars ,@body)))))
 
 (deftf cons   (c n)   (ref c n))
 (deftf table  (tbl k) (ref tbl k))
@@ -306,32 +353,18 @@
           (and lis1 lis2))
       (cons (car lis1) (cons (car lis2) (zip (cdr lis1) (cdr lis2) (car longest-p))))))
 
-(def dotted (l) (if (acons l) (dotted (cdr l)) l t))
-(def dottify (l) (if (no (cdr l)) (car l) (cons (car l) (dottify (cdr l)))))
-(def undottify (l) (if (acons l) (cons (car l) (undottify (cdr l))) l (cons l nil)))
+; (def dotted (l) (if (acons l) (dotted (cdr l)) l t))
+; (def dottify (l) (if (no (cdr l)) (car l) (cons (car l) (dottify (cdr l)))))
+; (def undottify (l) (if (acons l) (cons (car l) (undottify (cdr l))) l (cons l nil)))
 
 ;;;;;;;;;;;;;;;;;;;;; layer 4
-
-(def ssyntax (s . expand-p)
-  (let sstr (string s)
-    ((rfn ssyntax-iter (sslis)
-       (if sslis
-           (withs (reg-fn (car sslis)
-                   reg    (car reg-fn)
-                   fn     (cdr reg-fn))
-             (aif (match reg sstr)
-                  (if (car expand-p)
-                      (apply fn (map1 read (cdr it)))
-                      t)
-                  (ssyntax-iter (cdr sslis))))))
-     %___special_syntax_list___)))
 
 (def ssexpand (s)
   (aif (ssyntax s t) it s))
 
 (def macex1 (x)
-  (aif (and (is (type x) 'cons) (ref %___macros___ (car x)))
-       (apply (rep it) (cdr x))
+  (aif (and (is (type x) 'cons) (ref (***macros***) (car x)))
+       (apply (rep (indirect it)) (cdr x))
        x))
 
 (def %macex (x e)
@@ -340,11 +373,11 @@
            x
            (quote body `(quote ,@body))
            (fn (vars . body)
-             (if (%complex-args? vars)
+             (if (complex-args? vars)
                  (%macex
                    (w/uniq (arg)
                      `(fn ,arg
-                        (with ,(%complex-args (list vars) (list arg))
+                        (with ,(complex-args (list vars) (list arg))
                           ,@body)))
                    e)
                  `(fn ,vars
@@ -354,12 +387,12 @@
            (with (var-val . body)
              (let var-val (%pair var-val)
                (let vars (map1 car var-val)
-                 (if (%complex-args? vars)
+                 (if (complex-args? vars)
                      (let vals (map1 cadr var-val)
                        (let uniqs (map1 [uniq] vals)
                          (%macex
                            `(with ,(zip uniqs vals)
-                              (with ,(%complex-args vars uniqs)
+                              (with ,(complex-args vars uniqs)
                                 ,@body))
                            e)))
                      `(with ,(mappend (fn (p) (list (car p) (%macex (cadr p) e))) var-val)
@@ -369,9 +402,9 @@
            (aif (let top (car x)
                   (and (is (type top) 'sym)
                        (no (mem top e))
-                       (ref %___macros___ top)))
+                       (ref (***macros***) top)))
                 (%macex
-                  (apply (rep it) (cdr x)) e)
+                  (apply (rep (indirect it)) (cdr x)) e)
                 (map1 [%macex _ e] x)))
 
     sym (let expanded (ssexpand x)
@@ -383,7 +416,7 @@
 
 (def macex (x . igns) (%macex x igns))
 
-(def %%complex-args (args ra)
+(def %complex-args (args ra)
   (if args
       (case (type args)
         sym  `(,args ,ra)
@@ -394,25 +427,25 @@
                 `(,(cadar args)
                   (if (acons ,ra) (car ,ra)
                       ,(if (acons (cddar args)) (caddar args))))
-                (%%complex-args
+                (%complex-args
                   (car args)
                   `(car ,ra)))
           (let v (car x)
-            (+ x (%%complex-args
+            (+ x (%complex-args
                    (cdr args)
                    `(cdr ,ra)))))
         (err (+ "Can't understand vars list" args)))))
 
-(def %complex-args (args-lis ra-lis)
-  (mappend (fn (x) (%%complex-args (car x) (cadr x)))
+(def complex-args (args-lis ra-lis)
+  (mappend (fn (x) (%complex-args (car x) (cadr x)))
            (map (fn (a b) (list a b)) args-lis ra-lis)))
 
-(def %complex-args? (args)
+(def complex-args? (args)
   (if (and (acons args) (is (type (car args)) 'sym))
-      (%complex-args? (cdr args))
+      (complex-args? (cdr args))
       (and args (no (is (type args) 'sym)))))
 
-(def %complex-args-get-var (args)
+(def complex-args-get-var (args)
   (if args
       (case (type args)
         sym  (list args)
@@ -420,10 +453,9 @@
         (let xs (let a (car args)
                   (if (and (acons a) (is (car a) 'o))
                       (list (cadr a))
-                      (%complex-args-get-var a)))
-          (+ (%complex-args-get-var (cdr args)) xs))
+                      (complex-args-get-var a)))
+          (+ (complex-args-get-var (cdr args)) xs))
         (err (+ "Can't understand vars list" args)))))
-
 
 (def compile-lookup-let (x let-e n return-let)
   (if let-e
@@ -485,6 +517,8 @@
 
            (ccc (exp) (find-free exp b))
 
+           (ns (exp) (find-free exp b))
+
            (dedup (flat (map1 [find-free _ b] x)))
 
            )))
@@ -517,6 +551,8 @@
                           (find-sets x v)))
 
            (ccc (exp) (find-sets exp v))
+
+           (ns (exp) (find-sets exp v))
 
            (dedup (flat (map1 [find-sets _ v] x))))))
 
@@ -568,7 +604,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def compile (x e s next)
+(def %compile (x e s next)
   (case (type x)
     sym  (compile-refer
            x e
@@ -593,7 +629,7 @@
                      `(close ,(len free) ,(len vars) ,dotpos
                              ,(make-boxes
                                 sets (rev vars)
-                                (compile body
+                                (%compile body
                                          (cons '() (cons (rev vars) free))
                                          (union is
                                                 sets
@@ -608,7 +644,7 @@
                   (if (no args)
                       c
                       (self (cdr args)
-                            (compile (car args)
+                            (%compile (car args)
                                      e
                                      s
                                      `(argument ,c)))))
@@ -621,7 +657,7 @@
                     `(enter-let
                        ,(make-boxes
                           sets (rev vars)
-                          (compile
+                          (%compile
                             body
                             e
                             (union is
@@ -633,26 +669,26 @@
                ((afn (body next)
                   (if (no body) next
                       (self (cdr body)
-                            (compile (car body) e s next))))
+                            (%compile (car body) e s next))))
                 (rev body)
                 next))
 
            (%if (test then else)
-                (with (thenc (compile then e s `(ignore ,next))
-                       elsec (compile else e s `(ignore ,next)))
-                  (compile test e s `(test ,thenc ,elsec ,next))))
+                (with (thenc (%compile then e s `(ignore ,next))
+                       elsec (%compile else e s `(ignore ,next)))
+                  (%compile test e s `(test ,thenc ,elsec ,next))))
 
            (assign (var x)
                    (compile-lookup
                      var e next
                      (fn (n m)
-                       (compile x e s `(assign-let ,n ,m ,next)))
+                       (%compile x e s `(assign-let ,n ,m ,next)))
                      (fn (n)
-                       (compile x e s `(assign-local ,n ,next)))
+                       (%compile x e s `(assign-local ,n ,next)))
                      (fn (n)
-                       (compile x e s `(assign-free ,n ,next)))
+                       (%compile x e s `(assign-free ,n ,next)))
                      (fn (n)
-                       (compile x e s `(assign-global ,n ,next)))))
+                       (%compile x e s `(assign-global ,n ,next)))))
 
            (ccc (x)
                 (let c
@@ -663,7 +699,7 @@
                            (constant
                              1
                              (argument
-                               ,(compile
+                               ,(%compile
                                   x e s
                                   (if (< 0 shift-num)
                                       `(shift
@@ -675,15 +711,17 @@
                        (c it)
                        `(frame ,next ,(c 0)))))
 
+           (ns (exp) (%compile exp e s `(ns ,next)))
+
            ((afn (args c)
               (if (no args)
                   (if (tailp next)
                       c
                       `(frame ,next ,c))
                   (self (cdr args)
-                        (compile (car args) e s `(argument ,c)))))
+                        (%compile (car args) e s `(argument ,c)))))
             (rev (+ (cdr x) (list (len (cdr x)))))
-            (compile (car x) e s
+            (%compile (car x) e s
                      (aif (tailp next)
                           `(shift
                              ,(+ (len (cdr x)) 1)
@@ -783,6 +821,8 @@
                    `((assign-global ,n)
                      ,@(preproc x (+ i 1))))
 
+    (ns (x) `((ns) ,@(preproc x (+ i 1))))
+
     (box         (n x)
                  `((box ,n)
                    ,@(preproc x (+ i 1))))
@@ -801,9 +841,10 @@
 
     nil))
 
-(def do-compile (x)
+(def compile (x)
+  ;; (prn (***curr-ns***))
   (preproc
-    (compile
+    (%compile
       (%macex x nil)
       '()
       '()

@@ -13,22 +13,32 @@ var VM = classify("VM", {
     s: 0,
     count: 0,
     stack: null,
-    global: null,
     reader: null,
-    namespace: null,
+    ns: null,
+    current_ns: null,
     call_stack: null,
     recent_call_args: null,
     warn: null,
   },
   method: {
     init: function() {
-      this.namespace = NameSpace.root;
-      this.global = this.namespace.vars;
-      for (var p in primitives) {
-        this.global[p] = new Box(primitives[p]);
-      }
       this.reader = new Reader();
+      // initializing primitives.
+      var prim_all = Primitives.all;
+      for (var i = 0, l = prim_all.length; i<l; i++) {
+        var prm = prim_all[i];
+        var vars = prm.vars;
+        for (var p in vars) {
+          prm.ns.setBox(p, vars[p]);
+        }
+      }
+      // starting with compiler namespace.
+      this.ns = NameSpace.get('arc.core.compiler');
+      this.current_ns = this.ns;
       this.init_def(preloads, preload_vals);
+      // changing to user namespace.
+      this.ns = NameSpace.create_with_default('user');
+      this.current_ns = this.ns;
     },
     init_def: function(preloads, preload_vals) {
       var ops = VM.operators;
@@ -69,6 +79,7 @@ var VM = classify("VM", {
                 case 'constant':
                   asm.push([op, this.reader.read(vals[line[++k]|0])]);
                   break;
+                case 'ns':
                 case 'indirect':
                 case 'halt':
                 case 'argument':
@@ -127,6 +138,7 @@ var VM = classify("VM", {
         case 'assign-global':
           c[1] = (c[1].name);
           break;
+        case 'ns':
         case 'constant':
         case 'indirect':
         case 'halt':
@@ -162,12 +174,8 @@ var VM = classify("VM", {
       this.warn = "";
       if (globalp) {
         this.x = null;
-        NameSpace.root = new NameSpace('%ROOT', null);
-        this.namespace = NameSpace.root;
-        this.global = NameSpace.root.vars;
-        for (var p in primitives) {
-          this.global[p] = new Box(primitives[p]);
-        }
+        this.ns = NameSpace.create_with_default('user');
+        this.current_ns = this.ns;
       }
     },
     step: function() {
@@ -229,21 +237,9 @@ var VM = classify("VM", {
           this.p++;
           break;
         case 'refer-global':
-          var name = op[1]; // symbol name
-          var value = void(0);
-          var ns = this.namespace;
-          var vars = this.global;
-          while (value === void(0)) {
-            value = vars[name];
-            if (ns.upper === null) {
-              if (value === void(0))
-                throw new Error('Unbound variable ' + stringify_for_disp(Symbol.get(name)));
-              else break;
-            }
-            ns = ns.upper;
-            vars = ns.vars;
-          }
-          this.a = value;
+          // console.log(' *** refer -- ' + op[1] + ' ns: ' + this.ns.name);
+          this.a = this.ns.get(op[1]);
+          this.x.splice(this.p, 1, ['constant', this.a]); // optimization
           this.p++;
           break;
         case 'refer-nil':
@@ -268,7 +264,7 @@ var VM = classify("VM", {
           b = op[2];
           v = op[3];
           d = op[4];
-          this.a = new Closure(this.x, this.p + 1, n, v, d, this.stack, this.s, this.namespace);
+          this.a = new Closure(this.x, this.p + 1, n, v, d, this.stack, this.s, this.ns);
           this.p += b;
           this.s -= n;
           break;
@@ -305,18 +301,14 @@ var VM = classify("VM", {
           this.p++;
           break;
         case 'assign-global':
-          var name = op[1];
-          var box = this.global[name] || new Box(this.a);
-          if (this.a instanceof Closure) this.a.name = name;
-          else if (this.a instanceof Tagged && this.a.tag == s_mac) this.a.obj.name = name;
-          box.setbox(this.a);
-          this.global[name] = box;
+          this.current_ns.setBox(op[1], this.a);
+          // console.log(' *** assign -- ' + op[1] + ' ns: ' + this.current_ns.name);
           this.p++;
           break;
         case 'frame':
           n = op[1];
           this.s = this.stack.push(
-            [this.x, this.p + n],
+            [this.x, this.p + n, this.ns],
             this.stack.push(
               this.f,
               this.stack.push(
@@ -334,8 +326,6 @@ var VM = classify("VM", {
           n = op[1];
           m = op[2];
           this.s = this.stack.shift(n, m, this.s);
-          this.namespace = NameSpace.pop();
-          this.global = this.namespace.vars;
           this.call_stack.shift();
           this.p++;
           break;
@@ -343,10 +333,10 @@ var VM = classify("VM", {
           var fn = this.a;
           var fn_type = type(fn);
           if (fn_type !== s_fn) {
-            var tfs = this.global['%___type_functions___'];
+            var tfs = this.ns.collect_bounds('type-fn');
             var tfn;
-            if (tfs && (tfn = tfs.v.get(fn_type)) !== nil) {
-              tfn = rep(tfn);
+            if (tfs && (tfn = tfs[fn_type.name + '-tf']) !== nil) {
+              tfn = rep(tfn.v);
               // get original args len from the top of the stack..
               var vlen = this.stack.index(this.s, 0);
               // added fn as an argument.
@@ -376,9 +366,7 @@ var VM = classify("VM", {
             this.x = fn.body;
             this.p = fn.pc;
             this.c = fn;
-            NameSpace.push(this.namespace);
-            this.namespace = fn.namespace;
-            this.global = this.namespace.vars;
+            this.ns = fn.namespace;
             if (-1 < dotpos) {
               var lis = nil;
               for (var i = 0, l = (vlen - dotpos); i < l; i++) {
@@ -407,6 +395,7 @@ var VM = classify("VM", {
               var xp = this.stack.index(this.s, vlen + 1);
               this.x = xp[0];
               this.p = xp[1];
+              this.ns = xp[2];
               this.f = this.stack.index(this.s, vlen + 2); // for continuation
               this.l = this.stack.index(this.s, vlen + 3); // for continuation
               this.c = this.stack.index(this.s, vlen + 4); // for continuation
@@ -415,8 +404,6 @@ var VM = classify("VM", {
           }
           break;
         case 'return':
-          this.namespace = NameSpace.pop();
-          this.global = this.namespace.vars;
           this.call_stack.shift();
           // don't break !!
         case 'continue-return':
@@ -425,6 +412,7 @@ var VM = classify("VM", {
           var xp = this.stack.index(ns, 0);
           this.x = xp[0];
           this.p = xp[1];
+          this.ns = xp[2];
           this.f = this.stack.index(ns, 1);
           this.l = this.stack.index(ns, 2);
           this.c = this.stack.index(ns, 3);
@@ -432,13 +420,26 @@ var VM = classify("VM", {
           break;
         case 'conti':
           n = op[1];
-          this.a = new Continuation(this.stack, n, this.s, this.namespace);
+          this.a = new Continuation(this.stack, n, this.s, this.ns);
           this.p++;
           break;
         case 'nuate':
           var stack = op[1];
           this.p++;
           this.s = this.stack.restore(stack);
+          break;
+        case 'ns':
+          var ns = this.a;
+          if (ns instanceof NameSpace) {
+            this.ns = ns;
+          } else if (ns instanceof Symbol) {
+            this.ns = NameSpace.get(ns.name);
+          } else if (typeof ns === 'string') {
+            this.ns = NameSpace.get(ns);
+          }
+          this.current_ns = this.ns;
+          this.a = this.ns;
+          this.p++;
           break;
         default:
           throw new Error('Error: Unknown operand. ' + code);

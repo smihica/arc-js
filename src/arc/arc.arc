@@ -1,3 +1,5 @@
+(ns 'arc.core)
+
 (def pair (xs (o f list))
   (if (is f list) (%pair xs)
       ((afn (xs f)
@@ -8,12 +10,6 @@
        xs f)))
 
 (def exact (n) (if (is (type n) 'int) t))
-
-(mac ns (name . body)
-  (let x (uniq)
-    `(let ,x (do (in-ns ',name) ,@body)
-       (exit-ns)
-       ,x)))
 
 (mac make-br-fn (body) `(fn (_) ,body))
 
@@ -771,11 +767,11 @@
 
 (def int (x (o b 10)) (coerce x 'int b))
 
-(defss x-plus      #/^(\d+)\+$/ (x) `(fn (a) (+ ,x a)))
-(defss x-minus     #/^(\d+)\-$/ (x) `(fn (a) (- ,x a)))
-(defss x-mul       #/^(\d+)\*$/ (x) `(fn (a) (* ,x a)))
-(defss x-div       #/^(\d+)\/$/ (x) `(fn (a) (/ ,x a)))
-(defss x-div-inv   #/^\/(\d+)$/ (x) `(fn (a) (/ a ,x)))
+(defss x-plus-ss      #/^(\d+)\+$/ (x) `(fn (a) (+ ,x a)))
+(defss x-minus-ss     #/^(\d+)\-$/ (x) `(fn (a) (- ,x a)))
+(defss x-mul-ss       #/^(\d+)\*$/ (x) `(fn (a) (* ,x a)))
+(defss x-div-ss       #/^(\d+)\/$/ (x) `(fn (a) (/ ,x a)))
+(defss x-div-inv-ss   #/^\/(\d+)$/ (x) `(fn (a) (/ a ,x)))
 
 ; (def real (x) ($.exact->inexact x))
 
@@ -1800,15 +1796,10 @@
       (> a b) (gcd (- a b) b)
       (> b a) (gcd a (- b a))))
 
-(defss c_r #/^c([ad]{5,})r$/ (xs)
+(defss cxr-ss #/^c([ad]{5,})r$/ (xs)
        (let ac [case _ #\a 'car #\d 'cdr]
          `(let f (fn (x)
-                  ,((afn (xs) (if xs `(,(ac car.xs) ,(self cdr.xs)) 'x))
-                    (coerce (string xs) 'cons)))
-            (fn-name f ',(sym (+ 'c xs 'r)))
+                   ,((afn (xs) (if xs `(,(ac car.xs) ,(self cdr.xs)) 'x))
+                     (coerce (string xs) 'cons)))
+            (fn-name f ',(coerce (+ 'c xs 'r) 'sym))
             f)))
-
-(defss keyword-ss #/^:(.+)$/ (sym) `(keyword ',sym))
-
-(def keyword (s) (sym (+ #\: s)))
-(def keywordp (s) (is ((string s) 0) #\:))

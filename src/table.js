@@ -3,7 +3,7 @@ var Table = classify("Table", {
     genkey: (function() {
       var i = 0;
       return function() {
-        return '%___table_key_' + i++ + '___';
+        return '%___table_key_' + i++ + '___%';
       }
     })(),
     keying: function keying(obj) {
@@ -70,6 +70,12 @@ var Table = classify("Table", {
         var c = car(l);
         this.put(car(c), cadr(c));
         l = cdr(l);
+      }
+      return this;
+    },
+    load_from_js_hash: function(h) {
+      for (var k in h) {
+        this.put(Symbol.get(k), h[k]);
       }
       return this;
     },
