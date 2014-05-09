@@ -1,6 +1,6 @@
 var ArcJS = (function() {
   var ArcJS = this;
-  ArcJS.version = '0.1.1';
+  ArcJS.version = '0.1.2';
   include("../lib/classify.min.js");
   include("stack.js");
   include("symbol.js");
