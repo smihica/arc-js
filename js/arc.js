@@ -2449,7 +2449,7 @@ var VM = classify("VM", {
           if (fn_type !== s_fn) {
             var tfs = this.ns.collect_bounds('type-fn');
             var tfn;
-            if (tfs && (tfn = tfs[fn_type.name + '-tf']) !== nil) {
+            if (tfs && (tfn = tfs[fn_type.name + '-tf']) !== void(0)) {
               tfn = rep(tfn.v);
               // get original args len from the top of the stack..
               var vlen = this.stack.index(this.s, 0);
