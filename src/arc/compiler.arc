@@ -12,7 +12,7 @@
   ;; ns
   defns export import
   ;; ss
-  defss compose-ss complement-ss sexp-ss sexp-with-quote-ss namespace-ss keyword-ss
+  defss namespace-ss compose-ss complement-ss sexp-ss sexp-with-quote-ss keyword-ss
   ;; tf
   deftf cons-tf table-tf string-tf
   ;; ---
