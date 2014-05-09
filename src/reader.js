@@ -219,8 +219,8 @@ var Reader = classify("Reader", {
     },
 
     read_regexp: function() {
-      var str = this.read_string('/', 'regexp', true);
-      return list(Symbol.get('annotate'), list(Reader.QUOTE, Symbol.get('regexp')), str);
+      var str = this.read_string('/', 'regx', true);
+      return list(Symbol.get('regex'), str);
     },
 
     read_token: function() {

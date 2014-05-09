@@ -333,10 +333,10 @@ var VM = classify("VM", {
           var fn = this.a;
           var fn_type = type(fn);
           if (fn_type !== s_fn) {
-            var tfs = this.ns.get('***type_functions***');
+            var tfs = this.ns.collect_bounds('type-fn');
             var tfn;
-            if (tfs && (tfn = tfs.v.get(fn_type)) !== nil) {
-              tfn = rep(tfn);
+            if (tfs && (tfn = tfs[fn_type.name + '-tf']) !== nil) {
+              tfn = rep(tfn.v);
               // get original args len from the top of the stack..
               var vlen = this.stack.index(this.s, 0);
               // added fn as an argument.

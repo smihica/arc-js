@@ -18,6 +18,7 @@ var s_fn                 = Symbol.get('fn');
 var s_mac                = Symbol.get('mac');
 var s_internal_reference = Symbol.get('internal-reference');
 var s_namespace          = Symbol.get('namespace');
+var s_regex              = Symbol.get('regex');
 
 var list_to_javascript_arr = function(lis, depth) {
   var rt = (function list_to_javascript_arr_iter(lis, depth) {
@@ -93,9 +94,10 @@ var stringify = function stringify(x) {
     case 'table':
       return '#<table n=' + x.n + /* ' | ' + x.stringify_content() + */ '>';
     default:
-      if (x instanceof Tagged) return '#<tagged ' + type_name + ' ' + stringify(x.obj) + '>';
-      if (x instanceof Box)    return '#<internal-reference ' + stringify(x.unbox()) + '>';
+      if (x instanceof Tagged)    return '#<tagged ' + type_name + ' ' + stringify(x.obj) + '>';
+      if (x instanceof Box)       return '#<internal-reference ' + stringify(x.unbox()) + '>';
       if (x instanceof NameSpace) return '#<namespace ' + x.name + '>';
+      if (x instanceof Regex)     return '#<regex /' + x.src + '/>';
 
       // decycle and stringify
       {
@@ -316,6 +318,7 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
       if (x instanceof Tagged)    return x.tag;
       if (x instanceof Box)       return s_internal_reference;
       if (x instanceof NameSpace) return s_namespace;
+      if (x instanceof Regex)     return s_regex;
     default:
       return Symbol.get('%javascript-' + type);
     }
@@ -475,24 +478,35 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
   }],
   'ssyntax': [{dot: 1}, function(s, $$) {
     if (s === nil || s === t) return nil;
+    var specials = this.current_ns.collect_bounds('special-syntax');
+    var ordered = [];
     var sstr = s.name;
-    var specials = this.ns.get('***special_syntax***').unbox().src;
-    for (var i in specials) {
-      var reg_fn = rep(specials[i]);
-      var reg = car(reg_fn);
-      var fn  = cdr(reg_fn);
-      var mat = sstr.match(new RegExp(rep(reg)));
-      if (mat) {
-        if (1 < arguments.length) {
-          return new Call(fn, null, mat.slice(1).map(read));
-        }
-        return t;
+    if (1 < arguments.length) {
+      for (var i in specials) {
+        var reg_ord_fn = rep(specials[i].v);
+        var reg = car(reg_ord_fn);
+        var ord = cadr(reg_ord_fn);
+        var fn  = cadr(cdr(reg_ord_fn));
+        ordered[ord] = [reg.asm, fn];
+      }
+      for (var k = 0, l = ordered.length; k<l; k++) {
+        if (!ordered[k]) continue;
+        var mat = sstr.match(ordered[k][0]);
+        if (mat) return new Call(ordered[k][1], null, mat.slice(1).map(read));
+      }
+    } else {
+      for (var i in specials) {
+        var reg_ord_fn = rep(specials[i].v);
+        var reg = car(reg_ord_fn);
+        if (sstr.match(reg.asm)) return t;
       }
     }
     return nil;
   }],
   'match': [{dot: -1}, function(reg, str) {
-    var mat = str.match(new RegExp(rep(reg)));
+    if (!((reg instanceof Regex) && (typeof str === 'string')))
+      throw new Error('match requires regex as the first argument and string as the second.');
+    var mat = str.match(reg.asm);
     return mat ? javascript_arr_to_list(mat) : nil;
   }],
   '%pair': [{dot: -1}, function(lis) {
@@ -840,7 +854,16 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
   }],
   'keywordp': [{dot: -1}, function(x) {
     return ((x instanceof Symbol) && x.name[0] === ':') ? t : nil;
-  }]
+  }],
+  'regex': [{dot: -1}, function(s) {
+    var rt = ((typeof s === 'string') ? new Regex(s) :
+              (typeof s === 'number') ? new Regex(s + '') :
+              (s instanceof Symbol)   ? new Regex(s.name) :
+              (s instanceof Char)     ? new Regex(s.c) :
+              (s instanceof Regex)    ? s : null);
+    if (rt === null) throw new Error('regex requires string, number, symbol or char. but got ' + stringify(s) + '.');
+    return rt;
+  }],
 });
 
 var coerce      = primitives_core.vars.coerce;

@@ -237,23 +237,24 @@
   `(***import*** (***curr-ns***) ',is))
 
 ;; special syntax.
-(assign ***special_syntax*** (table))
+(assign ***special-syntax-order*** 0)
 
 (mac defss (name regex vars . body)
   `(do
      (assign ,name
-             (sref ***special_syntax***
-                   (annotate 'special-syntax (cons ,regex (rfn ,name ,vars ,@body)))
-                   ',name))
+             (annotate 'special-syntax
+                       (list ,regex
+                             ***special-syntax-order***
+                             (rfn ,name ,vars ,@body))))
+     (assign ***special-syntax-order***
+             (+ ***special-syntax-order*** 1))
      ,name))
 
 (defss namespace-ss #/^(.+?)::(.+)$/ (a b)
        (w/uniq (orig rt)
          `(let ,orig (***curr-ns***)
             (ns ',a)
-            (let ,rt ,b
-              (ns ,orig)
-              ,rt))))
+            (let ,rt ,b (ns ,orig) ,rt))))
 
 (defss compose-ss #/^(.*[^:]):([^:].*)$/ (a b)
        `(compose ,a ,b))
@@ -261,7 +262,7 @@
 (defss complement-ss #/^\~(.+)$/ (a)
        `(complement ,a))
 
-(defss sexp-ss #/^(.+)\.(.+)$/ (a b)
+(defss sexp-ss #/^([^.]+)\.([^.]+)$/ (a b)
        `(,a ,b))
 
 (defss sexp-with-quote-ss #/^(.+)\!(.+)$/ (a b)
@@ -270,14 +271,10 @@
 (defss keyword-ss #/^:(.+)$/ (sym) `(keyword ',sym))
 
 ;; type functions.
-(assign ***type_functions*** (table))
-
 (mac deftf (type vars . body)
-  (let name (coerce (+ "***" (coerce type 'string) "_type_fn***") 'sym)
+  (let name (coerce (+ (coerce type 'string) "-tf") 'sym)
     `(assign ,name
-             (sref ***type_functions***
-                   (annotate 'type-function (rfn ,name ,vars ,@body))
-                   ',type))))
+             (annotate 'type-fn (rfn ,name ,vars ,@body)))))
 
 (deftf cons   (c n)   (ref c n))
 (deftf table  (tbl k) (ref tbl k))

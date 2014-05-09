@@ -176,4 +176,29 @@
   g          60
   (bound 'h) nil
 
+  ;; deftf
+  (do (ns (defns A))
+      (deftf string (str n) (+ str n))
+      ("abc" "def"))       "abcdef"
+
+  (do (ns (defns B))
+      (deftf string (str n) (ref str (* n 2)))
+      ("abcd" 1))          #\c
+
+  (do (ns 'A) ("abc" 1))   "abc1"
+  (do (ns 'B) ("abc" 1))    #\c
+  (do (ns 'user) ("abc" 1)) #\b
+
+  ;; defss
+  (do (ns (defns A :export test-ss))
+      (defss test-ss #/^(\d+)\.\.\.(\d+)$/ (start end)
+             `(range ,start ,end))
+      (defss test-ss-2 #/^(\d+)%(\d+)$/ (x y)
+             `(mod ,x ,y))
+      (car (macex '10...20)))    'range
+  (car (macex '10%3))            'mod
+  (do (ns (defns B :import A))
+      (car (macex '1...10)))     'range
+  (macex '10%3)                  '10%3
+
   )
