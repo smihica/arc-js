@@ -12,7 +12,7 @@
   ;; ns
   defns export import
   ;; ss
-  defss compose-ss complement-ss sexp-ss sexp-with-quote-ss namespace-ss
+  defss compose-ss complement-ss sexp-ss sexp-with-quote-ss namespace-ss keyword-ss
   ;; tf
   deftf cons-tf table-tf string-tf
   ;; ---
@@ -45,7 +45,7 @@
 
 (mac rfn (name vars . body)
   (list 'with (list name nil)
-        (list 'assign name (+ (list 'fn vars) body))
+        (list 'assign  name (+ (list 'fn vars) body))
         (list 'fn-name name (list 'quote name))
         name))
 
@@ -79,10 +79,7 @@
   (+ (list 'with (list var val)) body))
 
 (mac def (name vars . body)
-  (list 'do
-        (list 'assign name (+ (list 'fn vars) body))
-        (list 'fn-name name (list 'quote name))
-        name))
+  (list 'assign name (+ (list 'rfn name vars) body)))
 
 (mac aif args
   ((afn (ps)
@@ -246,9 +243,17 @@
   `(do
      (assign ,name
              (sref ***special_syntax***
-                   (annotate 'special-syntax (cons ,regex (let x (fn ,vars ,@body) (fn-name x ',name) x)))
+                   (annotate 'special-syntax (cons ,regex (rfn ,name ,vars ,@body)))
                    ',name))
      ,name))
+
+(defss namespace-ss #/^(.+?)::(.+)$/ (a b)
+       (w/uniq (orig rt)
+         `(let ,orig (***curr-ns***)
+            (ns ',a)
+            (let ,rt ,b
+              (ns ,orig)
+              ,rt))))
 
 (defss compose-ss #/^(.*[^:]):([^:].*)$/ (a b)
        `(compose ,a ,b))
@@ -262,22 +267,17 @@
 (defss sexp-with-quote-ss #/^(.+)\!(.+)$/ (a b)
        `(,a ',b))
 
-(defss namespace-ss #/^(.+?)::(.+)$/ (a b)
-       (w/uniq (orig rt)
-         `(let ,orig (***curr-ns***)
-            (ns ',a)
-            (let ,rt ,b
-              (ns ,orig)
-              ,rt))))
+(defss keyword-ss #/^:(.+)$/ (sym) `(keyword ',sym))
 
 ;; type functions.
 (assign ***type_functions*** (table))
 
 (mac deftf (type vars . body)
-  `(assign ,(coerce (+ "***" (coerce type 'string) "_type_fn***") 'sym)
-           (sref ***type_functions***
-                 (annotate 'type-function (fn ,vars ,@body))
-                 ',type)))
+  (let name (coerce (+ "***" (coerce type 'string) "_type_fn***") 'sym)
+    `(assign ,name
+             (sref ***type_functions***
+                   (annotate 'type-function (rfn ,name ,vars ,@body))
+                   ',type))))
 
 (deftf cons   (c n)   (ref c n))
 (deftf table  (tbl k) (ref tbl k))

@@ -833,6 +833,13 @@ var primitives_core = (new Primitives('arc.core.primitives')).define({
   'indirect': [{dot: -1}, function(x) {
     if (x instanceof Box) return x.unbox();
     throw new Error(stringify(x) + ' is not internal-reference type.');
+  }],
+  'keyword': [{dot: -1}, function(x) {
+    if (!(x instanceof Symbol)) throw new Error('keyword requires a Symbol but ' + stringify(x) + ' given.');
+    return (x.name[0] === ':') ? x : Symbol.get(':' + x.name);
+  }],
+  'keywordp': [{dot: -1}, function(x) {
+    return ((x instanceof Symbol) && x.name[0] === ':') ? t : nil;
   }]
 });
 

@@ -1803,8 +1803,3 @@
                     (coerce (string xs) 'cons)))
             (fn-name f ',(coerce (+ 'c xs 'r) 'sym))
             f)))
-
-(defss keyword-ss #/^:(.+)$/ (sym) `(keyword ',sym))
-
-(def keyword (s) (sym (+ #\: s)))
-(def keywordp (s) (is ((string s) 0) #\:))
