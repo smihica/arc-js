@@ -10,6 +10,9 @@ all:		arc.js arc.min.js
 clean:
 		rm -f arc.js arc.min.js
 
+unit:
+		mocha -b test/unit/unit.js
+
 auto:
 		make
 		./tools/update-watcher src/*.js src/arc/*.arc -- make
@@ -44,5 +47,6 @@ install_web:	arc.min.js
 		git commit -m 'Installed new arc.js.'
 		git checkout $(CURRENT_BRANCH)
 		rm -f arc.js.bk arc.min.js.bk
+
 
 .PHONY:		all clean

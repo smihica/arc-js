@@ -262,7 +262,7 @@
 (defss complement-ss #/^\~(.+)$/ (a)
        `(complement ,a))
 
-(defss sexp-ss #/^([^.]+)\.([^.]+)$/ (a b)
+(defss sexp-ss #/^(.*[^.])\.([^.].*)$/ (a b)
        `(,a ,b))
 
 (defss sexp-with-quote-ss #/^(.+)\!(.+)$/ (a b)
