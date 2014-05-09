@@ -26,7 +26,7 @@ $(function() {
       ['argument'],
       ['constant', 1],
       ['argument'],
-      ['refer-global', 'do-compile'],
+      ['refer-global', 'compile'],
       ['indirect'],
       ['apply'],
       ['halt']
