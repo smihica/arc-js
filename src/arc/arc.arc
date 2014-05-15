@@ -1,5 +1,10 @@
 (ns 'arc.core)
 
+; export
+;  pair exact assoc alref join isnt alist ret in iso when unless while
+;  reclist recstring testify carif some all find lastn tuples defs
+;  caris warn
+
 (def pair (xs (o f list))
   (if (is f list) (%pair xs)
       ((afn (xs f)
@@ -10,8 +15,6 @@
        xs f)))
 
 (def exact (n) (if (is (type n) 'int) t))
-
-(mac make-br-fn (body) `(fn (_) ,body))
 
 (def assoc (key al)
   (if (atom al)
@@ -122,42 +125,12 @@
   (map [do (write _) (disp " ")] args)
   (disp #\newline))
 
-; setforms returns (vars get set) for a place based on car of an expr
-;  vars is a list of gensyms alternating with expressions whose vals they
-;   should be bound to, suitable for use as first arg to withs
-;  get is an expression returning the current value in the place
-;  set is an expression representing a function of one argument
-;   that stores a new value in the place
+(def ***setters*** ()
+  (collect-bounds-in-ns (***curr-ns***) 'setter))
 
-; A bit gross that it works based on the *name* in the car, but maybe
-; wrong to worry.  Macros live in expression land.
-
-; seems meaningful to e.g. (push 1 (pop x)) if (car x) is a cons.
-; can't in cl though.  could I define a setter for push or pop?
-
-#| threads function
-(mac atomic body
-  `(atomic-invoke (fn () ,@body)))
-
-(mac atlet args
-  `(atomic (let ,@args)))
-
-(mac atwith args
-  `(atomic (with ,@args)))
-
-(mac atwiths args
-  `(atomic (withs ,@args)))
-|#
-
-(assign setter (table))
-
-(mac defset (name parms . body)
-  (w/uniq gexpr
-    `(sref setter
-           (fn (,gexpr)
-             (let ,parms (cdr ,gexpr)
-               ,@body))
-           ',name)))
+(mac defset (name params . body)
+  (let n (sym (+ name '-setter))
+    `(assign ,n (annotate 'setter (rfn ,n ,params ,@body)))))
 
 (defset car (x)
   (w/uniq g
@@ -194,38 +167,35 @@
 ; position.  Such bugs will be seen only when the code is executed, when
 ; sref complains it can't set a reference to a function.
 
-(def setforms (expr0)
+(def setforms (expr0 (o setters (***setters***)))
   (let expr (macex expr0 'compose)
     (if (isa expr 'sym)
         (w/uniq (g h)
-          (list (list g expr)
-                g
-                `(fn (,h) (assign ,expr ,h))))
+          `((,g ,expr)
+            ,g
+            (fn (,h) (assign ,expr ,h))))
 
         ; make it also work for uncompressed calls to compose
-        (and (acons expr) (metafn (car expr)))
-        (setforms (expand-metafn-call (car expr) (cdr expr)))
+        (and (acons expr) (in (car expr) 'compose 'complement))
+        (setforms (-expand-metafn-call (car expr) (cdr expr)) setters)
 
-        (and (acons expr) (acons (car expr)) (is (caar expr) 'get))
-        (setforms (list (cadr expr) (cadar expr)))
+        ;; ArcJS is not supported get.
+        ;(and (acons expr) (acons (car expr)) (is (caar expr) 'get))
+        ;(setforms (list (cadr expr) (cadar expr)))
 
-        (aif (ref setter (car expr))
-             (it expr)
+        (aif (ref setters (sym (+ (car expr) '-setter)))
+             (apply (rep (indirect it)) (cdr expr))
              ; assumed to be data structure in fn position
              (do (when (caris (car expr) 'fn)
-                   (warn "Inverting what looks like a function call"
-                         expr0 expr))
+                   (warn "Inverting what looks like a function call" expr0 expr))
                  (w/uniq (g h)
                    (let argsyms (map [uniq] (cdr expr))
                      (list (+ (list g (car expr))
-                              (mappend list argsyms (cdr expr)))
+                              (zip argsyms (cdr expr)))
                            `(,g ,@argsyms)
                            `(fn (,h) (sref ,g ,h ,(car argsyms)))))))))))
 
-(def metafn (x)
-  (and (acons x) (in (car x) 'compose 'complement)))
-
-(def expand-metafn-call (f args)
+(def -expand-metafn-call (f args)
   (if (is (car f) 'compose)
       ((afn (fs)
          (if (caris (car fs) 'compose)            ; nested compose
@@ -238,19 +208,20 @@
       (err "Can't invert " (cons f args))
       (cons f args)))
 
-(def expand= (place val)
+(def expand= (place val (o setters (***setters***)))
   (if (isa place 'sym)
       `(assign ,place ,val)
-      (let (vars prev setter) (setforms place)
+      (let (vars prev setter) (setforms place setters)
         (w/uniq g
           `(with ,(+ vars (list g val)) ;; atwith
              (,setter ,g))))))
 
-(def expand=list (terms)
-  `(do ,@(map (fn ((p v)) (expand= p v))  ; [apply expand= _]
-                  (pair terms))))
+(def expand=list (terms (o setters (***setters***)))
+  `(do ,@(map (fn ((p v)) (expand= p v setters))  ; [apply expand= _]
+              (pair terms))))
 
-(mac = args (expand=list args))
+(mac = args
+  (expand=list args (***setters***)))
 
 (mac loop (start test update . body)
   (w/uniq (looper loop-flag)
@@ -411,8 +382,8 @@
 
 (def adjoin (x xs (o test iso))
   (if (some [test x _] xs)
-    xs
-    (cons x xs)))
+      xs
+      (cons x xs)))
 
 (mac pushnew (x place (o test 'iso))
   (let (binds val setter) (setforms place)
@@ -435,18 +406,16 @@
 (mac ++ (place (o i 1))
   (if (isa place 'sym)
       `(= ,place (+ ,place ,i))
-      (w/uniq gi
-        (let (binds val setter) (setforms place)
-          `(withs ,(+ binds (list gi i)) ;; atwiths
-             (,setter (+ ,val ,gi)))))))
+      (let (binds val setter) (setforms place)
+        `(withs ,binds ;; atwiths
+           (,setter (+ ,val ,i))))))
 
 (mac -- (place (o i 1))
   (if (isa place 'sym)
       `(= ,place (- ,place ,i))
-      (w/uniq gi
-        (let (binds val setter) (setforms place)
-          `(withs ,(+ binds (list gi i)) ;; atwiths
-             (,setter (- ,val ,gi)))))))
+      (let (binds val setter) (setforms place)
+        `(withs ,binds ;; atwiths
+           (,setter (- ,val ,i))))))
 
 ; E.g. (++ x) equiv to (zap + x 1)
 
@@ -461,6 +430,13 @@
     (let (binds val setter) (setforms place)
       `(withs ,(+ binds (list gop op) (mix gargs args)) ;; atwiths
          (,setter (,gop ,val ,@gargs))))))
+
+;(= x 10)    10
+;(zap + x 1) 11
+;x 11
+;(= x '(1 2)) (1 2)
+;(zap + (cadr x) 1) 3
+;x (1 3)
 
 (mac wipe args
   `(do ,@(map (fn (a) `(= ,a nil)) args)))
@@ -481,10 +457,15 @@
                 `(iflet ,var ,@(cdr branches))))))
     expr))
 
+;(let x '(a)
+;  (iflet (a . b) (cadr x)
+;    (list a b)
+;    x
+;    (list a b)))
+; (a nil)
+
 (mac whenlet (var expr . body)
   `(iflet ,var ,expr (do ,@body)))
-
-;; aif
 
 (mac awhen (expr . body)
   `(let it ,expr (if it (do ,@body))))
@@ -558,211 +539,6 @@
          (nthcdr start seq) start)
         (recstring [if (f (seq _)) _] seq start))))
 
-#|
-(def even (n) (is (mod n 2) 0))
-(def odd (n) (no (even n)))
-
-(mac after (x . ys)
-  `(protect (fn () ,x) (fn () ,@ys)))
-
-(let expander
-     (fn (f var name body)
-       `(let ,var (,f ,name)
-          (after (do ,@body) (close ,var))))
-
-  (mac w/infile (var name . body)
-    (expander 'infile var name body))
-
-  (mac w/outfile (var name . body)
-    (expander 'outfile var name body))
-
-  (mac w/instring (var str . body)
-    (expander 'instring var str body))
-
-  (mac w/socket (var port . body)
-    (expander 'open-socket var port body))
-  )
-
-(mac w/outstring (var . body)
-  `(let ,var (outstring) ,@body))
-
-; what happens to a file opened for append if arc is killed in
-; the middle of a write?
-
-(mac w/appendfile (var name . body)
-  `(let ,var (outfile ,name 'append)
-     (after (do ,@body) (close ,var))))
-
-; rename this simply "to"?  - prob not; rarely use
-
-(mac w/stdout (str . body)
-  `(call-w/stdout ,str (fn () ,@body)))
-
-(mac w/stdin (str . body)
-  `(call-w/stdin ,str (fn () ,@body)))
-
-(mac tostring body
-  (w/uniq gv
-   `(w/outstring ,gv
-      (w/stdout ,gv ,@body)
-      (inside ,gv))))
-
-(mac fromstring (str . body)
-  (w/uniq gv
-   `(w/instring ,gv ,str
-      (w/stdin ,gv ,@body))))
-
-(mac pipe-to(dest . body)
-  `(fromstring
-     (tostring ,@body)
-     ,dest))
-
-(def readstring1 (s (o eof nil)) (w/instring i s (read i eof)))
-
-(def read ((o x (stdin)) (o eof nil))
-  (if (isa x 'string) (readstring1 x eof) (sread x eof)))
-
-; encapsulate eof management
-(def ifread-fn (port then else)
-  (withs (eof list.nil          ; a unique value
-          val (read port eof))
-   (if (is eof val)
-     (else)
-     then.val)))
-
-(mac ifread (var port then (o else))
-  `(ifread-fn ,port (fn (,var) ,then) (fn () ,else)))
-
-(mac reading (var port . body)
-  `(ifread ,var ,port (do ,@body)))
-
-(mac fromfile (f . body)
-  (w/uniq gf
-    `(w/infile ,gf ,f
-       (w/stdin ,gf
-         ,@body))))
-
-(mac tofile (f . body)
-  (w/uniq (gf gs)
-    `(let ,gs (mktemp:basename ,f)
-       (w/outfile ,gf ,gs
-         (w/stdout ,gf
-           ,@body))
-       (mvfile ,gs ,f))))
-
-(mac ontofile (f . body)
-  (w/uniq gf
-    `(w/appendfile ,gf ,f
-       (w/stdout ,gf
-         ,@body))))
-
-(def readfile (name)
-  (fromfile name
-    (drain:read)))
-
-(def readfile1 (name)
-  (fromfile name
-    (read)))
-
-(def writefile (val name)
-  (tofile name
-    (write val)))
-
-(def readall (src (o eof nil))
-  ((afn (i)
-    (let x (read i eof)
-      (if (is x eof)
-        nil
-        (cons x (self i)))))
-   (if (isa src 'string) (instring src) src)))
-
-(def allchars (str)
-  (tostring (whiler c (readc str nil) no
-              (writec c))))
-
-(def filechars (name)
-  (w/infile s name (allchars s)))
-
-; Can't simply mod pr to print strings represented as lists of chars,
-; because empty string will get printed as nil.  Would need to rep strings
-; as lists of chars annotated with 'string, and modify car and cdr to get
-; the rep of these.  That would also require hacking the reader.
-
-(def pr args
-  (map1 disp args)
-  (car args))
-
-(def prt args
-  (map1 only.pr args)
-  (car args))
-
-(def prn args
-  (do1 (apply pr args)
-       (pr #\newline))) ; writec doesn't implicitly flush
-
-(def prrn args  ; print with \r\n at the end
-  (do1 (apply pr args)
-       (pr #\return #\newline)))
-
-(def ero args
-  (w/stdout (stderr)
-    (apply prn args)))
-
-(= ac-denil       ($ ac-denil))
-(= ac-global-name ($ ac-global-name))
-(= ac-niltree     ($ ac-niltree))
-
-; for when we can't use assign
-
-(mac ac-set-global (name val)
-  (w/uniq (gname v)
-    `(with (,gname (ac-global-name ,name)
-            ,v ,val)
-       ($ (namespace-set-variable-value! ,gname ,v))
-       nil)))
-
-(= scheme-f (read "#f"))
-(= scheme-t (read "#t"))
-
-(= redef =)
-
-(= defined-variables* (table))
-
-(redef ac-defined-var?
-  (fn (name)
-    (if defined-variables*.name scheme-t scheme-f)))
-
-(mac defvar (name impl)
-  `(do (ac-set-global ',name ,impl)
-       (set (defined-variables* ',name))
-       nil))
-
-(mac defvar-impl (name)
-  (let gname (ac-global-name name)
-    `($ ,gname)))
-
-(mac undefvar (name)
-  `(do (wipe (defined-variables* ',name))
-       (ac-set-global ',name nil)))
-
-(mac parameterize(var val . body)
-  (w/uniq f
-    `(let ,f (fn() ,@body)
-       (parameterize-sub ,var ,val ,f))))
-
-(def thread-cell(var (o inherit))
-  ($:make-thread-cell ,var ,(if inherit scheme-t scheme-f)))
-
-(mac thread-local(name val)
-  (w/uniq storage
-    `(defvar ,name
-       (let ,storage (thread-cell ,val)
-         (fn args
-           (if args
-             (ac-niltree:$:thread-cell-set! ,storage (car args))
-             (ac-niltree:$:thread-cell-ref ,storage)))))))
-|#
-
 (def sym (x) (coerce x 'sym))
 
 (def int (x (o b 10)) (coerce x 'int b))
@@ -772,8 +548,6 @@
 (defss x-mul-ss       #/^(\d+)\*$/ (x) `(fn (a) (* ,x a)))
 (defss x-div-ss       #/^(\d+)\/$/ (x) `(fn (a) (/ ,x a)))
 (defss x-div-inv-ss   #/^\/(\d+)$/ (x) `(fn (a) (/ a ,x)))
-
-; (def real (x) ($.exact->inexact x))
 
 (mac rand-choice exprs
   (let l (len exprs)
@@ -786,28 +560,10 @@
        (repeat ,n (push ,expr ,ga))
        (nrev ,ga))))
 
-; rejects bytes >= 248 lest digits be overrepresented
-
-#|
-(def rand-string (n)
-  (let c "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    (with (nc 62 s (newstring n) i 0)
-      (w/infile str "/dev/urandom"
-        (while (< i n)
-               (let x (readb str)
-                 (unless (> x 247)
-                   (= (s i) (c (mod x nc)))
-                   (++ i)))))
-      s)))
-|#
-
 (def rand-string (n (o src "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"))
   (withs (l (len src)
           a (accum acc (repeat n (acc (src (rand l))))))
     (coerce a 'string)))
-
-;(def basename(s)
-;  (last:tokens s #\/))
 
 (mac on (var s . body)
   (if (is var 'index)
@@ -825,13 +581,6 @@
         (each elt (cdr seq)
           (if (f elt wins) (= wins elt)))
         wins)))
-
-;(def max args (best > args))
-;(def min args (best < args))
-
-; (mac max2 (x y)
-;   (w/uniq (a b)
-;     `(with (,a ,x ,b ,y) (if (> ,a ,b) ,a ,b))))
 
 (def most (f seq)
   (if seq
@@ -878,72 +627,11 @@
              (= (cache args) (list res)))))))
 
 (mac defmemo (name parms . body)
-  `(assign ,name (memo (fn ,parms ,@body))))
-
-#|
-(def <= args
-  (or (no args)
-      (no (cdr args))
-      (and (no (> (car args) (cadr args)))
-           (apply <= (cdr args)))))
-
-(def >= args
-  (or (no args)
-      (no (cdr args))
-      (and (no (< (car args) (cadr args)))
-           (apply >= (cdr args)))))
-
-(def whitec (c)
-  ($.char-whitespace? c))
-
-(def nonwhite (c)
-  (~whitec c))
-
-(def letter (c)
-  ($.char-alphabetic? c))
-
-(def digit (c)
-  ($.char-numeric? c))
-
-(def alphadig (c)
-  (or letter.c digit.c))
-
-(def punc (c)
-  ($.char-punctuation? c))
-
-|#
+  `(assign ,name (memo (rfn ,name ,parms ,@body))))
 
 ; a version of readline that accepts both lf and crlf endings
 ; adapted from Andrew Wilcox's code (http://awwx.ws/readline) by Michael
 ; Arntzenius <daekharel@gmail.com>
-
-#|
-
-(def readline ((o str (stdin)))
-  (awhen (readc str)
-    (tostring
-      ((afn (c)
-         (if (is c #\return) (when (is peekc.str #\newline) readc.str)
-             (is c #\newline) nil
-             (do (writec c)
-                 (aif readc.str self.it))))
-       it))))
-
-(def readlines ((o str (stdin)))
-  (drain:readline str))
-
-|#
-
-; Don't currently use this but suspect some code could.
-
-#|
-(mac summing (sumfn . body)
-  (w/uniq (gc gt)
-    `(let ,gc 0
-       (let ,sumfn (fn (,gt) (if ,gt (++ ,gc)))
-         ,@body)
-       ,gc)))
-|#
 
 (def sum (f xs)
   (let n 0
@@ -1010,27 +698,6 @@
   `(listtab (list ,@(map (fn ((k v))
                            `(list ',k ,v))
                          (pair args)))))
-
-#|
-(def load-table (file (o eof))
-  (w/infile i file (read-table i eof)))
-
-(def read-table ((o i (stdin)) (o eof))
-  (let e (read i eof)
-    (if (alist e) (listtab e) e)))
-
-(def load-tables (file)
-  (w/infile i file
-    (w/uniq eof
-      (drain (read-table i eof) eof))))
-
-(def save-table (h file)
-  (writefile (tablist h) file))
-
-(def write-table (h (o o (stdout)))
-  (write (tablist h) o))
-
-|#
 
 (def copy (x . args)
   (ret ans (case type.x
@@ -1162,12 +829,6 @@
 (mac time10 (expr)
   `(time (repeat 10 ,expr)))
 
-#|
-(def union (f xs ys)
-  (+ xs (rem (fn (y) (some [f _ y] xs))
-             ys)))
-|#
-
 (def number (n) (in (type n) 'int 'num))
 
 (def since (t1) (- (seconds) t1))
@@ -1287,16 +948,6 @@
       (or (<= n 0) (no xs))  nil
       (f (car xs))           (cons (car xs) (retrieve (- n 1) f (cdr xs)))
                              (retrieve n f (cdr xs))))
-#|
-(def dedup (xs)
-  (with (h (table) acc nil)
-    (each x xs
-      (unless (h x)
-        (push x acc)
-        (set (h x))))
-    (rev acc)))
-|#
-
 (def single (x) (and (acons x) (no (cdr x))))
 
 (def intersperse (x ys)
@@ -1327,44 +978,6 @@
   (if (cddr xs)
     (f (car xs) (rreduce f (cdr xs)))
     (apply f xs)))
-
-#|
-(let argsym (uniq)
-
-  (def parse-format (str)
-    (accum a
-      (with (chars nil  i -1)
-        (w/instring s str
-          (whilet c (readc s)
-            (case c
-              #\# (do (a (coerce (rev chars) 'string))
-                      (wipe chars)
-                      (a (read s)))
-              #\~ (do (a (coerce (rev chars) 'string))
-                      (wipe chars)
-                      (readc s)
-                      (a (list argsym (++ i))))
-                  (push c chars))))
-         (when chars
-           (a (coerce (rev chars) 'string))))))
-
-  (mac prf (str . args)
-    `(let ,argsym (list ,@args)
-       (pr ,@(parse-format str))))
-)
-|#
-
-#|
-(wipe load-file-stack*)
-(def load (file)
-  (push current-load-file* load-file-stack*)
-  (= current-load-file* file)
-  (after (w/infile f file
-           (w/uniq eof
-             (whiler e (sread f eof) eof
-               (eval e))))
-    (= current-load-file* (pop load-file-stack*))))
-|#
 
 (def positive (x)
   (and (number x) (> x 0)))
@@ -1459,27 +1072,6 @@
 
 (def len> (x n) (> (len x) n))
 
-#|
-(mac thread body
-  `(new-thread (fn () ,@body)))
-(def kill-thread(th)
-  (atomic ($:kill-thread th)))
-(def break-thread(th)
-  (atomic ($:break-thread th)))
-
-(def thread-send(thd v)
-  (ac-niltree:$:thread-send thd v))
-(def thread-receive()
-  (ac-niltree:$:thread-receive))
-(def thread-try-receive()
-  (ac-niltree:$:thread-try-receive))
-(def thread-rewind-receive args
-  (ac-niltree:$:thread-rewind-receive (ac-denil ,args)))
-
-(def mktemp((o prefix "arc"))
-  ($ (path->string (make-temporary-file (string-append prefix ".~a")))))
-|#
-
 (mac trav (x . fs)
   (w/uniq g
     `((afn (,g)
@@ -1513,178 +1105,6 @@
 (mac pickle(type f)
   `(= (pickles* ',type)
       ,f))
-
-#|
-
-($:namespace-undefine-variable! '_iso)
-; Could take n args, but have never once needed that.
-(defgeneric iso(x y)
-  (is x y))
-
-(defmethod iso(x y) cons
-  (and (acons x)
-       (acons y)
-       (iso car.x car.y)
-       (iso cdr.x cdr.y)))
-
-(defmethod iso(x y) table
-  (and (isa x 'table)
-       (isa y 'table)
-       (is (len keys.x) (len keys.y))
-       (all
-         (fn((k v))
-           (iso y.k v))
-         tablist.x)))
-
-($:namespace-undefine-variable! '_len)
-(defgeneric len(x)
-  (if x ($.length $.ac-denil.x) 0))
-
-; (len '(1 2 3)) => 3
-; (len 'a) => 0
-; (len '(1 2 . 3)) => 3
-(defmethod len(x) cons
-  (if
-    (acons cdr.x)   (+ 1 (len cdr.x))
-    (no cdr.x)  1
-                2)) ; dotted list
-
-(defmethod len(x) sym
-  0)
-
-(defmethod len(x) vec
-  ($.vector-length x))
-
-(defmethod len(x) string
-  ($.string-length x))
-
-(defmethod len(x) table
-  ($.hash-table-count x))
-
-; most types need define just len
-(defgeneric empty(seq)
-  (iso 0 len.seq))
-
-; optimization: empty list (nil) is of type sym
-(defmethod empty(x) cons
-  nil)
-
-; User-definable calling for given types via coerce* extension
-(def set-coercer (to from fun)
-  " Makes 'fun the coercion function from 'from to 'to.
-    See also: [[defcoerce]] "
-  (let cnv (or coerce*.to (= coerce*.to (table)))
-    (= cnv.from fun)))
-
-(mac defcoerce (to from parms . body)
-  " Defines the coercion function from 'from to 'to.
-    See also: [[set-coercer]] [[defcall]] "
-  `(set-coercer ',to ',from (fn ,parms ,@body)))
-
-(mac defcall (type-name parms . body)
-  " Defines the calling function for type 'type-name.
-    See also: [[defcoerce]] "
-  (w/uniq (fnobj args)
-    `(defcoerce fn ,type-name (,fnobj)
-       (fn ,args (apply (fn ,parms ,@body) ,fnobj ,args)))))
-
-(defcoerce cons table (h)
-  (tablist h))
-
-(defcoerce table sym (x) ; only for nil
-  (table))
-
-(defcoerce table cons (al)
-  (listtab al))
-
-
-
-(defgeneric serialize (x)
-  x)
-
-(defmethod serialize (x) string
-  x)
-
-(defmethod serialize (x) cons
-  (cons (serialize (car x))
-        (serialize (cdr x))))
-
-(defmethod serialize (x) table
-  (list 'table
-    (accum a
-      (maptable (fn (k v)
-                  (a (list k serialize.v)))
-                x))))
-
-; can't use defgeneric; everything is likely a list when serialized
-(or= vtables*!unserialize (table))
-(def unserialize (x)
-  (aif (vtables*!unserialize type*.x)   (it x)
-    (acons x)   (cons (unserialize car.x)
-                      (unserialize cdr.x))
-                x))
-
-(def type* (x)
-  (if (and (pair? x)
-           (isa car.x 'sym))
-    car.x
-    type.x))
-
-(def pair? (l)
-  (and (acons l)
-       (acons:cdr l)
-       (~acons:cddr l)))
-
-(defmethod unserialize (x) table
-  (w/table h
-    (map (fn ((k v)) (= h.k unserialize.v))
-         cadr.x)))
-
-(def read ((o x (stdin)) (o eof nil))
-  (if (isa x 'string)
-    (readstring1 x eof)
-    (unserialize:sread x eof)))
-
-(def write (x (o port (stdout)))
-  (swrite serialize.x port))
-
-(= hooks* (table))
-
-(def hook (name . args)
-  (aif (hooks* name) (apply it args)))
-
-(mac defhook (name . rest)
-  `(= (hooks* ',name) (fn ,@rest)))
-
-(mac out (expr) `(pr ,(tostring (eval expr))))
-|#
-
-; if renamed this would be more natural for (map [_ user] pagefns*)
-
-(def get (index) [_ index])
-
-#|
-(= savers* (table))
-
-(mac fromdisk (var file init load save)
-  (w/uniq (gf gv)
-    `(unless (bound ',var)
-       (do1 (= ,var (iflet ,gf (file-exists ,file)
-                      (,load ,gf)
-                      ,init))
-            (= (savers* ',var) (fn (,gv) (,save ,gv ,file)))))))
-
-(mac diskvar (var file)
-  `(fromdisk ,var ,file nil readfile1 writefile))
-
-(mac disktable (var file)
-  `(fromdisk ,var ,file (table) load-table save-table))
-
-(mac todisk (var (o expr var))
-  `((savers* ',var)
-    ,(if (is var expr) var `(= ,var ,expr))))
-
-|#
 
 (mac evtil (expr test)
   (w/uniq gv
@@ -1724,72 +1144,6 @@
 
 (mac mapeach (var lst . body)
   `(map (fn (,var) ,@body) ,lst))
-
-#|
-(def load-just (file name)
-  (w/infile f file
-    (w/uniq eof
-      (whiler e (read f eof) eof
-        (if (is e.1 name)
-          (eval e))))))
-
-(def l (f)
-  (load (+ string.f ".arc")))
-
-(wipe current-load-file*)
-
-(load "help/arc.arc")
-
-|#
-
-; any logical reason I can't say (push x (if foo y z)) ?
-;   eval would have to always ret 2 things, the val and where it came from
-; idea: implicit tables of tables; setf empty field, becomes table
-;   or should setf on a table just take n args?
-
-; idea: use constants in functional position for currying?
-;       (1 foo) would mean (fn args (apply foo 1 args))
-; another solution would be to declare certain symbols curryable, and
-;  if > was, >_10 would mean [> _ 10]
-;  or just say what the hell and make _ ssyntax for currying
-; idea: make >10 ssyntax for [> _ 10]
-; solution to the "problem" of improper lists: allow any atom as a list
-;  terminator, not just nil.  means list recursion should terminate on
-;  atom rather than nil, (def empty (x) (or (atom x) (is x "")))
-; table should be able to take an optional initial-value.  handle in sref.
-; warn about code of form (if (= )) -- probably mean is
-; warn when a fn has a parm that's already defined as a macro.
-;   (def foo (after) (after))
-; idea: a fn (nothing) that returns a special gensym which is ignored
-;  by map, so can use map in cases when don't want all the vals
-; idea: anaph macro so instead of (aand x y) say (anaph and x y)
-; idea: foo.bar!baz as an abbrev for (foo bar 'baz)
-;  or something a bit more semantic?
-; could uniq be (def uniq () (annotate 'symbol (list 'u))) again?
-; idea: use x- for (car x) and -x for (cdr x)  (but what about math -?)
-; idea: get rid of strings and just use symbols
-; could a string be (#\a #\b . "") ?
-; better err msg when , outside of a bq
-; idea: parameter (p foo) means in body foo is (pair arg)
-; idea: make ('string x) equiv to (coerce x 'string) ?  or isa?
-;   quoted atoms in car valuable unused semantic space
-; idea: if (defun foo (x y) ...), make (foo 1) return (fn (y) (foo 1 y))
-;   probably would lead to lots of errors when call with missing args
-;   but would be really dense with . notation, (foo.1 2)
-; or use special ssyntax for currying: (foo@1 2)
-; remember, can also double; could use foo::bar to mean something
-; wild idea: inline defs for repetitive code
-;  same args as fn you're in
-; variant of compose where first fn only applied to first arg?
-;  (> (len x) y)  means (>+len x y)
-; use ssyntax underscore for a var?
-;  foo_bar means [foo _ bar]
-;  what does foo:_:bar mean?
-; matchcase
-; idea: atable that binds it to table, assumes input is a list
-; crazy that finding the top 100 nos takes so long:
-;  (let bb (n-of 1000 (rand 50)) (time10 (bestn 100 > bb)))
-;  time: 2237 msec.  -> now down to 850 msec
 
 (def gcd (a b)
   (if (is a b) a
