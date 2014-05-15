@@ -104,8 +104,6 @@
 
 ;; nthcdr -> core.arc
 
-; lastcons
-
 ; Generalization of pair: (tuples x) = (pair x)
 
 (def tuples (xs (o n 2) (o acc nil))
@@ -511,10 +509,6 @@
     `(withs (,var nil ,gf (testify ,endval))
        (while (no (,gf (= ,var ,expr)))
          ,@body))))
-
-; consif
-; string
-; flat
 
 (mac check (x test (o alt))
   (w/uniq gx

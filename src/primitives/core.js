@@ -161,141 +161,13 @@ var stringify_for_disp = function(x) {
 var uniq_counter = 0;
 
 var primitives_core = (new Primitives('arc.core')).define({
-  'read': [{dot: -1}, function(str) {
-    return Primitives.reader.read(str);
-  }],
-  'cons': [{dot: -1}, function(car, cdr) {
-    return new Cons(car, cdr);
-  }],
-  'car':  [{dot: -1}, function(x) {
-    if (x instanceof Cons) return x.car;
-    throw new Error(stringify(x) + ' is not cons type.');
-  }],
-  'scar': [{dot: -1}, function(x, v) {
-    if (x instanceof Cons) return (x.car = v);
-    throw new Error(stringify(x) + ' is not cons type.');
-  }],
-  'cdr': [{dot: -1}, function(x) {
-    if (x instanceof Cons) return x.cdr;
-    throw new Error(stringify(x) + ' is not cons type.');
-  }],
-  'scdr': [{dot: -1}, function(x, v) {
-    if (x instanceof Cons) return (x.cdr = v);
-    throw new Error(stringify(x) + ' is not cons type.');
-  }],
 
-  /* c...r code generator
-     (pr ((afn (d cs)
-     (if (< 0 d)
-     (+ (self (- d 1) (cons 'a cs)) (self (- d 1) (cons 'd cs)))
-     (+ "'c" cs "r': [{dot: -1}, function(x) { return c"
-     (intersperse "r(c" cs) "r(x" (n-of (len cs) ")")
-     "; }],\n" )))
-     4 nil))
-  */
-  'caar': [{dot: -1}, function(x) { return car(car(x)); }],
-  'cdar': [{dot: -1}, function(x) { return cdr(car(x)); }],
-  'cadr': [{dot: -1}, function(x) { return car(cdr(x)); }],
-  'cddr': [{dot: -1}, function(x) { return cdr(cdr(x)); }],
-
-  'caaar': [{dot: -1}, function(x) { return car(car(car(x))); }],
-  'cdaar': [{dot: -1}, function(x) { return cdr(car(car(x))); }],
-  'cadar': [{dot: -1}, function(x) { return car(cdr(car(x))); }],
-  'cddar': [{dot: -1}, function(x) { return cdr(cdr(car(x))); }],
-  'caadr': [{dot: -1}, function(x) { return car(car(cdr(x))); }],
-  'cdadr': [{dot: -1}, function(x) { return cdr(car(cdr(x))); }],
-  'caddr': [{dot: -1}, function(x) { return car(cdr(cdr(x))); }],
-  'cdddr': [{dot: -1}, function(x) { return cdr(cdr(cdr(x))); }],
-
-  'caaaar': [{dot: -1}, function(x) { return car(car(car(car(x)))); }],
-  'cdaaar': [{dot: -1}, function(x) { return cdr(car(car(car(x)))); }],
-  'cadaar': [{dot: -1}, function(x) { return car(cdr(car(car(x)))); }],
-  'cddaar': [{dot: -1}, function(x) { return cdr(cdr(car(car(x)))); }],
-  'caadar': [{dot: -1}, function(x) { return car(car(cdr(car(x)))); }],
-  'cdadar': [{dot: -1}, function(x) { return cdr(car(cdr(car(x)))); }],
-  'caddar': [{dot: -1}, function(x) { return car(cdr(cdr(car(x)))); }],
-  'cdddar': [{dot: -1}, function(x) { return cdr(cdr(cdr(car(x)))); }],
-  'caaadr': [{dot: -1}, function(x) { return car(car(car(cdr(x)))); }],
-  'cdaadr': [{dot: -1}, function(x) { return cdr(car(car(cdr(x)))); }],
-  'cadadr': [{dot: -1}, function(x) { return car(cdr(car(cdr(x)))); }],
-  'cddadr': [{dot: -1}, function(x) { return cdr(cdr(car(cdr(x)))); }],
-  'caaddr': [{dot: -1}, function(x) { return car(car(cdr(cdr(x)))); }],
-  'cdaddr': [{dot: -1}, function(x) { return cdr(car(cdr(cdr(x)))); }],
-  'cadddr': [{dot: -1}, function(x) { return car(cdr(cdr(cdr(x)))); }],
-  'cddddr': [{dot: -1}, function(x) { return cdr(cdr(cdr(cdr(x)))); }],
-
-  'list': [{dot: 0}, function($$) {
-    for (var i=arguments.length-1, rt=nil; -1<i; i--)
-      rt = cons(arguments[i], rt);
-    return rt;
-  }],
-  'nthcdr': [{dot: -1}, function(n, lis) {
-    for (;0 < n && lis !== nil;n--) lis = cdr(lis);
-    return lis;
-  }],
-  'lastcons': [{dot: -1}, function(lis) {
-    var rt = lis;
-    while (type(lis) === s_cons) {
-      rt = lis;
-      lis = cdr(lis);
-    }
-    return rt;
-  }],
-  'consif': [{dot: -1}, function(n, lis) {
-    return (n === nil) ? lis : cons(n, lis);
-  }],
-  'flat': [{dot: 1}, function(lis, $$) {
-    var max_depth = Infinity;
-    if (1 < arguments.length) max_depth = arguments[1];
-    if (lis === nil) return nil;
-    if (type(lis) !== s_cons) return cons(lis, nil);
-    if (max_depth < 1) return lis;
-    return nreverse(flat_iter(lis, max_depth));
-  }],
-  'firstn': [{dot: -1}, function(n, lis) {
-    var rt = nil;
-    while (lis !== nil && 0 < n) {
-      rt = cons(car(lis), rt);
-      lis = cdr(lis);
-      n--;
-    }
-    return nreverse(rt)
-  }],
-  'len': [{dot: -1}, function(lis) {
-    if (typeof lis === 'string') return lis.length;
-    var i = 0;
-    while (lis !== nil) {
-      i++; lis = cdr(lis);
-    }
-    return i;
-  }],
-  'rev': [{dot: -1}, function(lis) {
-    var rt = nil;
-    while (lis !== nil) {
-      rt = cons(car(lis), rt);
-      lis = cdr(lis);
-    }
-    return rt;
-  }],
-  'nrev': [{dot: 1}, function(lis, $$) {
-    var r = $$ || nil;
-    var tmp;
-    while (lis !== nil && 'cdr' in lis) {
-      tmp = lis.cdr;
-      lis.cdr = r;
-      r = lis;
-      lis = tmp;
-    }
-    return r;
-  }],
-  'uniq': [{dot: 0}, function($$) {
-    var u = '%g'+uniq_counter;
-    if (0 < arguments.length) {
-      u += ('-' + arguments[0].name);
-    }
-    var rt = Symbol.get(u);
-    uniq_counter++;
-    return rt;
+  /** core **/
+  'apply': [{dot: 1}, function(fn, $$) {
+    for (var i=1, l=arguments.length-1, args=[]; i<l; i++)
+      args[i-1] = arguments[i];
+    if (0 < l) args = args.concat(list_to_javascript_arr(arguments[l]));
+    return new Call(fn, null, args);
   }],
   'type': [{dot: -1}, function(x) {
     if (x === nil || x === t) return s_sym;
@@ -322,296 +194,6 @@ var primitives_core = (new Primitives('arc.core')).define({
     default:
       return Symbol.get('%javascript-' + type);
     }
-  }],
-  'err': [{dot: 0}, function($$) {
-    var str = (
-      Array.prototype.map.call(
-        arguments,
-        function(x) { return type(x) === s_string ? x : stringify(x); }
-      ).join(' ') + '.');
-    console.error(str);
-    throw new Error('ERROR');
-  }],
-  '+': [{dot: 0}, function($$) {
-    var l = arguments.length, rt = 0, num = false;
-    if (l < 1) return 0;
-    for (var i=l-1; 0<=i; i--) {
-      var typ = type(arguments[i]);
-      if (typeof arguments[i] === 'number') {
-        num = true;
-        rt += arguments[i];
-      } else if (arguments[i] !== nil && type(arguments[i]) !== s_cons) {
-        var rts = '';
-        for (var i=l-1; 0<=i; i--) rts = coerce(arguments[i], s_string) + rts;
-        return rts;
-      }
-    }
-    if (num) return rt;
-    return append.apply(this, arguments);
-  }],
-  'min': [{dot: 0}, function($$) {
-    var l = arguments.length, rt = Infinity;
-    for (var i=l-1; 0<=i; i--) rt = Math.min(rt, arguments[i]);
-    return rt;
-  }],
-  'max': [{dot: 0}, function($$) {
-    var l = arguments.length, rt = -Infinity;
-    for (var i=l-1; 0<=i; i--) rt = Math.max(rt, arguments[i]);
-    return rt;
-  }],
-  'rand': [{dot: 0}, function($$) {
-    var l = arguments.length;
-    if (l < 1) return Math.random();
-    return Math.floor(Math.random() * $$);
-  }],
-  'append': [{dot: 0}, function($$) {
-    var dotted = nil;
-    for (var i=0, l=arguments.length, rt = nil; i<l; i++) {
-      if (dotted !== nil) throw new Error(
-        ('error: +(list): contract violation (' +
-         Array.prototype.map.call(arguments, stringify).join(' ') + ')'));
-      var lis = arguments[i];
-      while (lis !== nil) {
-        rt = cons(car(lis), rt);
-        lis = cdr(lis);
-        if (!(lis instanceof Cons)) { dotted = lis; break; }
-      }
-    }
-    return nreverse(rt, dotted);
-  }],
-  'nconc': [{dot: 0}, function($$) {
-    var l = arguments.length - 1;
-    if (l < 0) return nil;
-    var rt = null;
-    for (var i=0; i<l; i++) {
-      if (arguments[i] === nil) continue;
-      rt = rt || arguments[i];
-      var last = lastcons(arguments[i]);
-      if (last.cdr !== nil) throw new Error("nconc: Can't concatenate dotted list.");
-      while (i < l) {
-        if (arguments[i+1] !== nil) break;
-        i++;
-      }
-      if (i === l) break;
-      last.cdr = arguments[i+1];
-    }
-    return rt || arguments[l];
-  }],
-  '-': [{dot: 1}, function(x, $$) {
-    for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
-      rt -= arguments[i];
-    return (l === 1) ? (-rt) : rt;
-  }],
-  '*': [{dot: 0}, function($$) {
-    for (var i=0, l=arguments.length, rt = 1; i<l; i++)
-      rt *= arguments[i];
-    return rt;
-  }],
-  '/': [{dot: 1}, function(x, $$) {
-    for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
-      rt /= arguments[i];
-    return rt;
-  }],
-  '<': [{dot: 0}, function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] < arguments[i])) return nil;
-    }
-    return t;
-  }],
-  '>': [{dot: 0}, function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] > arguments[i])) return nil;
-    }
-    return t;
-  }],
-  '<=': [{dot: 0}, function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] <= arguments[i])) return nil;
-    }
-    return t;
-  }],
-  '>=': [{dot: 0}, function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] >= arguments[i])) return nil;
-    }
-    return t;
-  }],
-  'odd': [{dot: -1}, function(x) {
-    return (x % 2) ? t : nil;
-  }],
-  'even': [{dot: -1}, function(x) {
-    return (x % 2) ? nil : t;
-  }],
-  'mod': [{dot: -1}, function(x, y) {
-    return (x % y);
-  }],
-  'no': [{dot: -1}, function(x) {
-    return (x === nil) ? t : nil;
-  }],
-  'is': [{dot: -1}, function(a, b) {
-    return (a === b) ? t : nil;
-  }],
-  '%mem': [{dot: -1}, function(test, lis) {
-    while (lis !== nil) {
-      if (car(lis) === test) return lis;
-      lis = cdr(lis);
-    }
-    return nil;
-  }],
-  '%pos': [{dot: -1}, function(test, lis) {
-    var i = 0;
-    while (lis !== nil) {
-      if (car(lis) === test) return i;
-      lis = cdr(lis);
-      i++;
-    }
-    return nil;
-  }],
-  'atom': [{dot: -1}, function(x) {
-    return (type(x).name === 'cons') ? nil : t;
-  }],
-  'apply': [{dot: 1}, function(fn, $$) {
-    for (var i=1, l=arguments.length-1, args=[]; i<l; i++)
-      args[i-1] = arguments[i];
-    if (0 < l) args = args.concat(list_to_javascript_arr(arguments[l]));
-    return new Call(fn, null, args);
-  }],
-  'ssyntax': [{dot: 1}, function(s, $$) {
-    if (s === nil || s === t) return nil;
-    var specials = this.current_ns.collect_bounds('special-syntax');
-    var ordered = [];
-    var sstr = s.name;
-    if (1 < arguments.length) {
-      for (var i in specials) {
-        var reg_ord_fn = rep(specials[i].v);
-        var reg = car(reg_ord_fn);
-        var ord = cadr(reg_ord_fn);
-        var fn  = cadr(cdr(reg_ord_fn));
-        ordered[ord] = [reg.asm, fn];
-      }
-      for (var k = 0, l = ordered.length; k<l; k++) {
-        if (!ordered[k]) continue;
-        var mat = sstr.match(ordered[k][0]);
-        if (mat) return new Call(ordered[k][1], null, mat.slice(1).map(read));
-      }
-    } else {
-      for (var i in specials) {
-        var reg_ord_fn = rep(specials[i].v);
-        var reg = car(reg_ord_fn);
-        if (sstr.match(reg.asm)) return t;
-      }
-    }
-    return nil;
-  }],
-  'match': [{dot: -1}, function(reg, str) {
-    if (!((reg instanceof Regex) && (typeof str === 'string')))
-      throw new Error('match requires regex as the first argument and string as the second.');
-    var mat = str.match(reg.asm);
-    return mat ? javascript_arr_to_list(mat) : nil;
-  }],
-  '%pair': [{dot: -1}, function(lis) {
-    var rt = nil, toggle = true;
-    while (lis !== nil) {
-      if (toggle) {
-        rt = cons(cons(car(lis), nil), rt);
-      } else {
-        car(rt).cdr = cons(car(lis), nil);
-      }
-      lis = cdr(lis);
-      toggle = !toggle;
-    }
-    return nreverse(rt);
-  }],
-  '%union': [{dot: -1}, function(test, lis1, lis2) {
-    var arr = list_to_javascript_arr(lis1);
-    while (lis2 !== nil) {
-      var ca = car(lis2);
-      if (arr.indexOf(ca) < 0) arr.push(ca);
-      lis2 = cdr(lis2);
-    }
-    return javascript_arr_to_list(arr);
-  }],
-  'dedup': [{dot: -1}, function(lis) {
-    var arr = list_to_javascript_arr(lis);
-    var narr = [];
-    for (var i=0, l=arr.length; i<l; i++) {
-      if (narr.indexOf(arr[i]) < 0) narr.push(arr[i]);
-    }
-    return javascript_arr_to_list(narr);
-  }],
-  'table': [{dot: 0}, function($$) {
-    var tbl = new Table();
-    var l = arguments.length;
-    if ((l % 2) === 1) throw new Error('(table) arguments must be even number.');
-    for (var i = 0; i < l; i+=2) {
-      tbl.put(arguments[i], arguments[i+1]);
-    }
-    return tbl;
-  }],
-  'ref': [{dot: -1}, function(obj, idx) {
-    var val, typename = type(obj).name;
-    switch (typename) {
-    case 'string':
-      if (idx < 0 || (obj.length - 1) < idx)
-        throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
-      return Char.get(obj[idx]);
-    case 'cons':
-      for (var iter = obj, i = idx; 0 < i; i--) {
-        if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
-        iter = cdr(iter);
-      }
-      return car(iter);
-    case 'table':
-      return obj.get(idx);
-    }
-    throw new Error('(ref obj idx) supports only cons or string or table. but ' + typename + ' given.');
-  }],
-  'sref': [{dot: -1}, function(obj, val, idx) {
-    switch (type(obj).name) {
-    case 'string':
-      throw new Error('TODO: mutable string is not supported yet.');
-      return val;
-    case 'cons':
-      for (var iter = obj, i = idx; 0 < i; i--) {
-        if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
-        iter = cdr(iter);
-      }
-      scar(iter, val);
-      return val;
-    case 'table':
-      obj.put(idx, val);
-      return val;
-    }
-    throw new Error('(sref obj val idx) supports only cons or string or table. but ' + typename + ' given.');
-  }],
-  'dref': [{dot: -1}, function(obj, idx) {
-    switch (type(obj).name) {
-    case 'string':
-      throw new Error('TODO: mutable string is not supported yet.');
-      return nil;
-    case 'cons':
-      throw new Error('TODO: mutable string is not supported yet.');
-      /* TODO Support! 
-         for (var iter = obj, i = idx; 0 < i; i--) {
-         if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
-         iter = cdr(iter);
-         }
-         scdr(iter, cddr(iter));
-         return nil;
-      */
-    case 'table':
-      obj.rem(idx);
-      return nil;
-    }
-    throw new Error('(sref obj val idx) supports only cons or string or table. but ' + typename + ' given.');
-  }],
-  'annotate': [{dot: -1}, function(tag, obj) {
-    if (type(tag).name !== 'sym')
-      throw new Error("First argument must be a symbol " + stringify(tag));
-    return new Tagged(tag, obj);
-  }],
-  'rep': [{dot: -1}, function(tagged) {
-    return tagged.obj;
   }],
   'coerce': [{dot: 2}, function(obj, to_type, args) {
     /*
@@ -717,26 +299,295 @@ var primitives_core = (new Primitives('arc.core')).define({
     }
     throw new Error("Can't coerce " + from_type + " to " + to_type);
   }],
+
+  'cons': [{dot: -1}, function(car, cdr) {
+    return new Cons(car, cdr);
+  }],
+  'car':  [{dot: -1}, function(x) {
+    if (x instanceof Cons) return x.car;
+    throw new Error(stringify(x) + ' is not cons type.');
+  }],
+  'scar': [{dot: -1}, function(x, v) {
+    if (x instanceof Cons) return (x.car = v);
+    throw new Error(stringify(x) + ' is not cons type.');
+  }],
+  'cdr': [{dot: -1}, function(x) {
+    if (x instanceof Cons) return x.cdr;
+    throw new Error(stringify(x) + ' is not cons type.');
+  }],
+  'scdr': [{dot: -1}, function(x, v) {
+    if (x instanceof Cons) return (x.cdr = v);
+    throw new Error(stringify(x) + ' is not cons type.');
+  }],
+
+  'annotate': [{dot: -1}, function(tag, obj) {
+    if (type(tag).name !== 'sym')
+      throw new Error("First argument must be a symbol " + stringify(tag));
+    return new Tagged(tag, obj);
+  }],
+  'rep': [{dot: -1}, function(tagged) {
+    return tagged.obj;
+  }],
+
+  'ref': [{dot: -1}, function(obj, idx) {
+    var val, typename = type(obj).name;
+    switch (typename) {
+    case 'string':
+      if (idx < 0 || (obj.length - 1) < idx)
+        throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
+      return Char.get(obj[idx]);
+    case 'cons':
+      for (var iter = obj, i = idx; 0 < i; i--) {
+        if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
+        iter = cdr(iter);
+      }
+      return car(iter);
+    case 'table':
+      return obj.get(idx);
+    }
+    throw new Error('(ref obj idx) supports only cons or string or table. but ' + typename + ' given.');
+  }],
+  'sref': [{dot: -1}, function(obj, val, idx) {
+    switch (type(obj).name) {
+    case 'string':
+      throw new Error('TODO: mutable string is not supported yet.');
+      return val;
+    case 'cons':
+      for (var iter = obj, i = idx; 0 < i; i--) {
+        if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
+        iter = cdr(iter);
+      }
+      scar(iter, val);
+      return val;
+    case 'table':
+      obj.put(idx, val);
+      return val;
+    }
+    throw new Error('(sref obj val idx) supports only cons or string or table. but ' + typename + ' given.');
+  }],
+  'dref': [{dot: -1}, function(obj, idx) {
+    switch (type(obj).name) {
+    case 'string':
+      throw new Error('TODO: mutable string is not supported yet.');
+      return nil;
+    case 'cons':
+      throw new Error('TODO: mutable string is not supported yet.');
+      /* TODO Support! 
+         for (var iter = obj, i = idx; 0 < i; i--) {
+         if (iter === nil) throw new Error('The index is out of range. ' + idx + 'th of '+ stringify(obj) + '.');
+         iter = cdr(iter);
+         }
+         scdr(iter, cddr(iter));
+         return nil;
+      */
+    case 'table':
+      obj.rem(idx);
+      return nil;
+    }
+    throw new Error('(sref obj val idx) supports only cons or string or table. but ' + typename + ' given.');
+  }],
+  'ssyntax': [{dot: 1}, function(s, $$) {
+    if (s === nil || s === t) return nil;
+    var specials = this.current_ns.collect_bounds('special-syntax');
+    var ordered = [];
+    var sstr = s.name;
+    if (1 < arguments.length) {
+      for (var i in specials) {
+        var reg_ord_fn = rep(specials[i].v);
+        var reg = car(reg_ord_fn);
+        var ord = cadr(reg_ord_fn);
+        var fn  = cadr(cdr(reg_ord_fn));
+        ordered[ord] = [reg.asm, fn];
+      }
+      for (var k = 0, l = ordered.length; k<l; k++) {
+        if (!ordered[k]) continue;
+        var mat = sstr.match(ordered[k][0]);
+        if (mat) return new Call(ordered[k][1], null, mat.slice(1).map(read));
+      }
+    } else {
+      for (var i in specials) {
+        var reg_ord_fn = rep(specials[i].v);
+        var reg = car(reg_ord_fn);
+        if (sstr.match(reg.asm)) return t;
+      }
+    }
+    return nil;
+  }],
+  'table': [{dot: 0}, function($$) {
+    var tbl = new Table();
+    var l = arguments.length;
+    if ((l % 2) === 1) throw new Error('(table) arguments must be even number.');
+    for (var i = 0; i < l; i+=2) {
+      tbl.put(arguments[i], arguments[i+1]);
+    }
+    return tbl;
+  }],
   'bound': [{dot: -1}, function(symbol) {
     return this.current_ns.has(symbol.name) ? t : nil;
   }],
-  'newstring': [{dot: 1}, function(n, $$) {
-    var c = Char.get("\u0000");
-    if (1 < arguments.length) c = arguments[1];
-    var nt = type(n).name, ct = type(c).name;
-    if ((nt === 'int' || nt === 'num') && ct === 'char') {
-      var rt = '';
-      for (;0<n;n--) rt += c.c;
-      return rt;
+  'idfn': [{dot: -1}, function(x) { return x; }],
+  'fn-name': [{dot: 1}, function(fn, $$) {
+    var closurep = (fn instanceof Closure);
+    if (!closurep && !(typeof fn === 'function')) {
+      var typename = type(fn).name;
+      throw new Error('fn-name expects only fn-type object as the first argument. but ' + typename + ' given.');
     }
-    throw new Error('newstring requires int, char.');
+    var name;
+    if (1 < arguments.length) {
+      name = coerce(arguments[1], s_string);
+      if (closurep) {
+        fn.name = name;
+      } else {
+        fn.prim_name = name;
+      }
+    } else {
+      name = (closurep) ? fn.name : fn.prim_name;
+    }
+    return coerce(name || nil, s_sym);
   }],
-  'string': [{dot: 0}, function($$) {
-    var rt = '';
-    for (var i = arguments.length-1; -1 < i; i--) {
-      rt = coerce(arguments[i], s_string) + rt;
+  'indirect': [{dot: -1}, function(x) {
+    if (x instanceof Box) return x.unbox();
+    throw new Error(stringify(x) + ' is not internal-reference type.');
+  }],
+  'keyword': [{dot: -1}, function(x) {
+    if (!(x instanceof Symbol)) throw new Error('keyword requires a Symbol but ' + stringify(x) + ' given.');
+    return (x.name[0] === ':') ? x : Symbol.get(':' + x.name);
+  }],
+  'keywordp': [{dot: -1}, function(x) {
+    return ((x instanceof Symbol) && x.name[0] === ':') ? t : nil;
+  }],
+  'read': [{dot: -1}, function(str) {
+    return Primitives.reader.read(str);
+  }],
+
+  /* c...r code generator
+     (pr ((afn (d cs)
+     (if (< 0 d)
+     (+ (self (- d 1) (cons 'a cs)) (self (- d 1) (cons 'd cs)))
+     (+ "'c" cs "r': [{dot: -1}, function(x) { return c"
+     (intersperse "r(c" cs) "r(x" (n-of (len cs) ")")
+     "; }],\n" )))
+     4 nil))
+  */
+  'caar': [{dot: -1}, function(x) { return car(car(x)); }],
+  'cdar': [{dot: -1}, function(x) { return cdr(car(x)); }],
+  'cadr': [{dot: -1}, function(x) { return car(cdr(x)); }],
+  'cddr': [{dot: -1}, function(x) { return cdr(cdr(x)); }],
+  'caaar': [{dot: -1}, function(x) { return car(car(car(x))); }],
+  'cdaar': [{dot: -1}, function(x) { return cdr(car(car(x))); }],
+  'cadar': [{dot: -1}, function(x) { return car(cdr(car(x))); }],
+  'cddar': [{dot: -1}, function(x) { return cdr(cdr(car(x))); }],
+  'caadr': [{dot: -1}, function(x) { return car(car(cdr(x))); }],
+  'cdadr': [{dot: -1}, function(x) { return cdr(car(cdr(x))); }],
+  'caddr': [{dot: -1}, function(x) { return car(cdr(cdr(x))); }],
+  'cdddr': [{dot: -1}, function(x) { return cdr(cdr(cdr(x))); }],
+  'caaaar': [{dot: -1}, function(x) { return car(car(car(car(x)))); }],
+  'cdaaar': [{dot: -1}, function(x) { return cdr(car(car(car(x)))); }],
+  'cadaar': [{dot: -1}, function(x) { return car(cdr(car(car(x)))); }],
+  'cddaar': [{dot: -1}, function(x) { return cdr(cdr(car(car(x)))); }],
+  'caadar': [{dot: -1}, function(x) { return car(car(cdr(car(x)))); }],
+  'cdadar': [{dot: -1}, function(x) { return cdr(car(cdr(car(x)))); }],
+  'caddar': [{dot: -1}, function(x) { return car(cdr(cdr(car(x)))); }],
+  'cdddar': [{dot: -1}, function(x) { return cdr(cdr(cdr(car(x)))); }],
+  'caaadr': [{dot: -1}, function(x) { return car(car(car(cdr(x)))); }],
+  'cdaadr': [{dot: -1}, function(x) { return cdr(car(car(cdr(x)))); }],
+  'cadadr': [{dot: -1}, function(x) { return car(cdr(car(cdr(x)))); }],
+  'cddadr': [{dot: -1}, function(x) { return cdr(cdr(car(cdr(x)))); }],
+  'caaddr': [{dot: -1}, function(x) { return car(car(cdr(cdr(x)))); }],
+  'cdaddr': [{dot: -1}, function(x) { return cdr(car(cdr(cdr(x)))); }],
+  'cadddr': [{dot: -1}, function(x) { return car(cdr(cdr(cdr(x)))); }],
+  'cddddr': [{dot: -1}, function(x) { return cdr(cdr(cdr(cdr(x)))); }],
+  'uniq': [{dot: 0}, function($$) {
+    var u = '%g'+uniq_counter;
+    if (0 < arguments.length) {
+      u += ('-' + arguments[0].name);
     }
+    var rt = Symbol.get(u);
+    uniq_counter++;
     return rt;
+  }],
+  'err': [{dot: 0}, function($$) {
+    var str = (
+      Array.prototype.map.call(
+        arguments,
+        function(x) { return type(x) === s_string ? x : stringify(x); }
+      ).join(' ') + '.');
+    console.error(str);
+    throw new Error('ERROR');
+  }],
+  'rand': [{dot: 0}, function($$) {
+    var l = arguments.length;
+    if (l < 1) return Math.random();
+    return Math.floor(Math.random() * $$);
+  }],
+
+  /** simple operator **/
+  '+': [{dot: 0}, function($$) {
+    var l = arguments.length, rt = 0, num = false;
+    if (l < 1) return 0;
+    for (var i=l-1; 0<=i; i--) {
+      var typ = type(arguments[i]);
+      if (typeof arguments[i] === 'number') {
+        num = true;
+        rt += arguments[i];
+      } else if (arguments[i] !== nil && type(arguments[i]) !== s_cons) {
+        var rts = '';
+        for (var i=l-1; 0<=i; i--) rts = coerce(arguments[i], s_string) + rts;
+        return rts;
+      }
+    }
+    if (num) return rt;
+    return append.apply(this, arguments);
+  }],
+  '-': [{dot: 1}, function(x, $$) {
+    for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
+      rt -= arguments[i];
+    return (l === 1) ? (-rt) : rt;
+  }],
+  '*': [{dot: 0}, function($$) {
+    for (var i=0, l=arguments.length, rt = 1; i<l; i++)
+      rt *= arguments[i];
+    return rt;
+  }],
+  '/': [{dot: 1}, function(x, $$) {
+    for (var i=1, l=arguments.length, rt = arguments[0]; i<l; i++)
+      rt /= arguments[i];
+    return rt;
+  }],
+  '<': [{dot: 0}, function($$) {
+    for (var i=1, l=arguments.length; i<l; i++) {
+      if (!(arguments[i-1] < arguments[i])) return nil;
+    }
+    return t;
+  }],
+  '>': [{dot: 0}, function($$) {
+    for (var i=1, l=arguments.length; i<l; i++) {
+      if (!(arguments[i-1] > arguments[i])) return nil;
+    }
+    return t;
+  }],
+  '<=': [{dot: 0}, function($$) {
+    for (var i=1, l=arguments.length; i<l; i++) {
+      if (!(arguments[i-1] <= arguments[i])) return nil;
+    }
+    return t;
+  }],
+  '>=': [{dot: 0}, function($$) {
+    for (var i=1, l=arguments.length; i<l; i++) {
+      if (!(arguments[i-1] >= arguments[i])) return nil;
+    }
+    return t;
+  }],
+
+  /** condition **/
+  'no': [{dot: -1}, function(x) {
+    return (x === nil) ? t : nil;
+  }],
+  'is': [{dot: -1}, function(a, b) {
+    return (a === b) ? t : nil;
+  }],
+  'atom': [{dot: -1}, function(x) {
+    return (type(x) === s_cons) ? nil : t;
   }],
   'isa': [{dot: -1}, function(x, typ) {
     return (type(x) === typ) ? t : nil;
@@ -744,7 +595,160 @@ var primitives_core = (new Primitives('arc.core')).define({
   'acons': [{dot: -1}, function(x) {
     return (type(x) === s_cons) ? t : nil;
   }],
-  'idfn': [{dot: -1}, function(x) { return x; }],
+
+  /** collection **/
+  'list': [{dot: 0}, function($$) {
+    for (var i=arguments.length-1, rt=nil; -1<i; i--)
+      rt = cons(arguments[i], rt);
+    return rt;
+  }],
+  'len': [{dot: -1}, function(lis) {
+    if (typeof lis === 'string') return lis.length;
+    var i = 0;
+    while (lis !== nil) {
+      i++; lis = cdr(lis);
+    }
+    return i;
+  }],
+  'nthcdr': [{dot: -1}, function(n, lis) {
+    for (;0 < n && lis !== nil;n--) lis = cdr(lis);
+    return lis;
+  }],
+  'firstn': [{dot: -1}, function(n, lis) {
+    var rt = nil;
+    while (lis !== nil && 0 < n) {
+      rt = cons(car(lis), rt);
+      lis = cdr(lis);
+      n--;
+    }
+    return nreverse(rt)
+  }],
+  'flat': [{dot: 1}, function(lis, $$) {
+    var max_depth = Infinity;
+    if (1 < arguments.length) max_depth = arguments[1];
+    if (lis === nil) return nil;
+    if (type(lis) !== s_cons) return cons(lis, nil);
+    if (max_depth < 1) return lis;
+    return nreverse(flat_iter(lis, max_depth));
+  }],
+  'rev': [{dot: -1}, function(lis) {
+    var rt = nil;
+    while (lis !== nil) {
+      rt = cons(car(lis), rt);
+      lis = cdr(lis);
+    }
+    return rt;
+  }],
+  'nrev': [{dot: 1}, function(lis, $$) {
+    var r = $$ || nil;
+    var tmp;
+    while (lis !== nil && 'cdr' in lis) {
+      tmp = lis.cdr;
+      lis.cdr = r;
+      r = lis;
+      lis = tmp;
+    }
+    return r;
+  }],
+  'append': [{dot: 0}, function($$) {
+    var dotted = nil;
+    for (var i=0, l=arguments.length, rt = nil; i<l; i++) {
+      if (dotted !== nil) throw new Error(
+        ('error: +(list): contract violation (' +
+         Array.prototype.map.call(arguments, stringify).join(' ') + ')'));
+      var lis = arguments[i];
+      while (lis !== nil) {
+        rt = cons(car(lis), rt);
+        lis = cdr(lis);
+        if (!(lis instanceof Cons)) { dotted = lis; break; }
+      }
+    }
+    return nreverse(rt, dotted);
+  }],
+  'min': [{dot: 0}, function($$) {
+    var l = arguments.length, rt = Infinity;
+    for (var i=l-1; 0<=i; i--) rt = Math.min(rt, arguments[i]);
+    return rt;
+  }],
+  'max': [{dot: 0}, function($$) {
+    var l = arguments.length, rt = -Infinity;
+    for (var i=l-1; 0<=i; i--) rt = Math.max(rt, arguments[i]);
+    return rt;
+  }],
+  '%mem': [{dot: -1}, function(test, lis) {
+    while (lis !== nil) {
+      if (car(lis) === test) return lis;
+      lis = cdr(lis);
+    }
+    return nil;
+  }],
+  '%pos': [{dot: -1}, function(test, lis) {
+    var i = 0;
+    while (lis !== nil) {
+      if (car(lis) === test) return i;
+      lis = cdr(lis);
+      i++;
+    }
+    return nil;
+  }],
+  '%pair': [{dot: -1}, function(lis) {
+    var rt = nil, toggle = true;
+    while (lis !== nil) {
+      if (toggle) {
+        rt = cons(cons(car(lis), nil), rt);
+      } else {
+        car(rt).cdr = cons(car(lis), nil);
+      }
+      lis = cdr(lis);
+      toggle = !toggle;
+    }
+    return nreverse(rt);
+  }],
+  '%union': [{dot: -1}, function(test, lis1, lis2) {
+    var arr = list_to_javascript_arr(lis1);
+    while (lis2 !== nil) {
+      var ca = car(lis2);
+      if (arr.indexOf(ca) < 0) arr.push(ca);
+      lis2 = cdr(lis2);
+    }
+    return javascript_arr_to_list(arr);
+  }],
+  'dedup': [{dot: -1}, function(lis) {
+    var arr = list_to_javascript_arr(lis);
+    var narr = [];
+    for (var i=0, l=arr.length; i<l; i++) {
+      if (narr.indexOf(arr[i]) < 0) narr.push(arr[i]);
+    }
+    return javascript_arr_to_list(narr);
+  }],
+
+  /** regex **/
+  'match': [{dot: -1}, function(reg, str) {
+    if (!((reg instanceof Regex) && (typeof str === 'string')))
+      throw new Error('match requires regex as the first argument and string as the second.');
+    var mat = str.match(reg.asm);
+    return mat ? javascript_arr_to_list(mat) : nil;
+  }],
+  'regex': [{dot: -1}, function(s) {
+    var rt = ((typeof s === 'string') ? new Regex(s) :
+              (typeof s === 'number') ? new Regex(s + '') :
+              (s instanceof Symbol)   ? new Regex(s.name) :
+              (s instanceof Char)     ? new Regex(s.c) :
+              (s instanceof Regex)    ? s : null);
+    if (rt === null) throw new Error('regex requires string, number, symbol or char. but got ' + stringify(s) + '.');
+    return rt;
+  }],
+
+  /** type-change **/
+  'string': [{dot: 0}, function($$) {
+    var rt = '';
+    for (var i = arguments.length-1; -1 < i; i--) {
+      rt = coerce(arguments[i], s_string) + rt;
+    }
+    return rt;
+  }],
+
+  /** printer **/
   'disp': [{dot: 1}, function(item, $$) {
     if (!is_nodejs) { throw new Error("'disp' is not supported in Browser."); }
     var stream = process.stdout;
@@ -779,28 +783,9 @@ var primitives_core = (new Primitives('arc.core')).define({
     }
     return nil;
   }],
-  'msec': [{dot: -1}, function() {
-    return +(new Date());
-  }],
-  'fn-name': [{dot: 1}, function(fn, $$) {
-    var closurep = (fn instanceof Closure);
-    if (!closurep && !(typeof fn === 'function')) {
-      var typename = type(fn).name;
-      throw new Error('fn-name expects only fn-type object as the first argument. but ' + typename + ' given.');
-    }
-    var name;
-    if (1 < arguments.length) {
-      name = coerce(arguments[1], s_string);
-      if (closurep) {
-        fn.name = name;
-      } else {
-        fn.prim_name = name;
-      }
-    } else {
-      name = (closurep) ? fn.name : fn.prim_name;
-    }
-    return coerce(name || nil, s_sym);
-  }],
+  // format
+
+  /** namespace **/
   '***defns***': [{dot: -1}, function(name, extend, imports, exports) {
     name = coerce(name, s_string);
     extend  = extend === nil ? null : extend;
@@ -810,7 +795,6 @@ var primitives_core = (new Primitives('arc.core')).define({
     return ns;
   }],
   '***curr-ns***': [{dot: -1}, function() {
-    // console.log(' *** current: ' + this.current_ns.name + ' internal: ' + this.ns.name);
     return this.current_ns;
   }],
   '***export***': [{dot: -1}, function(ns, exports) {
@@ -844,26 +828,20 @@ var primitives_core = (new Primitives('arc.core')).define({
     var rt = new Table();
     return rt.load_from_js_hash(bounds);
   }],
-  'indirect': [{dot: -1}, function(x) {
-    if (x instanceof Box) return x.unbox();
-    throw new Error(stringify(x) + ' is not internal-reference type.');
-  }],
-  'keyword': [{dot: -1}, function(x) {
-    if (!(x instanceof Symbol)) throw new Error('keyword requires a Symbol but ' + stringify(x) + ' given.');
-    return (x.name[0] === ':') ? x : Symbol.get(':' + x.name);
-  }],
-  'keywordp': [{dot: -1}, function(x) {
-    return ((x instanceof Symbol) && x.name[0] === ':') ? t : nil;
-  }],
-  'regex': [{dot: -1}, function(s) {
-    var rt = ((typeof s === 'string') ? new Regex(s) :
-              (typeof s === 'number') ? new Regex(s + '') :
-              (s instanceof Symbol)   ? new Regex(s.name) :
-              (s instanceof Char)     ? new Regex(s.c) :
-              (s instanceof Regex)    ? s : null);
-    if (rt === null) throw new Error('regex requires string, number, symbol or char. but got ' + stringify(s) + '.');
-    return rt;
-  }],
+
+  /** is it nessecary? **/
+  'newstring': [{dot: 1}, function(n, $$) {
+    var c = Char.get("\u0000");
+    if (1 < arguments.length) c = arguments[1];
+    var nt = type(n).name, ct = type(c).name;
+    if ((nt === 'int' || nt === 'num') && ct === 'char') {
+      var rt = '';
+      for (;0<n;n--) rt += c.c;
+      return rt;
+    }
+    throw new Error('newstring requires int, char.');
+  }]
+
 });
 
 var coerce      = primitives_core.vars.coerce;
@@ -879,9 +857,7 @@ var caar        = primitives_core.vars.caar;
 var cadr        = primitives_core.vars.cadr;
 var cddr        = primitives_core.vars.cddr;
 var nthcdr      = primitives_core.vars.nthcdr;
-var lastcons    = primitives_core.vars.lastcons;
 var append      = primitives_core.vars.append;
-var nconc       = primitives_core.vars.nconc;
 var reverse     = primitives_core.vars.rev;
 var nreverse    = primitives_core.vars.nrev;
 var rep         = primitives_core.vars.rep;

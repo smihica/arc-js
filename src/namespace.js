@@ -190,13 +190,18 @@ var global_ns = new NameSpace('***global***', null, [], []);
 NameSpace.global_ns = global_ns;
 
 // creating objects that reference each other.
-var core_ns     = new NameSpace('arc.core',     null, ['***global***'],             []);
-var compiler_ns = new NameSpace('arc.compiler', null, ['***global***', 'arc.core'], []);
+var core_ns     = new NameSpace('arc.core',         null, ['***global***'],             []);
+var compiler_ns = new NameSpace('arc.compiler',     null, ['***global***', 'arc.core'], []);
 core_ns.add_imports(['arc.compiler']);
 
-new NameSpace('arc',          null, ['***global***', 'arc.core', 'arc.compiler'], []);
+var arc_ns      = new NameSpace('arc',              null, ['***global***', 'arc.core', 'arc.compiler'], []);
+var default_ns  = new NameSpace('arc.user_default', null, ['***global***', 'arc.core', 'arc.compiler', 'arc'], []);
 
-var default_ns    = new NameSpace('arc.user_default',    null, ['***global***', 'arc.core', 'arc.compiler', 'arc'], []);
+// detailed ns
+new NameSpace('arc.collection', arc_ns, [], []);
+new NameSpace('arc.math', arc_ns, [], []);
+new NameSpace('arc.time', arc_ns, [], []);
+
 NameSpace.default_ns = default_ns;
 
 return NameSpace;

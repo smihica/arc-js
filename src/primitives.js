@@ -37,3 +37,6 @@ var Primitives = classify('Primitives', {
 });
 
 include("primitives/core.js");
+include("primitives/collection.js");
+include("primitives/math.js");
+include("primitives/time.js");

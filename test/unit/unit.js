@@ -391,9 +391,6 @@ describe('VM eval', function(){
       //"(conswhen (fn (_) (< (len _) 3)) '(1 2) '(3 4 5))", "((1 2) 3 4 5)",
       //"(conswhen (fn (_) (< (len _) 3)) '(1 2 3 4) '(3 4 5))", "(3 4 5)",
 
-      "(consif 1 '(2 3))", "(1 2 3)",
-      "(consif nil '(2 3))", "(2 3)",
-
       "(firstn 3 '(1 2))", "(1 2)",
       "(firstn 3 '(a b c d e))", "(a b c)",
 
