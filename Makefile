@@ -11,7 +11,10 @@ clean:
 		rm -f arc.js arc.min.js
 
 unit:
-		mocha -b test/unit/unit.js
+		mocha --reporter spec test/unit/unit.js
+
+unit_tap:
+		mocha --reporter tap test/unit/unit.js
 
 auto:
 		make

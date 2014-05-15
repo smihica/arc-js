@@ -1,4 +1,4 @@
-(ns 'arc.core)
+(ns 'arc)
 
 ; export
 ;  pair exact assoc alref join isnt alist ret in iso when unless while

@@ -160,7 +160,7 @@ var stringify_for_disp = function(x) {
 
 var uniq_counter = 0;
 
-var primitives_core = (new Primitives('arc.core.primitives')).define({
+var primitives_core = (new Primitives('arc.primitives')).define({
   'read': [{dot: -1}, function(str) {
     return Primitives.reader.read(str);
   }],

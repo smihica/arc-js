@@ -1,4 +1,4 @@
-(ns 'arc.core.compiler)
+(ns 'arc.compiler)
 
 (***export***
   (***curr-ns***)

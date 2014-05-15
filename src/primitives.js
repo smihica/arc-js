@@ -9,7 +9,7 @@ var Primitives = classify('Primitives', {
   },
   method: {
     init: function(ns_name) {
-      this.ns = NameSpace.get(ns_name, true);
+      this.ns = NameSpace.get(ns_name);
       Primitives.all.push(this);
     },
     define: function(def) {

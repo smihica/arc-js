@@ -509,47 +509,47 @@ describe('VM eval', function(){
       eval_print_eql(
         "(set-minus '(1 2 3) '(1 3))", "(2)",
         "(set-intersect '(1 2 3 4) '(2 4))", "(2 4)",
-        "(arc.core.compiler::dotted-to-proper '(a b))", "(a b)",
-        "(arc.core.compiler::dotted-to-proper '(a b . c))", "(a b c)",
-        "(arc.core.compiler::dotted-to-proper 'a)", "(a)"
+        "(arc.compiler::dotted-to-proper '(a b))", "(a b)",
+        "(arc.compiler::dotted-to-proper '(a b . c))", "(a b c)",
+        "(arc.compiler::dotted-to-proper 'a)", "(a)"
       );
     });
     describe('qq', function() {
       eval_print_eql(
-        "(arc.core.compiler::expand-qq (cadr '`(x x x x)))", "(quote (x x x x))", // (x x x x)
-        "(arc.core.compiler::expand-qq (cadr '`(a b c ,@(list x x) x y z)))", "(cons (quote a) (cons (quote b) (cons (quote c) (+ (list x x) (quote (x y z))))))", // (a b c 2 2 x y z)
-        "(arc.core.compiler::expand-qq (cadr '`(x x '(x ,x) x x)))", "(cons (quote x) (cons (quote x) (cons (cons (quote quote) (cons (cons (quote x) (cons x (quote nil))) (quote nil))) (quote (x x)))))" // (x x (quote (x 2)) x x)
+        "(arc.compiler::expand-qq (cadr '`(x x x x)))", "(quote (x x x x))", // (x x x x)
+        "(arc.compiler::expand-qq (cadr '`(a b c ,@(list x x) x y z)))", "(cons (quote a) (cons (quote b) (cons (quote c) (+ (list x x) (quote (x y z))))))", // (a b c 2 2 x y z)
+        "(arc.compiler::expand-qq (cadr '`(x x '(x ,x) x x)))", "(cons (quote x) (cons (quote x) (cons (cons (quote quote) (cons (cons (quote x) (cons x (quote nil))) (quote nil))) (quote (x x)))))" // (x x (quote (x 2)) x x)
       );
     });
     describe('complex-args', function() {
       eval_print_eql(
-        "(arc.core.compiler::complex-args-get-var '(a b c d))",
+        "(arc.compiler::complex-args-get-var '(a b c d))",
         "(d c b a)",
-        "(arc.core.compiler::complex-args-get-var '(a (x y z) b c d))",
+        "(arc.compiler::complex-args-get-var '(a (x y z) b c d))",
         "(d c b z y x a)",
-        "(arc.core.compiler::complex-args-get-var '(a (x y z . a) b c d))",
+        "(arc.compiler::complex-args-get-var '(a (x y z . a) b c d))",
         "(d c b a z y x a)",
-        "(arc.core.compiler::complex-args-get-var '(a (x y z . m) b (o xxx 10) (x1 x2) d . f))",
+        "(arc.compiler::complex-args-get-var '(a (x y z . m) b (o xxx 10) (x1 x2) d . f))",
         "(f d x2 x1 xxx b m z y x a)",
-        "(arc.core.compiler::complex-args-get-var '(o p q))",
+        "(arc.compiler::complex-args-get-var '(o p q))",
         "(q p o)",
-        "(arc.core.compiler::complex-args? nil)",
+        "(arc.compiler::complex-args? nil)",
         "nil",
-        "(arc.core.compiler::complex-args? '(x y z))",
+        "(arc.compiler::complex-args? '(x y z))",
         "nil",
-        "(arc.core.compiler::complex-args? '(x y z . a))",
+        "(arc.compiler::complex-args? '(x y z . a))",
         "nil",
-        "(arc.core.compiler::complex-args? '(x y z (a b) . a))",
+        "(arc.compiler::complex-args? '(x y z (a b) . a))",
         "t",
-        "(arc.core.compiler::complex-args? '(x y z (o x 0) . a))",
+        "(arc.compiler::complex-args? '(x y z (o x 0) . a))",
         "t",
-        "(arc.core.compiler::complex-args '(x) '(y))",
+        "(arc.compiler::complex-args '(x) '(y))",
         "(x y)",
-        "(arc.core.compiler::complex-args '(x (a b c)) '(y z))",
+        "(arc.compiler::complex-args '(x (a b c)) '(y z))",
         "(x y a (car z) b (car (cdr z)) c (car (cdr (cdr z))))",
-        "(arc.core.compiler::complex-args '(x (a b (o c 'x))) '(y z))",
+        "(arc.compiler::complex-args '(x (a b (o c 'x))) '(y z))",
         "(x y a (car z) b (car (cdr z)) c (if (acons (cdr (cdr z))) (car (cdr (cdr z))) (quote x)))",
-        "(arc.core.compiler::complex-args '(x (a b c) (o a b)) '(y z k))",
+        "(arc.compiler::complex-args '(x (a b c) (o a b)) '(y z k))",
         "(x y a (car z) b (car (cdr z)) c (car (cdr (cdr z))) o (car k) a (car (cdr k)) b (car (cdr (cdr k))))"
       );
     });
@@ -634,86 +634,86 @@ describe('VM eval', function(){
         "(macex 'abc!def!ghi)",
         "((abc (quote def)) (quote ghi))",
 
-        "(macex 'arc.core.compiler::refer-free)",
-        "(with (%g6-orig (***curr-ns***)) (do (ns (quote arc.core.compiler)) (with (%g7-rt refer-free) (do (ns %g6-orig) %g7-rt))))"
+        "(macex 'arc.compiler::refer-free)",
+        "(with (%g6-orig (***curr-ns***)) (do (ns (quote arc.compiler)) (with (%g7-rt refer-free) (do (ns %g6-orig) %g7-rt))))"
 
       );
     });
 
     describe('compile-refer', function() {
       eval_print_eql(
-        "(arc.core.compiler::compile-refer 'a '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
+        "(arc.compiler::compile-refer 'a '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
         "(refer-let 0 0 (halt))",
 
-        "(arc.core.compiler::compile-refer 'd '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
+        "(arc.compiler::compile-refer 'd '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
         "(refer-let 1 1 (halt))",
 
-        "(arc.core.compiler::compile-refer 'f '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
+        "(arc.compiler::compile-refer 'f '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
         "(refer-let 2 0 (halt))",
 
-        "(arc.core.compiler::compile-refer 'i '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
+        "(arc.compiler::compile-refer 'i '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
         "(refer-local 2 (halt))",
 
-        "(arc.core.compiler::compile-refer 'k '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
+        "(arc.compiler::compile-refer 'k '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
         "(refer-free 1 (halt))",
 
-        "(arc.core.compiler::compile-refer 'x '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
+        "(arc.compiler::compile-refer 'x '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
         "(refer-global x (indirect (halt)))"
       );
     });
     describe('find-free', function() {
       eval_print_eql(
-        "(arc.core.compiler::find-free '(fn (a b c) ((fn (x y) (+ a b c d (- x y))) y z)) '())",
+        "(arc.compiler::find-free '(fn (a b c) ((fn (x y) (+ a b c d (- x y))) y z)) '())",
         "(+ d - y z)",
 
-        "(arc.core.compiler::find-free '(fn (a b c) (with (x (- y z) y 2) (+ a b c d x y z))) '())",
+        "(arc.compiler::find-free '(fn (a b c) (with (x (- y z) y 2) (+ a b c d x y z))) '())",
         "(- y z + d)",
 
-        "(arc.core.compiler::find-free '(fn (a b c) (do (+ a b c d) (with (x y) (+ x z)) (- a c))) '())",
+        "(arc.compiler::find-free '(fn (a b c) (do (+ a b c d) (with (x y) (+ x z)) (- a c))) '())",
         "(+ d y z -)",
 
-        "(arc.core.compiler::find-free '(fn (a b . c) (+ a b c d)) '())",
+        "(arc.compiler::find-free '(fn (a b . c) (+ a b c d)) '())",
         "(+ d)"
       );
     });
 
     describe('find-sets', function() {
       eval_print_eql(
-        "(arc.core.compiler::find-sets '(fn (a b c) (assign d x)) '(a b c d e f g))",
+        "(arc.compiler::find-sets '(fn (a b c) (assign d x)) '(a b c d e f g))",
         "(d)",
 
-        "(arc.core.compiler::find-sets '(fn (a b c) (with (g (assign e x)) (assign g y))) '(a b c d e f g))",
+        "(arc.compiler::find-sets '(fn (a b c) (with (g (assign e x)) (assign g y))) '(a b c d e f g))",
         "(e)",
 
-        "(arc.core.compiler::find-sets '(fn x (assign x e)) '(x e))",
+        "(arc.compiler::find-sets '(fn x (assign x e)) '(x e))",
         "nil"
       );
     });
 
     describe('make-boxes', function() {
       eval_print_eql(
-        "(arc.core.compiler::make-boxes '(a b) '(a b c) '(halt))", "(box 0 (box 1 (halt)))"
+        "(arc.compiler::make-boxes '(a b) '(a b c) '(halt))", "(box 0 (box 1 (halt)))"
       );
     });
 
     describe('tailp', function() {
       eval_print_eql(
-        "(arc.core.compiler::tailp '(return 3 (halt)))", "3",
-        "(arc.core.compiler::tailp '(halt))", "nil",
-        "(arc.core.compiler::tailp '(exit-let 3 3 (return 3 (halt))))", "6"
+        "(arc.compiler::tailp '(return 3 (halt)))", "3",
+        "(arc.compiler::tailp '(halt))", "nil",
+        "(arc.compiler::tailp '(exit-let 3 3 (return 3 (halt))))", "6"
       );
     });
 
     describe('collect-free', function() {
       eval_print_eql(
-        "(arc.core.compiler::collect-free '(a d f i k x) '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
+        "(arc.compiler::collect-free '(a d f i k x) '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
         "(refer-global x (indirect (argument (refer-free 1 (argument (refer-local 2 (argument (refer-let 2 0 (argument (refer-let 1 1 (argument (refer-let 0 0 (argument (halt))))))))))))))"
       );
     });
 
     describe('remove-globs', function() {
       eval_print_eql(
-        "(arc.core.compiler::collect-free '(a d f i k x) '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
+        "(arc.compiler::collect-free '(a d f i k x) '(((a b) (c d e) (f)) (g h i) j k l) '(halt))",
         "(refer-global x (indirect (argument (refer-free 1 (argument (refer-local 2 (argument (refer-let 2 0 (argument (refer-let 1 1 (argument (refer-let 0 0 (argument (halt))))))))))))))"
       );
     });

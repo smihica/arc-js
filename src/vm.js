@@ -33,7 +33,7 @@ var VM = classify("VM", {
         }
       }
       // starting with compiler namespace.
-      this.ns = NameSpace.get('arc.core.compiler');
+      this.ns = NameSpace.get('arc.compiler');
       this.current_ns = this.ns;
       this.init_def(preloads, preload_vals);
       // changing to user namespace.
