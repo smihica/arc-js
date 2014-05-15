@@ -516,9 +516,9 @@ describe('VM eval', function(){
     });
     describe('qq', function() {
       eval_print_eql(
-        "(arc.compiler::expand-qq (cadr '`(x x x x)))", "(quote (x x x x))", // (x x x x)
-        "(arc.compiler::expand-qq (cadr '`(a b c ,@(list x x) x y z)))", "(cons (quote a) (cons (quote b) (cons (quote c) (+ (list x x) (quote (x y z))))))", // (a b c 2 2 x y z)
-        "(arc.compiler::expand-qq (cadr '`(x x '(x ,x) x x)))", "(cons (quote x) (cons (quote x) (cons (cons (quote quote) (cons (cons (quote x) (cons x (quote nil))) (quote nil))) (quote (x x)))))" // (x x (quote (x 2)) x x)
+        "(arc.core::expand-qq (cadr '`(x x x x)))", "(quote (x x x x))", // (x x x x)
+        "(arc.core::expand-qq (cadr '`(a b c ,@(list x x) x y z)))", "(cons (quote a) (cons (quote b) (cons (quote c) (+ (list x x) (quote (x y z))))))", // (a b c 2 2 x y z)
+        "(arc.core::expand-qq (cadr '`(x x '(x ,x) x x)))", "(cons (quote x) (cons (quote x) (cons (cons (quote quote) (cons (cons (quote x) (cons x (quote nil))) (quote nil))) (quote (x x)))))" // (x x (quote (x 2)) x x)
       );
     });
     describe('complex-args', function() {

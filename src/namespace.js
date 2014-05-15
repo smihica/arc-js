@@ -186,13 +186,17 @@ var NameSpace = classify('NameSpace', {
   }
 });
 
-var global_ns     = new NameSpace('***global***', null, [], []);
+var global_ns = new NameSpace('***global***', null, [], []);
 NameSpace.global_ns = global_ns;
-new NameSpace('arc.primitives', null, ['***global***'], []);
-new NameSpace('arc.compiler',   null, ['***global***', 'arc.primitives'], []);
-new NameSpace('arc',            null, ['***global***', 'arc.primitives', 'arc.compiler'], []);
 
-var default_ns    = new NameSpace('arc.user_default',    null, ['***global***', 'arc.primitives', 'arc.compiler', 'arc'], []);
+// creating objects that reference each other.
+var core_ns     = new NameSpace('arc.core',     null, ['***global***'],             []);
+var compiler_ns = new NameSpace('arc.compiler', null, ['***global***', 'arc.core'], []);
+core_ns.add_imports(['arc.compiler']);
+
+new NameSpace('arc',          null, ['***global***', 'arc.core', 'arc.compiler'], []);
+
+var default_ns    = new NameSpace('arc.user_default',    null, ['***global***', 'arc.core', 'arc.compiler', 'arc'], []);
 NameSpace.default_ns = default_ns;
 
 return NameSpace;
