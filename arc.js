@@ -1833,11 +1833,62 @@ var primitives_math = (new Primitives('arc.math')).define({
 });
 /** @} */
 /** @file time.js { */
-var primitives_time = (new Primitives('arc.time')).define({
+var primitives_time = (function() {
+
+var timer_ids_table = {
+  i: 0,
+  src: {},
+  push_new: function(id) {
+    var self = timer_ids_table;
+    var i = self.i++;
+    self.src[i] = id;
+    return i;
+  },
+  get: function(i, clear) {
+    var self = timer_ids_table;
+    var rt = self.src[i];
+    if (clear) { self.clear(i); }
+    return rt;
+  },
+  clear: function(i) {
+    var self = timer_ids_table;
+    delete self.src[i];
+  }
+};
+
+return (new Primitives('arc.time')).define({
   'msec': [{dot: -1}, function() {
     return +(new Date());
   }],
+  'set-timer': [{dot: 2}, function(fn, ms, $$) {
+    var self = this;
+    var repeat = (2 < arguments.length && arguments[2] !== nil);
+    var timer  = repeat ? setInterval : setTimeout;
+    var _box = {};
+    var id_obj = timer(function() {
+      if (!repeat) {
+        timer_ids_table.clear(_box.id);
+      }
+      self.set_asm([
+        ['frame', 5],
+        ['constant', 0],
+        ['argument'],
+        ['constant', fn],
+        ['apply'],
+        ['halt']]).run();
+    }, ms);
+    var id = timer_ids_table.push_new(id_obj);
+    _box.id = id;
+    return id;
+  }],
+  'clear-timer': [{dot: -1}, function(id) {
+    var id_obj = timer_ids_table.get(id, true);
+    clearTimeout(id_obj);
+    return nil;
+  }],
 });
+
+})();
 /** @} */
 /** @} */
 /** @file preload.js { */
@@ -2183,6 +2234,7 @@ var VM = classify("VM", {
     call_stack: null,
     recent_call_args: null,
     warn: null,
+    waiting: false,
   },
   method: {
     init: function() {
@@ -2252,6 +2304,7 @@ var VM = classify("VM", {
                 case 'refer-nil':
                 case 'refer-t':
                 case 'enter-let':
+                case 'wait':
                   asm.push([op]);
                   break;
                 default:
@@ -2312,6 +2365,7 @@ var VM = classify("VM", {
         case 'refer-nil':
         case 'refer-t':
         case 'enter-let':
+        case 'wait':
           break;
         }
         this.x.push(c);
@@ -2345,12 +2399,17 @@ var VM = classify("VM", {
     step: function() {
       return this.run(false, false, true);
     },
-    run_iter: function(step) {
+    run_iter: function(step, restore) {
+      var repeat = !step, self = this;
       var n = 0, b = 0, v = 0, d = 0, m = 0, l = 0;
+      if (restore) {
+        n = restore.n; b = restore.b;
+        v = restore.v; d = restore.d;
+        m = restore.m; l = restore.l;
+      }
       n = n | 0; b = b | 0;
       v = v | 0; d = d | 0;
       m = m | 0; l = l | 0;
-      var repeat = !step;
       do {
         var op = this.x[this.p];
         var code = op[0];
@@ -2593,6 +2652,18 @@ var VM = classify("VM", {
           this.a = this.ns;
           this.p++;
           break;
+        case 'wait':
+          // not supported yet.
+          var ms = this.a | 0;
+          this.waiting = true;
+          this.p++;
+          setTimeout(function() {
+            self.waiting = false;
+            self.run_iter(step, {
+              n:n, b:b, v:v, d:d, m:m, l:l
+            });
+          }, ms);
+          return this.a;
         default:
           throw new Error('Error: Unknown operand. ' + code);
         }
@@ -2600,8 +2671,8 @@ var VM = classify("VM", {
       } while (repeat);
     },
     run: function(asm_string, clean_all, step) {
-      if (!step) this.cleanup(clean_all);
-      if (asm_string)   this.load_string(asm_string);
+      if (!step)      this.cleanup(clean_all);
+      if (asm_string) this.load_string(asm_string);
       var ret = this.run_iter(step);
       var typ = type(ret);
       if (typ.name.match("^\%javascript\-.*$")) {
