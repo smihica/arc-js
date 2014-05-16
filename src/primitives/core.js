@@ -169,6 +169,26 @@ var primitives_core = (new Primitives('arc.core')).define({
     if (0 < l) args = args.concat(list_to_javascript_arr(arguments[l]));
     return new Call(fn, null, args);
   }],
+  'eval': [{dot: 1}, function(expr, $$) {
+    var ns = (1 < arguments.length) ? arguments[1] : this.ns; // default is lexical ns
+    var nest_p = (this === Primitives.contexts_for_eval[0].vm);
+    var context;
+    if (nest_p) {
+      Primitives.contexts_for_eval.unshift(new Context());
+    }
+    context = Primitives.contexts_for_eval[0];
+    try {
+      context.vm.ns = ns;
+      context.vm.current_ns = ns;
+      var rt = context.eval_expr(expr);
+      return rt;
+    } finally {
+      if (nest_p) {
+        context = Primitives.contexts_for_eval.shift();
+        delete context;
+      }
+    }
+  }],
   'type': [{dot: -1}, function(x) {
     if (x === nil || x === t) return s_sym;
     var type = typeof x;
@@ -796,6 +816,9 @@ var primitives_core = (new Primitives('arc.core')).define({
   }],
   '***curr-ns***': [{dot: -1}, function() {
     return this.current_ns;
+  }],
+  '***lex-ns***': [{dot: -1}, function() {
+    return this.ns;
   }],
   '***export***': [{dot: -1}, function(ns, exports) {
     exports = list_to_javascript_arr(exports, true);

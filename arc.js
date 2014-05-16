@@ -8,6 +8,9 @@
 var ArcJS = (function() {
   var ArcJS = this;
   ArcJS.version = '0.1.2';
+
+  var todos_after_all_initialized = [];
+
 /** @file classify.min.js { */
 var classify=function(ns){function randomAscii(a){for(var b="";0<a;a--)b+=String.fromCharCode(32+Math.round(Math.random()*94));return b.replace(/'|"|\\/g,"@")}function ClassifyError(a){Error.apply(this,arguments),Error.captureStackTrace!==void 0&&Error.captureStackTrace(this,this.constructor),this.message=a}function createExceptionClass(a){var b=function(){ClassifyError.apply(this,arguments)};return b.prototype=new ClassifyError,b.prototype.name=a,b}function _atomic_p(a,b){return a===null||a===void 0||(b=typeof a)==="number"||b==="string"||b==="boolean"||a.valueOf!==Object.prototype.valueOf&&!(a instanceof Date)}function _clone(a,b){if(_atomic_p(a))return a;var c,d;if(a instanceof Date){c=new Date(a.getTime());if(b instanceof Date)for(d in b)b.hasOwnProperty(d)&&(c[d]=_clone(b[d],c[d]))}else if(typeof a=="function"){c=function(){return a.apply(this,arguments)};if(typeof b=="function")for(d in b)b.hasOwnProperty(d)&&(c[d]=_clone(b[d],c[d]))}else c=!_atomic_p(b)&&typeof b!="function"?b:new a.constructor;for(d in a)a.hasOwnProperty(d)&&(c[d]=_clone(a[d],c[d]));return c}function __super__(){return this.constructor.__super__.prototype}function inherits(a,b){a.__super__=b;var c=function(){};c.prototype=b.prototype,c.prototype.constructor=b,a.prototype=new c,a.prototype.__super__=__super__;var d=a[iop];return a[iop]=function(a){var c=b[iop];c&&c(a),d(a)},a}function method(a,b,c){a.prototype[b]=c}function mixin(a,b){var c=b.prototype;for(var d in c)d=="init"?a.prototype["init@"+b["@CLASSNAME"]]=c[d]:d!=="__super__"&&d!=="constructor"&&(a.prototype[d]=c[d]);var e=a[iop];a[iop]=function(a){var c=b[iop];c&&c(a),e(a)}}function check_interface(a,b){for(var c in b.prototype)if(b.prototype.hasOwnProperty(c)&&!a.prototype.hasOwnProperty(c))throw new DeclarationError("The class '"+a["@CLASSNAME"]+"' must provide property or method '"+c+"' imposed by '"+b["@CLASSNAME"]+"'.")}function hasProp(a){for(var b in a)if(a.hasOwnProperty(b))return!0;return!1}function expand(a,b){if(!b)return a;var c,d,e,f=[],g="property,static,method,parent,mixin,implement".split(",");for(c in userDirectives)f.push(c);for(;;){var h=!1;for(c in b)if(0>g.indexOf(c)){if(0>f.indexOf(c))throw new ArgumentError("You gave '"+c+"' as definition, but the classify() excepts"+' only "'+g.concat(f).join(", ")+'".');hasProp(b[c])&&(h=!0)}else a[c]=b[c];if(!h)break;for(c in userDirectives)a[c]=a[c]||{};for(c in userDirectives){e=0;for(d in b[c]){e==0&&(a=userDirectives[c].one_time_fn(a)),a&&(a=userDirectives[c](a,d,b[c][d]));if(!a)throw new DeclarationError('directives must return context. ON YOUR directive "'+c+'"');delete b[c][d],e++}}b=a}return a}var classify=ns;ClassifyError.prototype=Error();var ArgumentError=createExceptionClass("ArgumentError"),DeclarationError=createExceptionClass("DeclarationError"),genclassid=function(a){return function(){return"ANONYMOUS_CLASS_"+ ++a}}(0),iop=randomAscii(64),userDirectives={},classify=function classify(name,def){var __class__,i,j,l,k,c,type,context;if((l=arguments.length)==1)return typeof name!="string"?classify(genclassid(),name):classify(name,{});if(l==2&&typeof name=="string"&&def instanceof Object){if(!name.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*$/))throw new ArgumentError('You give "'+name+'" as class name. But class name must be a valid variable name in JavaScript.');context={property:{},"static":{},method:{},parent:Object,mixin:[],implement:[]},context=expand(context,def);var inner_new_call_identifier=randomAscii(64);eval("__class__ = function "+name+"(arg) {"+"if (this.constructor === "+name+") {"+name+"['"+iop+"'](this);"+"if (arg !== '"+inner_new_call_identifier+"') "+("init"in context.method?"this.init.apply(this, arguments);":"_clone(arg, this);")+"return this;"+"}"+"var self = new "+name+"('"+inner_new_call_identifier+"');"+("init"in context.method?"self.init.apply(self, arguments);":"_clone(arg, self);")+"return self;"+"}"),__class__[iop]=function(a){for(var b in context.property)a[b]=_clone(context.property[b])},inherits(__class__,context.parent);for(j=0,l=context.mixin.length;j<l;j++)mixin(__class__,context.mixin[j]);for(i in context.method)context.method.hasOwnProperty(i)&&method(__class__,i,context.method[i]);__class__.prototype.constructor=__class__,__class__.prototype.__class__=__class__,__class__["@CLASSNAME"]=name;for(j=0,l=context.implement.length;j<l;j++)check_interface(__class__,context.implement[j]);for(i in context.static)__class__[i]=context.static[i];return typeof context.static.init=="function"&&context.static.init.call(__class__),__class__}throw new ArgumentError("Expects classify(name, definition) or classify(name) or classify(definition).")};return classify.addDirective=function(b,c,d){c.one_time_fn=d||function(a){return a},userDirectives[b]=c},classify.removeDirective=function(b){delete userDirectives[b]},classify.expand=expand,classify.error={ClassifyError:ClassifyError,ArgumentError:ArgumentError,DeclarationError:DeclarationError},classify}({});typeof exports!="undefined"&&(exports.classify=classify);/** @} */
 /** @file stack.js { */
@@ -852,6 +855,8 @@ new NameSpace('arc.time', arc_ns, [], []);
 
 NameSpace.default_ns = default_ns;
 
+NameSpace.create_with_default('user');
+
 return NameSpace;
 
 })();
@@ -861,7 +866,9 @@ ArcJS.NameSpace = NameSpace;
 /** @file primitives.js { */
 var Primitives = classify('Primitives', {
   static: {
-    reader: new Reader(),
+    context: null,
+    vm:      null,
+    reader:  null,
     all: []
   },
   property: {
@@ -896,6 +903,7 @@ var Primitives = classify('Primitives', {
     }
   }
 });
+ArcJS.Primitives = Primitives;
 
 /** @file core.js { */
 var nil = (function() {
@@ -1068,6 +1076,26 @@ var primitives_core = (new Primitives('arc.core')).define({
       args[i-1] = arguments[i];
     if (0 < l) args = args.concat(list_to_javascript_arr(arguments[l]));
     return new Call(fn, null, args);
+  }],
+  'eval': [{dot: 1}, function(expr, $$) {
+    var ns = (1 < arguments.length) ? arguments[1] : this.ns; // default is lexical ns
+    var nest_p = (this === Primitives.contexts_for_eval[0].vm);
+    var context;
+    if (nest_p) {
+      Primitives.contexts_for_eval.unshift(new Context());
+    }
+    context = Primitives.contexts_for_eval[0];
+    try {
+      context.vm.ns = ns;
+      context.vm.current_ns = ns;
+      var rt = context.eval_expr(expr);
+      return rt;
+    } finally {
+      if (nest_p) {
+        context = Primitives.contexts_for_eval.shift();
+        delete context;
+      }
+    }
   }],
   'type': [{dot: -1}, function(x) {
     if (x === nil || x === t) return s_sym;
@@ -1697,6 +1725,9 @@ var primitives_core = (new Primitives('arc.core')).define({
   '***curr-ns***': [{dot: -1}, function() {
     return this.current_ns;
   }],
+  '***lex-ns***': [{dot: -1}, function() {
+    return this.ns;
+  }],
   '***export***': [{dot: -1}, function(ns, exports) {
     exports = list_to_javascript_arr(exports, true);
     if (!(ns instanceof NameSpace)) {
@@ -1890,6 +1921,27 @@ return (new Primitives('arc.time')).define({
 
 })();
 /** @} */
+
+todos_after_all_initialized.push(function() {
+
+  var context                  = new Context();
+  Primitives.context           = context;
+  Primitives.contexts_for_eval = [context];
+  var vm                       = context.vm;
+  Primitives.vm                = vm
+  Primitives.reader            = vm.reader;
+
+  // initializing primitives.
+  var prim_all = Primitives.all;
+  for (var i = 0, l = prim_all.length; i<l; i++) {
+    var prm = prim_all[i];
+    var vars = prm.vars;
+    for (var p in vars) {
+      prm.ns.setBox(p, vars[p]);
+    }
+  }
+
+});
 /** @} */
 /** @file preload.js { */
 var preloads = [];
@@ -2183,6 +2235,74 @@ preloads.push([
 ]);
 preload_vals.push(["arc","1","car","cdr","acons","list","2","is","%pair","no","cadr","cddr","cons","self","fn-name","pair","type","int","exact","atom","caar","assoc","alref","apply","3","join","isnt","alist","let","+","ret","mac","annotate","g","uniq","or","map1","in","iso","if","do","when","unless","gf","gp","rfn","while","reclist","0","len","<","recstring","fn","isa","testify","carif","some","complement","all","find","rev","firstn","lastn","nthcdr","tuples","def","map","defs","caris","\"Warning: \"","\". \"","disp","write","\" \"","#\\n","ewline","warn","***curr-ns***","setter","collect-bounds-in-ns","***setters***","-setter","sym","assign","(quote setter)","defset","(val)","scar","car-setter","scdr","cdr-setter","caar-setter","cadr-setter","cddr-setter","compose","macex","h","-expand-metafn-call","ref","indirect","rep","\"Inverting what looks like a function call\"","zip","sref","setforms","\"Can't invert \"","err","with","expand=","expand=list","=","looper","loop-flag","loop","gi","gm","(1)","for","-",">","down","repeat","forlen","coerce","maptable","table","%g25-looper","walk","each","string","cut","last","nrev","rem","keep","trues","do1","gx","withs","push","g1","g2","4","swap","mappend","rotate","pop","adjoin","pushnew","pull","mem","togglemem","++","--","zap","(nil)","wipe","(t)","set","gv","iflet","whenlet","it","awhen","whilet","and","aand","gacc","***cut-fn***","_","accum","gdone","gres","drain","whiler","check","(it)","acheck","pos","10","special-syntax","\"^(\\\\d+)\\\\+$\"","regex","***special-syntax-order***","(a)","x-plus-ss","\"^(\\\\d+)\\\\-$\"","x-minus-ss","\"^(\\\\d+)\\\\*$\"","*","x-mul-ss","\"^(\\\\d+)/$\"","/","x-div-ss","\"^/(\\\\d+)$\"","a","x-div-inv-ss","case","rand","range","rand-choice","ga","n-of","\"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\"","%g58-looper","rand-string","index","\"Can't use index as first arg to on.\"","gs","(index)","on","best","most","insert-sorted","(_)","insort","reinsert-sorted","insortnew","memo","defmemo","sum","treewise","\"\"","\", \"","pr","prall","prs","tree-subst","ontree","dotted","fill-table","keys","vals","tablist","listtab","quote","obj","num",null,"\"Can't copy ( TODO copy constructor ) \"","copy","shl","shr","abs","trunc","1/2","odd","round",">=","roundup","nearest","avg","sort","med","mergesort","<=","even","merge","bestn","split","t1","t2","(msec)","prn","\"time: \"","(\" msec.\")","time","(quote ok)","jtime","time10","number","seconds","since","60","minutes-since","3600","hours-since","86400","days-since","cache","safeset","defcache","on-err","(fn (c) nil)","errsafe","read","saferead","load-table","safe-load-table","timedate","date","\"-\"","\"0\"","7","datestring","count","80","\"...\"","ellipsize","rand-elt","until","before","orf","andf","atend","mod","multiple","nor","nand","compare","only","conswhen","retrieve","single","intersperse","counts","flat","tree-counts","commonest","idfn","sort-by-commonest","reduce","rreduce","positive","(table)","w/table","median","gn","gc","(0)","((pr \".\") (flushout))","((prn) (flushout))","noisy-each","p","ccc","o","point","throw","catch","64","91","191","215","223","32","char","\"Can't downcase\"","downcase","96","123","247","255","NIL","\"Can't upcase\"","upcase","inc","%g136-looper","mismatch","memtable","\" | \"","bar*","out","needbars","tostring","(\"\")","w/bars","len<","len>","afn","trav","or=","vtables*","((table))","allargs","aif","((it (type car.allargs)))","(apply it allargs)","(pickles* (type car.allargs))","((map it allargs))","defgeneric","defmethod","pickles*","pickle","evtil","empty","-1","rand-key","ratio","butlast","first","between","cars","cdrs","mapeach","gcd","\"^c([ad]{5,})r$\"","#\\a","#\\d","f","(x)","x","c","r","(f)","cxr-ss"]);
 /** @} */
+
+todos_after_all_initialized.push(function() {
+  var vm = new VM();
+  vm.ns = NameSpace.get('arc.compiler');
+  vm.current_ns = vm.ns;
+  //vm.init_def(preloads, preload_vals);
+  var ops = VM.operators;
+  for (var i=0,l=preloads.length; i<l; i++) {
+    var preload     = preloads[i];
+    var preload_val = preload_vals[i];
+    var vals = preload_val;
+    for (var j=0,jl=preload.length; j<jl; j++) {
+      var line = preload[j];
+      var asm = [];
+      for (var k=0,kl=line.length; k<kl; k++) {
+        var op = ops[line[k]];
+        switch (op) {
+        case 'refer-local':
+        case 'refer-free':
+        case 'box':
+        case 'test':
+        case 'jump':
+        case 'assign-local':
+        case 'assign-free':
+        case 'frame':
+        case 'return':
+        case 'continue-return':
+        case 'conti':
+          asm.push([op, line[++k]|0]);
+          break;
+        case 'exit-let':
+        case 'shift':
+        case 'refer-let':
+        case 'assign-let':
+          asm.push([op, line[++k]|0, line[++k]|0]);
+          break;
+        case 'close':
+          asm.push([op, line[++k]|0, line[++k]|0, line[++k]|0, line[++k]|0]);
+          break;
+        case 'refer-global':
+        case 'assign-global':
+          asm.push([op, vals[line[++k]|0]]);
+          break;
+        case 'constant':
+          asm.push([op, vm.reader.read(vals[line[++k]|0])]);
+          break;
+        case 'ns':
+        case 'indirect':
+        case 'halt':
+        case 'argument':
+        case 'apply':
+        case 'nuate':
+        case 'refer-nil':
+        case 'refer-t':
+        case 'enter-let':
+        case 'wait':
+          asm.push([op]);
+          break;
+        default:
+        }
+      }
+      vm.set_asm(asm).run();
+    }
+  }
+  delete vm.reader;
+  delete vm;
+
+});
 /** @} */
 /** @file vm.js { */
 var VM = classify("VM", {
@@ -2239,80 +2359,9 @@ var VM = classify("VM", {
   method: {
     init: function() {
       this.reader = new Reader();
-      // initializing primitives.
-      var prim_all = Primitives.all;
-      for (var i = 0, l = prim_all.length; i<l; i++) {
-        var prm = prim_all[i];
-        var vars = prm.vars;
-        for (var p in vars) {
-          prm.ns.setBox(p, vars[p]);
-        }
-      }
-      // starting with compiler namespace.
-      this.ns = NameSpace.get('arc.compiler');
-      this.current_ns = this.ns;
-      this.init_def(preloads, preload_vals);
       // changing to user namespace.
-      this.ns = NameSpace.create_with_default('user');
+      this.ns = NameSpace.get('user');
       this.current_ns = this.ns;
-    },
-    init_def: function(preloads, preload_vals) {
-      var ops = VM.operators;
-      for (var i=0,l=preloads.length; i<l; i++)
-        (function(preload, preload_val) {
-          for (var j=0,jl=preload.length; j<jl; j++)
-            (function(line, vals) {
-              var asm = [];
-              for (var k=0,m=line.length; k<m; k++) {
-                var op = ops[line[k]];
-                switch (op) {
-                case 'refer-local':
-                case 'refer-free':
-                case 'box':
-                case 'test':
-                case 'jump':
-                case 'assign-local':
-                case 'assign-free':
-                case 'frame':
-                case 'return':
-                case 'continue-return':
-                case 'conti':
-                  asm.push([op, line[++k]|0]);
-                  break;
-                case 'exit-let':
-                case 'shift':
-                case 'refer-let':
-                case 'assign-let':
-                  asm.push([op, line[++k]|0, line[++k]|0]);
-                  break;
-                case 'close':
-                  asm.push([op, line[++k]|0, line[++k]|0, line[++k]|0, line[++k]|0]);
-                  break;
-                case 'refer-global':
-                case 'assign-global':
-                  asm.push([op, vals[line[++k]|0]]);
-                  break;
-                case 'constant':
-                  asm.push([op, this.reader.read(vals[line[++k]|0])]);
-                  break;
-                case 'ns':
-                case 'indirect':
-                case 'halt':
-                case 'argument':
-                case 'apply':
-                case 'nuate':
-                case 'refer-nil':
-                case 'refer-t':
-                case 'enter-let':
-                case 'wait':
-                  asm.push([op]);
-                  break;
-                default:
-                }
-              }
-              this.set_asm(asm).run();
-            }).call(this, preload[j], preload_val);
-        }).call(this, preloads[i], preload_vals[i]);
     },
     set_asm: function(asm) {
       this.x = asm;
@@ -2755,6 +2804,12 @@ var context = function context() {
 }
 ArcJS.context = context;
 /** @} */
+
+  for (var i = 0, l = todos_after_all_initialized.length; i<l; i++) {
+    (todos_after_all_initialized[i])();
+  }
+  delete todos_after_all_initialized;
+
   return ArcJS;
 }).call(typeof exports !== 'undefined' ? exports : {});
 /** @} */

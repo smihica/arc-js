@@ -204,6 +204,8 @@ new NameSpace('arc.time', arc_ns, [], []);
 
 NameSpace.default_ns = default_ns;
 
+NameSpace.create_with_default('user');
+
 return NameSpace;
 
 })();
