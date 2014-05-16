@@ -19,6 +19,7 @@ var VM = classify("VM", {
     call_stack: null,
     recent_call_args: null,
     warn: null,
+    waiting: false,
   },
   method: {
     init: function() {
@@ -88,6 +89,7 @@ var VM = classify("VM", {
                 case 'refer-nil':
                 case 'refer-t':
                 case 'enter-let':
+                case 'wait':
                   asm.push([op]);
                   break;
                 default:
@@ -148,6 +150,7 @@ var VM = classify("VM", {
         case 'refer-nil':
         case 'refer-t':
         case 'enter-let':
+        case 'wait':
           break;
         }
         this.x.push(c);
@@ -181,24 +184,17 @@ var VM = classify("VM", {
     step: function() {
       return this.run(false, false, true);
     },
-    arc_apply: function(fn, args) {
-      var asm = [['frame', 0]];
-      args.push(args.length);
-      args.forEach(function(a) {
-        asm.push.apply(asm, [['constant', a], ['argument']]);
-      });
-      asm.push.apply(asm, [['constant', fn], ['apply'], ['halt']]);
-      asm[0][1] = asm.length - 1;
-      this.cleanup();
-      this.set_asm(asm);
-      return this.run();
-    },
-    run_iter: function(step) {
+    run_iter: function(step, restore) {
+      var repeat = !step, self = this;
       var n = 0, b = 0, v = 0, d = 0, m = 0, l = 0;
+      if (restore) {
+        n = restore.n; b = restore.b;
+        v = restore.v; d = restore.d;
+        m = restore.m; l = restore.l;
+      }
       n = n | 0; b = b | 0;
       v = v | 0; d = d | 0;
       m = m | 0; l = l | 0;
-      var repeat = !step;
       do {
         var op = this.x[this.p];
         var code = op[0];
@@ -441,6 +437,18 @@ var VM = classify("VM", {
           this.a = this.ns;
           this.p++;
           break;
+        case 'wait':
+          // not supported yet.
+          var ms = this.a | 0;
+          this.waiting = true;
+          this.p++;
+          setTimeout(function() {
+            self.waiting = false;
+            self.run_iter(step, {
+              n:n, b:b, v:v, d:d, m:m, l:l
+            });
+          }, ms);
+          return this.a;
         default:
           throw new Error('Error: Unknown operand. ' + code);
         }
@@ -448,8 +456,8 @@ var VM = classify("VM", {
       } while (repeat);
     },
     run: function(asm_string, clean_all, step) {
-      if (!step) this.cleanup(clean_all);
-      if (asm_string)   this.load_string(asm_string);
+      if (!step)      this.cleanup(clean_all);
+      if (asm_string) this.load_string(asm_string);
       var ret = this.run_iter(step);
       var typ = type(ret);
       if (typ.name.match("^\%javascript\-.*$")) {

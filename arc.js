@@ -2345,18 +2345,6 @@ var VM = classify("VM", {
     step: function() {
       return this.run(false, false, true);
     },
-    arc_apply: function(fn, args) {
-      var asm = [['frame', 0]];
-      args.push(args.length);
-      args.forEach(function(a) {
-        asm.push.apply(asm, [['constant', a], ['argument']]);
-      });
-      asm.push.apply(asm, [['constant', fn], ['apply'], ['halt']]);
-      asm[0][1] = asm.length - 1;
-      this.cleanup();
-      this.set_asm(asm);
-      return this.run();
-    },
     run_iter: function(step) {
       var n = 0, b = 0, v = 0, d = 0, m = 0, l = 0;
       n = n | 0; b = b | 0;
