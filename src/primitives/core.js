@@ -171,6 +171,13 @@ var primitives_core = (new Primitives('arc.core')).define({
   }],
   'eval': [{dot: 1}, function(expr, $$) {
     var ns = (1 < arguments.length) ? arguments[1] : this.ns; // default is lexical ns
+    if (!(ns instanceof NameSpace)) {
+      if (ns instanceof Symbol) {
+        ns = NameSpace.get(ns.name);
+      } else if (typeof ns === 'string') {
+        ns = NameSpace.get(ns);
+      }
+    }
     var nest_p = (this === Primitives.contexts_for_eval[0].vm);
     var context;
     if (nest_p) {
@@ -842,6 +849,16 @@ var primitives_core = (new Primitives('arc.core')).define({
       }
     }
     ns.add_imports(imports);
+    return ns;
+  }],
+  'find-ns': [{dot: -1}, function(ns) {
+    if (!(ns instanceof NameSpace)) {
+      if (ns instanceof Symbol) {
+        ns = NameSpace.get(ns.name);
+      } else if (typeof ns === 'string') {
+        ns = NameSpace.get(ns);
+      }
+    }
     return ns;
   }],
   'collect-bounds-in-ns': [{dot: 1}, function(ns, type_s) {
