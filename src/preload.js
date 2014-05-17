@@ -3,6 +3,7 @@ var preload_vals = [];
 include("core.fasl");
 include("compiler.fasl");
 include("arc.fasl");
+include("unit.fasl");
 
 todos_after_all_initialized.push(function() {
   var vm = new VM();

@@ -1,62 +1,100 @@
-(mac unit-tests exps
-  `(do
-     ,@(map1
-         (fn (pair)
-           (with (exp car.pair res cadr.pair)
-             (w/uniq (sexp sres)
-               `(with (,sexp ,exp ,sres ,res)
-                  (if (no (iso ,sexp ,sres))
-                      (err ',exp "is expected to"
-                           ',res "but"
-                           ,sexp "returned")
-                      (prn "OK ... " ',exp))))))
-         (pair exps))
-     (prn "PASSED ALL TESTS.")))
+(ns (defns test :import arc.unit))
+
+(desc
+
+  "fundamental UNIT TESTS"
+
+  (test "1 exact"
+    (iso
+      (exact 1)                           t
+      (exact 1.2)                         nil
+      (exact 10)                          t
+      (exact 2.45)                        nil
+      (exact 'a)                          nil))
+
+  (test "compose"
+    (iso
+      ((compose car cdr) '(a b))          'b))
+
+  (test "assoc"
+    (iso
+      (assoc 'a '((b a) (c d) (a b)))     '(a b)
+      (assoc 'x '((a b) (2 10) ("x" y)))  nil))
+
+  (test "alref"
+    (iso
+      (alref '((b a) (c d) (a b)) 'a)     'b
+      (alref '((a b) (2 10) ("x" y)) 'x)  nil))
+
+  (test "join"
+    (iso
+      (join '(a b) nil '(c d))            '(a b c d)
+      (join nil)                          nil
+      (join)                              nil))
+
+  (test "isnt"
+    (iso
+      (isnt 'a 'b)                        t
+      (isnt 'a 'a)                        nil))
+
+  (test "alist"
+    (iso
+      (alist nil)                         t
+      (alist '(x))                        t
+      ;(alist '(a . b))                    t
+      (alist "ab")                        nil))
+
+  (test "ret"
+    (iso
+      (ret v (+ 1 2) (+ v 3 4 5))         3))
+
+  (test "in"
+    (iso
+      (in (car '(x y)) 'a 'b 'x)          t
+      (in (car '(x y)) 'a 'b 'c)          nil))
+
+  (test "iso"
+    (iso
+      (iso 'a 'b)                         nil
+      (iso 'a 'a)                         t
+      (iso '(a) '(a))                     t
+      (iso '(a) '(a b))                   nil))
+
+  (test "when / unless"
+    (is
+      (when t (+ 1 2) (+ 3 4) 5)          5
+      (when nil (+ 1 2) (+ 3 4) 5)        nil
+      (unless nil (+ 1 2) 3)              3
+      (unless t (+ 1 2) 3)                nil))
+
+  (test "while"
+    (iso
+      (with (lis nil x 0)
+        (while (< x 3)
+               (assign lis (cons x lis))
+               (assign x (+ x 1)))
+        lis)                              '(2 1 0)))
+
+  (test "reclist"
+    (iso
+      (reclist idfn '(1 2 3))             '(1 2 3)
+      (reclist car '(nil nil 3))          3
+      (reclist car '(1 2 3))              1))
+
+  (test "recstring"
+    (iso
+      (with (lis nil str "abc")
+        (recstring
+          (fn (i) (assign lis (cons (str i) lis)) nil)
+          str)
+        lis)                              '(#\c #\b #\a)))
+
+)
+
+
+
 
 (unit-tests
-  (exact 1)                           t
-  (exact 1.2)                         nil
-  (exact 10)                          t
-  (exact 2.45)                        nil
-  (exact 'a)                          nil
-  ((compose car cdr) '(a b))          'b
-  (assoc 'a '((b a) (c d) (a b)))     '(a b)
-  (assoc 'x '((a b) (2 10) ("x" y)))  nil
-  (alref '((b a) (c d) (a b)) 'a)     'b
-  (alref '((a b) (2 10) ("x" y)) 'x)  nil
-  (join '(a b) nil '(c d))            '(a b c d)
-  (join nil)                          nil
-  (join)                              nil
-  (isnt 'a 'b)                        t
-  (isnt 'a 'a)                        nil
-  (alist nil)                         t
-  (alist '(x))                        t
-  (alist '(a . b))                    t
-  (alist "ab")                        nil
-  (ret v (+ 1 2) (+ v 3 4 5))         3
-  (in (car '(x y)) 'a 'b 'x)          t
-  (in (car '(x y)) 'a 'b 'c)          nil
-  (iso 'a 'b)                         nil
-  (iso 'a 'a)                         t
-  (iso '(a) '(a))                     t
-  (iso '(a) '(a b))                   nil
-  (when t (+ 1 2) (+ 3 4) 5)          5
-  (when nil (+ 1 2) (+ 3 4) 5)        nil
-  (unless nil (+ 1 2) 3)              3
-  (unless t (+ 1 2) 3)                nil
-  (with (lis nil x 0)
-    (while (< x 3)
-           (assign lis (cons x lis))
-           (assign x (+ x 1)))
-    lis)                              '(2 1 0)
-  (reclist idfn '(1 2 3))             '(1 2 3)
-  (reclist car '(nil nil 3))          3
-  (reclist car '(1 2 3))              1
-  (with (lis nil str "abc")
-    (recstring
-      (fn (i) (assign lis (cons (str i) lis)) nil)
-      str)
-    lis)                              '(#\c #\b #\a)
   (if ((testify '(1)) '(1)) 'a 'b)    'a
   (if ((testify is) 'a 'b) 'x 'y)     'y
   (carif 'a)                          'a

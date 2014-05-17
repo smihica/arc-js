@@ -41,6 +41,11 @@ core:           src/arc/core.arc
 		if [ -e src/core.fasl ]; then cp src/core.fasl backup/$(DATETIME).core.fasl; fi;
 		$(COMPILE_ARC) -d -o src/core.fasl src/arc/core.arc
 
+arc-unit:       src/arc/unit.arc
+		mkdir -p backup
+		if [ -e src/unit.fasl ]; then cp src/unit.fasl backup/$(DATETIME).unit.fasl; fi;
+		$(COMPILE_ARC) -d -o src/unit.fasl src/arc/unit.arc
+
 restore_compiler:
 		mv $(shell ls backup/*.compiler.fasl | sort -r | sed '1!d') src/compiler.fasl
 		make
