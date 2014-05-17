@@ -201,4 +201,19 @@
       (car (macex '1...10)))     'range
   (macex '10%3)                  '10%3
 
+  ;; redef
+  (do (ns (defns A :export a))
+      (def a () 10)
+      (def b () (a))
+      (b)
+      (def a () 20)
+      (b)) 20
+  (do (ns (defns B :import A))
+      (def c () (a))
+      (c)) 20
+  (do (ns 'A)
+      (def a () 30)
+      (ns 'B)
+      (c)) 30
+
   )

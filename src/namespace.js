@@ -121,21 +121,23 @@ var NameSpace = classify('NameSpace', {
         // all -> all or not-all -> not-all (nothing to do)
       }
     },
-    _set: function(name, val, type_name) {
+    setBox: function(name, val) {
+      var type_name = type(val).name;
       var ns = (name.match(/\*\*\*.+\*\*\*/)) ? NameSpace.global_ns : this;
-      ns.primary[name] = val;
+      if (name in ns.primary) ns.primary[name].v = val;
+      else                    ns.primary[name]   = new Box(val);
       var by_type = ns.primary_by_type[type_name] || {};
-      by_type[name] = val;
+      if (name in by_type) by_type[name].v = val;
+      else                 by_type[name]   = new Box(val);
       ns.primary_by_type[type_name] = by_type;
       if (ns.export_all || -1 < ns.export_names.indexOf(name)) {
-        ns.exports[name] = val;
+        if (name in ns.exports) ns.exports[name].v = val;
+        else                    ns.exports[name]   = new Box(val);
         var by_type = ns.exports_by_type[type_name] || {};
-        by_type[name] = val;
+        if (name in by_type) by_type[name].v = val;
+        else                 by_type[name]   = new Box(val);
         ns.exports_by_type[type_name] = by_type;
       }
-    },
-    setBox: function(name, val) {
-      this._set(name, new Box(val), type(val).name);
     },
     get: function(name) {
       var v = this.primary[name];
