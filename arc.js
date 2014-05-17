@@ -1909,21 +1909,33 @@ return (new Primitives('arc.time')).define({
     return +(new Date());
   }],
   'set-timer': [{dot: 2}, function(fn, ms, $$) {
+    if (typeof ms !== 'number') {
+      throw new Error('(set-timer fn ms ...) ms must be a number');
+    }
     var self = this;
-    var repeat = (2 < arguments.length && arguments[2] !== nil);
+    var l = arguments.length;
+    var repeat = (2 < l && arguments[2] !== nil);
     var timer  = repeat ? setInterval : setTimeout;
+    
+
+    var asm = [['constant', fn],
+               ['apply'],
+               ['halt']];
+    var arg_len = (l - 3);
+    asm.unshift(['argument']);
+    asm.unshift(['constant', arg_len < 0 ? 0 : arg_len]);
+    for (var i=l-1; 2 < i; i--) {
+      asm.unshift(['argument']);
+      asm.unshift(['constant', arguments[i]]);
+    }
+    asm.unshift(['frame', asm.length]);
+
     var _box = {};
     var id_obj = timer(function() {
       if (!repeat) {
         timer_ids_table.clear(_box.id);
       }
-      self.set_asm([
-        ['frame', 5],
-        ['constant', 0],
-        ['argument'],
-        ['constant', fn],
-        ['apply'],
-        ['halt']]).run();
+      self.set_asm(asm).run();
     }, ms);
     var id = timer_ids_table.push_new(id_obj);
     _box.id = id;
