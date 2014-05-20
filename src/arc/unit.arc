@@ -35,7 +35,8 @@
                                 (self (cdr tests) depth ns filter in-test nil))
                             (err 'unknown-cond))
                         (case (car it)
-                          desc (do (log "IN" (cadr it))
+                          desc (do (log "IN ->" (cadr it))
+                                   (prn "")
                                    (self (+ (cddr it)
                                             `((restore ,depth ,ns ,filter))
                                             (cdr tests))
@@ -48,8 +49,12 @@
                                        (++ succ-all)
                                        (log "[OK]" (cadr it) "in" time "ms"))))
                                  (++ tests-all)
-                                 (set-timer self 0 nil (cdr tests) depth ns filter nil nil))
+                                 (let next (if (in (caadr tests) 'desc 'restore) (cons '(prn "") (cdr tests)) (cdr tests))
+                                   (set-timer self 0 nil next depth ns filter nil nil)))
                           restore (self (cdr tests) (cadr it) (caddr it) (cadddr it) nil nil)
+                          prn (do
+                                (apply prn (cdr it))
+                                (self (cdr tests) depth ns filter nil nil))
                           (err 'unknown-type)))
                     (case it
                       :ns (self (cddr tests) depth (cadr tests) filter in-test in-cond)

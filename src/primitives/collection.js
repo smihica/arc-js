@@ -35,3 +35,5 @@ var primitives_collection = (new Primitives('arc.collection')).define({
   }],
 
 });
+
+var lastcons = primitives_collection.vars.lastcons;
