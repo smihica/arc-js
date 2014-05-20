@@ -20,13 +20,18 @@ var VM = classify("VM", {
     recent_call_args: null,
     warn: null,
     waiting: false,
+    timer_ids_table: null,
   },
   method: {
     init: function() {
       this.reader = new Reader();
+      this.timer_ids_table = TimerIdsTable.instance;
       // changing to user namespace.
       this.ns = NameSpace.get('user');
       this.current_ns = this.ns;
+    },
+    set_all_timer_cleared: function(fn) {
+      this.timer_ids_table.set_on_all_cleared(fn);
     },
     set_asm: function(asm) {
       this.x = asm;

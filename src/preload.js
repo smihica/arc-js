@@ -1,15 +1,7 @@
-var preloads = [];
-var preload_vals = [];
-include("core.fasl");
-include("compiler.fasl");
-include("arc.fasl");
-include("unit.fasl");
-
-todos_after_all_initialized.push(function() {
+var fasl_loader = function(preloads, preload_vals) {
   var vm = new VM();
   vm.ns = NameSpace.get('arc.compiler');
   vm.current_ns = vm.ns;
-  //vm.init_def(preloads, preload_vals);
   var ops = VM.operators;
   for (var i=0,l=preloads.length; i<l; i++) {
     var preload     = preloads[i];
@@ -70,5 +62,21 @@ todos_after_all_initialized.push(function() {
   }
   delete vm.reader;
   delete vm;
+};
+ArcJS.fasl_loader = fasl_loader;
 
-});
+(function() {
+
+  var preloads = [];
+  var preload_vals = [];
+
+  include("core.fasl");
+  include("compiler.fasl");
+  include("arc.fasl");
+  include("unit.fasl");
+
+  todos_after_all_initialized.push(function() {
+    fasl_loader(preloads, preload_vals);
+  });
+
+})();

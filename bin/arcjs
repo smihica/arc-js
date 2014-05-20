@@ -108,14 +108,18 @@ function main(mode, scripts) {
       if (scripts[i].match(/\.fasl$/)) {
         eval('var fasl = (function() {\nvar preloads = [], preload_vals = [];\n' + data +
              'return {preloads: preloads, preload_vals: preload_vals};\n})();');
-        runner.vm.init_def(fasl.preloads, fasl.preload_vals);
+        ArcJS.fasl_loader(fasl.preloads, fasl.preload_vals);
       } else {
         runner.evaluate(data);
       }
       prepare(i+1, after);
     });
   })(0, function after() {
-    if (mode === 'run') process.exit(0);
+    if (mode === 'run') {
+      vm.set_all_timer_cleared(function(result){
+        process.exit(result);
+      });
+    }
 
     rl.on('line', function (code) {
       var continue_flag = onenter(code+'\n');

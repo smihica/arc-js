@@ -61,9 +61,8 @@
                       :f  (self (cddr tests) depth ns (cadr tests) in-test in-cond)
                       (err 'unknown-option)))
                 (when (no (or in-test in-cond))
-                  (prn "\n "
-                       "** " tests-all " tests done. succ/fail => " succ-all "/" (- tests-all succ-all)
-                      " in " time-all " ms"))))
+                  (prn "** " tests-all " tests done. succ/fail => " succ-all "/" (- tests-all succ-all)
+                       " in " time-all " ms"))))
          tests 0 lex-ns idfn nil nil)))
     0))
 

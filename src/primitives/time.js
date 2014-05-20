@@ -1,25 +1,42 @@
-var primitives_time = (function() {
-
-var timer_ids_table = {
-  i: 0,
-  src: {},
-  push_new: function(id) {
-    var self = timer_ids_table;
-    var i = self.i++;
-    self.src[i] = id;
-    return i;
+var TimerIdsTable = classify("TimerIdsTable", {
+  static: {
+    instance: null
   },
-  get: function(i, clear) {
-    var self = timer_ids_table;
-    var rt = self.src[i];
-    if (clear) { self.clear(i); }
-    return rt;
+  property: {
+    i:   0,
+    src: {},
+    on_all_cleared: []
   },
-  clear: function(i) {
-    var self = timer_ids_table;
-    delete self.src[i];
+  method: {
+    push_new: function(id) {
+      var i = this.i++;
+      this.src[i] = id;
+      return i;
+    },
+    get: function(i) {
+      var rt = this.src[i];
+      return rt;
+    },
+    clear: function(i, result) {
+      delete this.src[i];
+      this.check_all_cleared(result);
+    },
+    check_all_cleared: function(result) {
+      for (var i in this.src) {
+        if (this.src.hasOwnProperty(i)) return;
+      }
+      for (var i=0, l=this.on_all_cleared.length; i<l; i++)
+        this.on_all_cleared[i](result);
+    },
+    set_on_all_cleared: function(fn) {
+      this.on_all_cleared.push(fn);
+      this.check_all_cleared();
+    }
   }
-};
+});
+TimerIdsTable.instance = new TimerIdsTable();
+
+var primitives_time = (function() {
 
 return (new Primitives('arc.time')).define({
   'msec': [{dot: -1}, function() {
@@ -49,9 +66,6 @@ return (new Primitives('arc.time')).define({
     var _box = {};
     var id_obj = timer(function() {
       var err = false, result = null;
-      if (!repeat) {
-        timer_ids_table.clear(_box.id);
-      }
       self.set_asm(asm);
       try {
         result = self.run();
@@ -67,14 +81,19 @@ return (new Primitives('arc.time')).define({
       if (self.warn !== "") {
         console.error(self.warn);
       }
+      if (!repeat) {
+        self.timer_ids_table.clear(_box.id, err ? 1 : 0);
+        delete _box;
+      }
     }, ms);
-    var id = timer_ids_table.push_new(id_obj);
+    var id = this.timer_ids_table.push_new(id_obj);
     _box.id = id;
     return id;
   }],
   'clear-timer': [{dot: -1}, function(id) {
-    var id_obj = timer_ids_table.get(id, true);
+    var id_obj = this.timer_ids_table.get(id);
     clearTimeout(id_obj);
+    this.timer_ids_table.clear(id, 0);
     return nil;
   }],
 });
