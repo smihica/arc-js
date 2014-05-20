@@ -48,10 +48,25 @@ return (new Primitives('arc.time')).define({
 
     var _box = {};
     var id_obj = timer(function() {
+      var err = false, result = null;
       if (!repeat) {
         timer_ids_table.clear(_box.id);
       }
-      self.set_asm(asm).run();
+      self.set_asm(asm);
+      try {
+        result = self.run();
+      } catch (e) {
+        result = e.toString();
+        err = true;
+      }
+      if (err) {
+        console.error(result);
+        var call_stack_str = self.get_call_stack_string();
+        console.error(call_stack_str);
+      }
+      if (self.warn !== "") {
+        console.error(self.warn);
+      }
     }, ms);
     var id = timer_ids_table.push_new(id_obj);
     _box.id = id;
