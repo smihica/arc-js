@@ -126,7 +126,8 @@ function main(mode, scripts) {
       if (!continue_flag) process.stdout.write(term);
     });
 
-    process.stdout.write(term);
+    if (mode !== 'run') process.stdout.write(term);
+
   });
 }
 
