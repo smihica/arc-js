@@ -20,7 +20,7 @@
   (set-timer
     (fn ()
       (with (time-all 0 tests-all 0 succ-all 0)
-        (prn (len tests) " tests will go ...")
+        (prn "")
         ((afn (tests depth ns filter in-test in-cond)
            (aif (car tests)
                 (if (acons it)
@@ -56,10 +56,10 @@
                       :f  (self (cddr tests) depth ns (cadr tests) in-test in-cond)
                       (err 'unknown-option)))
                 (when (no (or in-test in-cond))
-                  (prn "\n ** total " time-all " ms passed. "
-                       "succ/fail/all => " succ-all "/" (- tests-all succ-all) "/" tests-all))))
-         tests 0 lex-ns idfn nil nil)
-        ))
+                  (prn "\n "
+                       "** " tests-all " tests done. succ/fail => " succ-all "/" (- tests-all succ-all)
+                      " in " time-all " ms"))))
+         tests 0 lex-ns idfn nil nil)))
     0))
 
 (def expand-desc (d)
