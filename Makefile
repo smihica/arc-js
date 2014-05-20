@@ -20,7 +20,7 @@ auto:
 		make
 		./tools/update-watcher src/*.js src/arc/*.arc -- make
 
-arc.js:		src/*.js src/primitives/*.js src/compiler.fasl src/arc.fasl
+arc.js:		src/*.js src/primitives/*.js src/*.fasl
 	        $(CONSTRUCT) -o arc.tmp.js src/arc.js
 		cat src/comments.js arc.tmp.js > arc.js
 		rm arc.tmp.js
