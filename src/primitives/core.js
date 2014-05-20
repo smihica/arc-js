@@ -539,8 +539,7 @@ var primitives_core = (new Primitives('arc.core')).define({
         arguments,
         function(x) { return type(x) === s_string ? x : stringify(x); }
       ).join(' ') + '.');
-    console.error(str);
-    throw new Error('ERROR');
+    throw new Error(str);
   }],
   'rand': [{dot: 0}, function($$) {
     var l = arguments.length;
