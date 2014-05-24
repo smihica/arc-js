@@ -1,6 +1,8 @@
 var Primitives = classify('Primitives', {
   static: {
-    reader: new Reader(),
+    context: null,
+    vm:      null,
+    reader:  null,
     all: []
   },
   property: {
@@ -9,7 +11,7 @@ var Primitives = classify('Primitives', {
   },
   method: {
     init: function(ns_name) {
-      this.ns = NameSpace.get(ns_name, true);
+      this.ns = NameSpace.get(ns_name);
       Primitives.all.push(this);
     },
     define: function(def) {
@@ -35,5 +37,30 @@ var Primitives = classify('Primitives', {
     }
   }
 });
+ArcJS.Primitives = Primitives;
 
 include("primitives/core.js");
+include("primitives/collection.js");
+include("primitives/math.js");
+include("primitives/time.js");
+
+todos_after_all_initialized.push(function() {
+
+  var context                  = new Context();
+  Primitives.context           = context;
+  Primitives.contexts_for_eval = [context];
+  var vm                       = context.vm;
+  Primitives.vm                = vm
+  Primitives.reader            = vm.reader;
+
+  // initializing primitives.
+  var prim_all = Primitives.all;
+  for (var i = 0, l = prim_all.length; i<l; i++) {
+    var prm = prim_all[i];
+    var vars = prm.vars;
+    for (var p in vars) {
+      prm.ns.setBox(p, vars[p]);
+    }
+  }
+
+});

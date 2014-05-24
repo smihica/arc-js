@@ -11,13 +11,14 @@ clean:
 		rm -f arc.js arc.min.js
 
 unit:
-		mocha -b test/unit/unit.js
+		mocha --reporter tap test/unit/unit.js
+		bin/arcjs -r src/arc/tests/core.arc
 
 auto:
 		make
 		./tools/update-watcher src/*.js src/arc/*.arc -- make
 
-arc.js:		src/*.js src/primitives/*.js src/compiler.fasl src/arc.fasl
+arc.js:		src/*.js src/primitives/*.js src/*.fasl
 	        $(CONSTRUCT) -o arc.tmp.js src/arc.js
 		cat src/comments.js arc.tmp.js > arc.js
 		rm arc.tmp.js
@@ -32,6 +33,16 @@ compiler:       src/arc/compiler.arc
 		mkdir -p backup
 		if [ -e src/compiler.fasl ]; then cp src/compiler.fasl backup/$(DATETIME).compiler.fasl; fi;
 		$(COMPILE_ARC) -d -o src/compiler.fasl src/arc/compiler.arc
+
+core:           src/arc/core.arc
+		mkdir -p backup
+		if [ -e src/core.fasl ]; then cp src/core.fasl backup/$(DATETIME).core.fasl; fi;
+		$(COMPILE_ARC) -d -o src/core.fasl src/arc/core.arc
+
+arc-unit:       src/arc/unit.arc
+		mkdir -p backup
+		if [ -e src/unit.fasl ]; then cp src/unit.fasl backup/$(DATETIME).unit.fasl; fi;
+		$(COMPILE_ARC) -d -o src/unit.fasl src/arc/unit.arc
 
 restore_compiler:
 		mv $(shell ls backup/*.compiler.fasl | sort -r | sed '1!d') src/compiler.fasl

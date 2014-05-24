@@ -19,83 +19,19 @@ var VM = classify("VM", {
     call_stack: null,
     recent_call_args: null,
     warn: null,
+    waiting: false,
+    timer_ids_table: null,
   },
   method: {
     init: function() {
       this.reader = new Reader();
-      // initializing primitives.
-      var prim_all = Primitives.all;
-      for (var i = 0, l = prim_all.length; i<l; i++) {
-        var prm = prim_all[i];
-        var vars = prm.vars;
-        for (var p in vars) {
-          prm.ns.setBox(p, vars[p]);
-        }
-      }
-      // starting with compiler namespace.
-      this.ns = NameSpace.get('arc.core.compiler');
-      this.current_ns = this.ns;
-      this.init_def(preloads, preload_vals);
+      this.timer_ids_table = TimerIdsTable.instance;
       // changing to user namespace.
-      this.ns = NameSpace.create_with_default('user');
+      this.ns = NameSpace.get('user');
       this.current_ns = this.ns;
     },
-    init_def: function(preloads, preload_vals) {
-      var ops = VM.operators;
-      for (var i=0,l=preloads.length; i<l; i++)
-        (function(preload, preload_val) {
-          for (var j=0,jl=preload.length; j<jl; j++)
-            (function(line, vals) {
-              var asm = [];
-              for (var k=0,m=line.length; k<m; k++) {
-                var op = ops[line[k]];
-                switch (op) {
-                case 'refer-local':
-                case 'refer-free':
-                case 'box':
-                case 'test':
-                case 'jump':
-                case 'assign-local':
-                case 'assign-free':
-                case 'frame':
-                case 'return':
-                case 'continue-return':
-                case 'conti':
-                  asm.push([op, line[++k]|0]);
-                  break;
-                case 'exit-let':
-                case 'shift':
-                case 'refer-let':
-                case 'assign-let':
-                  asm.push([op, line[++k]|0, line[++k]|0]);
-                  break;
-                case 'close':
-                  asm.push([op, line[++k]|0, line[++k]|0, line[++k]|0, line[++k]|0]);
-                  break;
-                case 'refer-global':
-                case 'assign-global':
-                  asm.push([op, vals[line[++k]|0]]);
-                  break;
-                case 'constant':
-                  asm.push([op, this.reader.read(vals[line[++k]|0])]);
-                  break;
-                case 'ns':
-                case 'indirect':
-                case 'halt':
-                case 'argument':
-                case 'apply':
-                case 'nuate':
-                case 'refer-nil':
-                case 'refer-t':
-                case 'enter-let':
-                  asm.push([op]);
-                  break;
-                default:
-                }
-              }
-              this.set_asm(asm).run();
-            }).call(this, preload[j], preload_val);
-        }).call(this, preloads[i], preload_vals[i]);
+    set_all_timer_cleared: function(fn) {
+      this.timer_ids_table.set_on_all_cleared(fn);
     },
     set_asm: function(asm) {
       this.x = asm;
@@ -148,6 +84,7 @@ var VM = classify("VM", {
         case 'refer-nil':
         case 'refer-t':
         case 'enter-let':
+        case 'wait':
           break;
         }
         this.x.push(c);
@@ -181,24 +118,17 @@ var VM = classify("VM", {
     step: function() {
       return this.run(false, false, true);
     },
-    arc_apply: function(fn, args) {
-      var asm = [['frame', 0]];
-      args.push(args.length);
-      args.forEach(function(a) {
-        asm.push.apply(asm, [['constant', a], ['argument']]);
-      });
-      asm.push.apply(asm, [['constant', fn], ['apply'], ['halt']]);
-      asm[0][1] = asm.length - 1;
-      this.cleanup();
-      this.set_asm(asm);
-      return this.run();
-    },
-    run_iter: function(step) {
+    run_iter: function(step, restore) {
+      var repeat = !step, self = this;
       var n = 0, b = 0, v = 0, d = 0, m = 0, l = 0;
+      if (restore) {
+        n = restore.n; b = restore.b;
+        v = restore.v; d = restore.d;
+        m = restore.m; l = restore.l;
+      }
       n = n | 0; b = b | 0;
       v = v | 0; d = d | 0;
       m = m | 0; l = l | 0;
-      var repeat = !step;
       do {
         var op = this.x[this.p];
         var code = op[0];
@@ -441,6 +371,18 @@ var VM = classify("VM", {
           this.a = this.ns;
           this.p++;
           break;
+        case 'wait':
+          // not supported yet.
+          var ms = this.a | 0;
+          this.waiting = true;
+          this.p++;
+          setTimeout(function() {
+            self.waiting = false;
+            self.run_iter(step, {
+              n:n, b:b, v:v, d:d, m:m, l:l
+            });
+          }, ms);
+          return this.a;
         default:
           throw new Error('Error: Unknown operand. ' + code);
         }
@@ -448,8 +390,8 @@ var VM = classify("VM", {
       } while (repeat);
     },
     run: function(asm_string, clean_all, step) {
-      if (!step) this.cleanup(clean_all);
-      if (asm_string)   this.load_string(asm_string);
+      if (!step)      this.cleanup(clean_all);
+      if (asm_string) this.load_string(asm_string);
       var ret = this.run_iter(step);
       var typ = type(ret);
       if (typ.name.match("^\%javascript\-.*$")) {

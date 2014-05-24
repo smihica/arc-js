@@ -121,21 +121,23 @@ var NameSpace = classify('NameSpace', {
         // all -> all or not-all -> not-all (nothing to do)
       }
     },
-    _set: function(name, val, type_name) {
+    setBox: function(name, val) {
+      var type_name = type(val).name;
       var ns = (name.match(/\*\*\*.+\*\*\*/)) ? NameSpace.global_ns : this;
-      ns.primary[name] = val;
+      if (name in ns.primary) ns.primary[name].v = val;
+      else                    ns.primary[name]   = new Box(val);
       var by_type = ns.primary_by_type[type_name] || {};
-      by_type[name] = val;
+      if (name in by_type) by_type[name].v = val;
+      else                 by_type[name]   = new Box(val);
       ns.primary_by_type[type_name] = by_type;
       if (ns.export_all || -1 < ns.export_names.indexOf(name)) {
-        ns.exports[name] = val;
+        if (name in ns.exports) ns.exports[name].v = val;
+        else                    ns.exports[name]   = new Box(val);
         var by_type = ns.exports_by_type[type_name] || {};
-        by_type[name] = val;
+        if (name in by_type) by_type[name].v = val;
+        else                 by_type[name]   = new Box(val);
         ns.exports_by_type[type_name] = by_type;
       }
-    },
-    setBox: function(name, val) {
-      this._set(name, new Box(val), type(val).name);
     },
     get: function(name) {
       var v = this.primary[name];
@@ -186,13 +188,25 @@ var NameSpace = classify('NameSpace', {
   }
 });
 
-var global_ns     = new NameSpace('***global***', null, [], []);
+var global_ns = new NameSpace('***global***', null, [], []);
 NameSpace.global_ns = global_ns;
-var primitives_ns = new NameSpace('arc.core.primitives', null, ['***global***'], []);
-var compiler_ns   = new NameSpace('arc.core.compiler',   null, ['***global***', 'arc.core.primitives'], []);
-var arc_ns        = new NameSpace('arc.core',            null, ['***global***', 'arc.core.primitives', 'arc.core.compiler'], []);
-var default_ns    = new NameSpace('arc.user_default',    null, ['***global***', 'arc.core.primitives', 'arc.core.compiler', 'arc.core'], []);
+
+// creating objects that reference each other.
+var core_ns     = new NameSpace('arc.core',         null, ['***global***'],             []);
+var compiler_ns = new NameSpace('arc.compiler',     null, ['***global***', 'arc.core'], []);
+core_ns.add_imports(['arc.compiler']);
+
+var arc_ns      = new NameSpace('arc',              null, ['***global***', 'arc.core', 'arc.compiler'], []);
+var default_ns  = new NameSpace('arc.user_default', null, ['***global***', 'arc.core', 'arc.compiler', 'arc'], []);
+
+// detailed ns
+new NameSpace('arc.collection', arc_ns, [], []);
+new NameSpace('arc.math', arc_ns, [], []);
+new NameSpace('arc.time', arc_ns, [], []);
+
 NameSpace.default_ns = default_ns;
+
+NameSpace.create_with_default('user');
 
 return NameSpace;
 

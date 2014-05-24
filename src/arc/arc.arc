@@ -1,4 +1,4 @@
-(ns 'arc.core)
+(ns 'arc)
 
 ; export
 ;  pair exact assoc alref join isnt alist ret in iso when unless while
@@ -103,8 +103,6 @@
   (rev (firstn n (rev xs))))
 
 ;; nthcdr -> core.arc
-
-; lastcons
 
 ; Generalization of pair: (tuples x) = (pair x)
 
@@ -511,10 +509,6 @@
     `(withs (,var nil ,gf (testify ,endval))
        (while (no (,gf (= ,var ,expr)))
          ,@body))))
-
-; consif
-; string
-; flat
 
 (mac check (x test (o alt))
   (w/uniq gx
