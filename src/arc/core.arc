@@ -130,7 +130,8 @@
                   x
                   (unquote (obj) (c t))
                   (unquote-splicing (obj) (c t))
-                  (do (map1 self x) nil))))
+                  (do (self (car x))
+                      (self (cdr x))))))
        x))))
 
 (def qq-pair (x)

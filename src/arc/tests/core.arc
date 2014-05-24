@@ -46,7 +46,7 @@
     (iso
       (alist nil)                         t
       (alist '(x))                        t
-      ;(alist '(a . b))                    t
+      (alist '(a . b))                    t
       (alist "ab")                        nil))
 
   (test "ret"
@@ -157,8 +157,8 @@
     (iso
       (lastcons '(1 2 3))                 '(3)
       (lastcons nil)                      nil
-      ;(lastcons '(1 . 2))                 '(1 . 2)
-      ;(lastcons '(1 2 . 3))               '(2 . 3)
+      (lastcons '(1 . 2))                 '(1 . 2)
+      (lastcons '(1 2 . 3))               '(2 . 3)
       ))
 
   (test "nthcdr"
@@ -405,7 +405,7 @@
   (test "="
     (iso
       (let x (list 10) (= (car x) (+ (car x) 1)) x)      '(11)
-      ; (let x '((10 (11 . 12))) (= (cdr (cadar x)) '(12 . nil)) x) '((10 (11 12)))
+      (let x '((10 (11 . 12))) (= (cdr (cadar x)) '(12 . nil)) x) '((10 (11 12)))
       (let x '((10)) (= (caar x) (+ (caar x) 1)) x)      '((11))
       (let x (table) (= (x 'k) 'v) (x 'k))               'v
       (let x (table) (= (x 'k) 'v (x 'k2) 'v2) (x 'k2))  'v2
