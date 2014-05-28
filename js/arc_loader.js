@@ -26,13 +26,13 @@ $(function () {
             eval('var fasl = (function() {\nvar preloads = [], preload_vals = [];\n' +
                  data +
                  'return {preloads: preloads, preload_vals: preload_vals};\n})();');
-            ArcJS.fasl_loader(fasl.preloads, fasl.preload_vals);
+            ArcJS.fasl_loader(ArcJS.NameSpace.get('user'), fasl.preloads, fasl.preload_vals);
             break;
           case 'arc':
             runner.evaluate(data);
-            if (script) runner.evaluate(script);
             break;
           }
+          if (script) runner.evaluate(script);
           iter(codes, i+1, type, after);
         });
       } else {
