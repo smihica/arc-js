@@ -1,7 +1,0 @@
-// This is an auto generated file.
-// Compiled from ['defs.arc'].
-// DON'T EDIT !!!
-preloads.push([
-[6,0,19,1,26],
-]);
-preload_vals.push(["x","X"]);

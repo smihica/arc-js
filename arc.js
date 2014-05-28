@@ -2879,14 +2879,29 @@ var Context = classify("Context", {
     read: function(str) {
       return this.vm.reader.read(str);
     },
-    evaluate: function(str) {
+    evaluate: function(str, ns_name) {
+      if (ns_name) {
+        var ns = this.vm.ns;
+        var current_ns = this.vm.current_ns;
+        this.set_ns(ns_name);
+      }
       var expr = this.read(str);
       var result = nil;
       while (expr !== Reader.EOF) {
         result = this.eval_expr(expr);
         expr = this.read();
       }
+      if (ns_name) {
+        this.vm.ns = ns;
+        this.vm.current_ns = current_ns;
+      }
       return result;
+    },
+    set_ns: function(name) {
+      var ns = NameSpace.get(name);
+      this.vm.ns = ns;
+      this.vm.current_ns = ns;
+      return ns;
     },
     require: function(paths, after) {
 
