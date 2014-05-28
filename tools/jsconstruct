@@ -82,7 +82,7 @@ class Processor(object):
                             pair = self.libs[required] = (id, out.getvalue())
                         return "__LIBS__['%s']" % pair[0]
 
-                    line = re.sub(r'''require\s*\((["'])(.+)(\1)\)''', repl, line)
+                    line = re.sub(r'''require\s*\((["])(.+)(\1)\)''', repl, line)
                     out.write(line)
                 else:
                     for included_file_name in includes:

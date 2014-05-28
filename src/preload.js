@@ -1,6 +1,6 @@
-var fasl_loader = function(preloads, preload_vals) {
+var fasl_loader = function(namespace, preloads, preload_vals) {
   var vm = new VM();
-  vm.ns = NameSpace.get('arc.compiler');
+  vm.ns = namespace;
   vm.current_ns = vm.ns;
   var ops = VM.operators;
   for (var i=0,l=preloads.length; i<l; i++) {
@@ -76,7 +76,9 @@ ArcJS.fasl_loader = fasl_loader;
   include("unit.fasl");
 
   todos_after_all_initialized.push(function() {
-    fasl_loader(preloads, preload_vals);
+    fasl_loader(NameSpace.get('arc.compiler'),
+                preloads,
+                preload_vals);
   });
 
 })();
