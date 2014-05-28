@@ -7,7 +7,7 @@ var path = require("path");
 var fs   = require("fs");
 var port = process.argv[2] || '8080';
 
-arc.require(['defs.arc'], function onload() {
+arc.require(['web_defs.arc'], function onload() {
 
   http.createServer(function(request, response) {
 
@@ -16,7 +16,7 @@ arc.require(['defs.arc'], function onload() {
     try {
       var arc_alist = arc.evaluate('(exec-url ' + JSON.stringify(uri) + ')', 'user.server');
       var res = {};
-      ArcJS.list_to_javascript_arr(arc_alist, true).forEach(function(itm){
+      ArcJS.list_to_javascript_arr(arc_alist, true).forEach(function(itm) {
         res[itm[0]] = itm[1];
       });
       var code = res["code"];
