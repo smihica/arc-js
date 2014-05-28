@@ -2009,9 +2009,9 @@ todos_after_all_initialized.push(function() {
 });
 /** @} */
 /** @file preload.js { */
-var fasl_loader = function(preloads, preload_vals) {
+var fasl_loader = function(namespace, preloads, preload_vals) {
   var vm = new VM();
-  vm.ns = NameSpace.get('arc.compiler');
+  vm.ns = namespace;
   vm.current_ns = vm.ns;
   var ops = VM.operators;
   for (var i=0,l=preloads.length; i<l; i++) {
@@ -2387,7 +2387,9 @@ preload_vals.push(["\"arc.unit\"","(arc.time)","(desc)","4","***defns***","prn",
 /** @} */
 
   todos_after_all_initialized.push(function() {
-    fasl_loader(preloads, preload_vals);
+    fasl_loader(NameSpace.get('arc.compiler'),
+                preloads,
+                preload_vals);
   });
 
 })();
@@ -2877,14 +2879,79 @@ var Context = classify("Context", {
     read: function(str) {
       return this.vm.reader.read(str);
     },
-    evaluate: function(str) {
+    evaluate: function(str, ns_name) {
+      if (ns_name) {
+        var ns = this.vm.ns;
+        var current_ns = this.vm.current_ns;
+        this.set_ns(ns_name);
+      }
       var expr = this.read(str);
       var result = nil;
       while (expr !== Reader.EOF) {
         result = this.eval_expr(expr);
         expr = this.read();
       }
+      if (ns_name) {
+        this.vm.ns = ns;
+        this.vm.current_ns = current_ns;
+      }
       return result;
+    },
+    set_ns: function(name) {
+      var ns = NameSpace.get(name);
+      this.vm.ns = ns;
+      this.vm.current_ns = ns;
+      return ns;
+    },
+    require: function(paths, after) {
+
+      var self          = this;
+      var is_nodejs     = (typeof module !== 'undefined' && module.exports);
+      var jquery_loaded = (typeof jQuery !== 'undefined');
+
+      var loader;
+      if (is_nodejs) {
+
+        var fs = require('fs');
+        loader = function(path, succ, fail) {
+          fs.readFile(path, {encoding: 'utf-8'}, function(err, data){
+            if (err) return fail(err);
+            succ(data);
+          });
+        }
+
+      } else if (jquery_loaded) {
+        loader = function(path, succ, fail) {
+          jQuery.ajax({
+            url: path,
+            dataType: 'text'
+          }).done(succ).error(fail);
+        }
+      } else {
+        throw new Error('ArcJS.context.require() must be used in Node.js or a WebPage where jQuery is loaded.');
+      }
+
+      (function iter(paths, i) {
+        if (i < paths.length) {
+          var path = paths[i];
+          loader(path, function(data) {
+            if (path.match(/\.arc$/)) {
+              self.evaluate(data);
+            } else if (path.match(/\.fasl$/)) {
+              eval('var fasl = (function() {\nvar preloads = [], preload_vals = [];\n' +
+                   data +
+                   'return {preloads: preloads, preload_vals: preload_vals};\n})();');
+              ArcJS.fasl_loader(self.vm.ns, fasl.preloads, fasl.preload_vals);
+            } else {
+              throw new Error('ArcJS.context.require() supports only files that have .arc or .fasl as its suffix.');
+            }
+            iter(paths, i+1);
+          }, function(e) { throw e; });
+        } else {
+          if (after) after();
+        }
+      })(paths, 0);
+
     }
   }
 });
