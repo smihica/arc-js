@@ -26,7 +26,7 @@ $(function () {
             eval('var fasl = (function() {\nvar preloads = [], preload_vals = [];\n' +
                  data +
                  'return {preloads: preloads, preload_vals: preload_vals};\n})();');
-            runner.vm.init_def(fasl.preloads, fasl.preload_vals);
+            ArcJS.fasl_loader(fasl.preloads, fasl.preload_vals);
             break;
           case 'arc':
             runner.evaluate(data);
