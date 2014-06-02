@@ -1,4 +1,4 @@
-## arc-js
+## ArcJS
 
 __An Arc-langugage interpreter written in JavaScript__
 
@@ -7,6 +7,24 @@ Arc-language can be run both on nodejs and on a web-site.
 You can get more information from the [web site](http://smihica.github.io/arc-js/).
 
 A lot of inspired from Paul Graham version of [Arc](http://arclanguage.org/) and [Anarki](https://github.com/arclanguage/anarki)
+
+## Make
+
+#### install Node.js
+
+    $ sudo port install nodejs
+
+#### install uglifyjs
+
+    $ sudo npm install -g uglify-js
+
+#### make ArcJS
+
+    $ make
+
+## Test running
+
+    $ make test
 
 ## License
 
