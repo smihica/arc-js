@@ -5,14 +5,14 @@ DATETIME=$(shell date +'%Y%m%d%H%M%S')
 BUILDDIR=.
 CURRENT_BRANCH=$(shell git branch | grep \* | sed -e "s/^\* //")
 
-all:		arc.js arc.min.js
+all:		arc.js arc.min.js arc.min.js.gz
 
 clean:
 		rm -f arc.js arc.min.js arc.min.js.gz
 
-unit:
-		mocha --reporter tap test/unit/unit.js
-		bin/arcjs -r src/arc/tests/core.arc
+test:		arc.min.js
+		mocha --reporter tap test/unit/impl.js
+		bin/arcjs -r test/unit/arc/core.arc
 
 auto:
 		make
@@ -25,6 +25,8 @@ arc.js:		src/*.js src/primitives/*.js src/*.fasl
 
 arc.min.js:	arc.js
 		$(COMPRESS) --unsafe -nc -o arc.min.js arc.js
+
+arc.min.js.gz:	arc.min.js
 		gzip -k -f arc.min.js
 
 arc:		src/arc/arc.arc
@@ -57,8 +59,8 @@ install_web:	arc.min.js
 		mv arc.min.js.bk js/arc.min.js
 		git add js/
 		git commit -m 'Installed new arc.js.'
+		git push origin gh-pages
 		git checkout $(CURRENT_BRANCH)
 		rm -f arc.js.bk arc.min.js.bk
-
 
 .PHONY:		all clean
