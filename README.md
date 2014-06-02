@@ -10,31 +10,24 @@ A lot of inspired from Paul Graham version of [Arc](http://arclanguage.org/) and
 
 ## License
 
-### ArcJS
+    # ArcJS
 
-  Copyright (c) 2012 Shin Aoyama
-
-  -----------------
-
-  Perl Foundations's Artistic License 2.0
+    Copyright (c) 2012 Shin Aoyama
+    -----------------
+    Perl Foundations's Artistic License 2.0
 
 
-### Arc language
+    # Arc language
 
-  Copyright (c) Paul Graham
-  Copyright (c) Robert Morris
+    Copyright (c) Paul Graham
+    Copyright (c) Robert Morris
+    -----------------
+    Perl Foundations's Artistic License 2.0
 
-  -----------------
+    # Anarki
 
-  Perl Foundations's Artistic License 2.0
-
-### Anarki
-
-  Copyright (c) Paul Graham
-  Copyright (c) Robert Morris
-
-  Copyright (c) A lot of contributors (see https://github.com/arclanguage/anarki/graphs/contributors)
-
-  -----------------
-
-  Perl Foundations's Artistic License 2.0
+    Copyright (c) Paul Graham
+    Copyright (c) Robert Morris
+    Copyright (c) A lot of contributors (see https://github.com/arclanguage/anarki/graphs/contributors)
+    -----------------
+    Perl Foundations's Artistic License 2.0
