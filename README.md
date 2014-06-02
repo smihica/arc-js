@@ -16,7 +16,6 @@ A lot of inspired from Paul Graham version of [Arc](http://arclanguage.org/) and
     -----------------
     Perl Foundations's Artistic License 2.0
 
-
     # Arc language
 
     Copyright (c) Paul Graham
