@@ -6,15 +6,19 @@
   `(prn (newstring (* depth 4) #\ )
         ,@(intersperse " " xs)))
 
-(def test (test-name tester a b depth ns filter)
-  (withs (a-res (filter (eval a ns))
-          b-res (eval b ns)
-          res   (tester a-res b-res))
-    (when (no res)
-      (log "*** Fail" test-name tester :target a :expected b-res :target-res a-res))
-    (no res)))
+(def unit-do xs xs)
 
 (def isont (a b) (no (iso a b)))
+
+(def test (test-name tester a b depth ns filter)
+  (if (is tester unit-do)
+      (do (eval a ns) (eval b ns) nil)
+      (withs (a-res (filter (eval a ns))
+              b-res (eval b ns)
+              res   (tester a-res b-res))
+        (when (no res)
+          (log "*** Fail" test-name tester :target a :expected b-res :target-res a-res))
+        (no res))))
 
 (def runner (tests lex-ns)
   (set-timer
@@ -23,13 +27,13 @@
         (prn "")
         ((afn (tests depth ns filter in-test in-cond)
            (aif (car tests)
-                (if (acons it)
+                (if (or (acons it) (~keywordp it))
                     (if (and in-test in-cond)
                         (if (test in-test in-cond (car tests) (cadr tests) depth ns filter)
                             t
                             (self (cddr tests) depth ns filter in-test in-cond))
                         in-test
-                        (if (in (car it) is iso isnt isont)
+                        (if (in (car it) is iso isnt isont unit-do)
                             (if (self (cdr it) depth ns filter in-test (car it))
                                 t
                                 (self (cdr tests) depth ns filter in-test nil))
@@ -59,7 +63,7 @@
                     (case it
                       :ns (self (cddr tests) depth (cadr tests) filter in-test in-cond)
                       :f  (self (cddr tests) depth ns (cadr tests) in-test in-cond)
-                      (err 'unknown-option)))
+                      (err (+ 'unknown-option " " it))))
                 (when (no (or in-test in-cond))
                   (prn "** " tests-all " tests done. succ/fail => " succ-all "/" (- tests-all succ-all)
                        " in " time-all " ms"))))
@@ -79,11 +83,13 @@
                         (self (cddr d) cond (cons (cadr d) (cons (car d) acc)))
                         (acons (car d))
                         (let it (car d)
-                          (if (in (car it) 'is 'iso 'isnt 'isont)
+                          (if (in (car it) 'is 'iso 'isnt 'isont 'do)
                               (self (cdr d)
                                     nil
                                     (cons
-                                      (+ (list (eval (car it)))
+                                      (+ (if (is (car it) 'do)
+                                             (list unit-do)
+                                             (list (eval (car it) (***lex-ns***))))
                                          (self (cdr it) t nil))
                                       acc))
                               (self (cdr d)
