@@ -98,11 +98,6 @@ Then you can do following
 {% endhighlight %}
 [Demo Page](demo_02.html)
 
-## test
-
-- [test runner](http://smihica.com/arc-js/test/unit.html)
-- [compiling compiler](http://smihica.com/arc-js/test/compiling-compiler.html)
-
 ## referred to
 
 - [Arc Language](http://arclanguage.github.io/)
