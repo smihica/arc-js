@@ -4,15 +4,16 @@ COMPILE_ARC=bin/arcjsc
 DATETIME=$(shell date +'%Y%m%d%H%M%S')
 BUILDDIR=.
 CURRENT_BRANCH=$(shell git branch | grep \* | sed -e "s/^\* //")
+UNIT_TESTS=$(shell ls test/unit/arc/*.arc)
 
 all:		arc.js arc.min.js arc.min.js.gz
 
 clean:
 		rm -f arc.js arc.min.js arc.min.js.gz
 
-test:		arc.min.js
+test:		arc.min.js $(UNIT_TESTS)
 		mocha --reporter tap test/unit/impl.js
-		bin/arcjs -r test/unit/arc/core.arc
+		for tes in $(UNIT_TESTS); do bin/arcjs -r $$tes; done
 
 auto:
 		make
