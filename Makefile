@@ -8,7 +8,7 @@ CURRENT_BRANCH=$(shell git branch | grep \* | sed -e "s/^\* //")
 all:		arc.js arc.min.js
 
 clean:
-		rm -f arc.js arc.min.js
+		rm -f arc.js arc.min.js arc.min.js.gz
 
 unit:
 		mocha --reporter tap test/unit/unit.js
@@ -25,6 +25,7 @@ arc.js:		src/*.js src/primitives/*.js src/*.fasl
 
 arc.min.js:	arc.js
 		$(COMPRESS) --unsafe -nc -o arc.min.js arc.js
+		gzip -k -f arc.min.js
 
 arc:		src/arc/arc.arc
 		$(COMPILE_ARC) -d -o src/arc.fasl src/arc/arc.arc
