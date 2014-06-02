@@ -1,14 +1,11 @@
 $(function() {
 
-  var s = new Date();
   var runner = ArcJS.context();
-  var e = new Date();
 
   var box = $('div#repl');
   var holder = $('#holder');
   var txt = $('#repl-txt');
-  var init_time = e - s;
-  txt.html(';; ArcJS ' + ArcJS.version + ' ' + ' Initialized in ' + init_time + ' ms<br>arc&gt;<br>');
+  txt.html(';; ArcJS ' + ArcJS.version + '<br>arc&gt;<br>');
 
   var cm = CodeMirror(holder[0], {
     value: '',
