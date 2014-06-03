@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <title>Demo: Maze generator</title>
+    <style>
+      h4 {
+        line-height: 20px;
+      }
+      textarea {
+        margin: 0;
+        font-family: Consolas,Monaco,Lucida Console,Liberation Mono, monospace;
+        font-size: 13px;
+      }
+    </style>
+    <script type="text/javascript" src="//code.jquery.com/jquery-1.10.2.js"></script>
+    <script type="text/javascript" src="js/arc.min.js"></script>
+    <script type="text/javascript" src="js/arc_loader.js"></script>
+    <script type="text/arc" src="demo_mg.arc">
+      (ns "demo_mg")
+      (= code (quote (do (= ls (/ 500 61)) (main 61))))
+      (log code)
+      (set-timer eval 0 nil code)
+    </script>
+  </head>
+  <body>
+    <h1 id="title">Maze generator</h1>
+    <div style="width:1060px;">
+     <canvas id="c1" width="500" height="500" style="border: 1px solid black; float:left;"></canvas>
+     <div style="float:right;width:550px;margin:0;padding:0;">
+       <strong>code</strong><br>
+       <textarea id="code" style="width:500px;height:250px" readonly="true"></textarea><br>
+       Lines: <input type="text" id="lines" value="61"/>
+       <input id="generate" type="button" value="generate"/><br><br>
+       <strong>log</strong><br>
+       <textarea id="log" style="width:500px;height:100px" readonly="true"></textarea>
+     </div>
+    </div>
+
+    <script type="text/javascript">
+      var canvas = document.getElementById('c1');
+      var log = "";
+      var log_view = $("#log");
+
+      function reset() {
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = "rgb(0, 0, 0)";
+        ctx.fillRect(0, 0, 500, 500);
+      }
+
+      ArcJS.NameSpace.create_with_default('demo_mg', null, ['arc.time'], []);
+
+      // Defining new primitive functions into namespace named "demo_mg". (draw-rect, log)
+      (new ArcJS.Primitives('demo_mg')).define({
+        'draw-dig': [{dot: -1}, function(x, y, w, h) {
+          var ctx = canvas.getContext('2d');
+          ctx.beginPath();
+          ctx.clearRect(x, y, w, h);
+        }],
+        'log': [{dot: 0}, function($$) {
+          if (0 < arguments.length) {
+            var arr = Array.prototype.map.call(arguments, ArcJS.stringify_for_disp);
+            log += arr.join('') + '\n';
+            log_view.val(log);
+            log_view.scrollTop(log_view[0].scrollHeight);
+            return arguments[0];
+          }
+        }]
+      });
+
+      $.ajax({ url: 'demo_mg.arc', type: 'get', dataType: 'text' }).success(function(res){ $('#code').val(res); });
+
+      $("#generate").click(function() {
+        reset();
+        var lines = parseInt($("#lines").val());
+        lines = ((lines % 2) == 0) ? lines + 1 : lines;
+        var code = [
+          "(do",
+          "(ns \"demo_mg\")",
+          "(= code (quote (do (= ls (/ 500 " + lines + ")) (main " + lines + "))))",
+          "(log code)",
+          "(set-timer eval 0 nil code))"
+        ].join("");
+        ArcJS.context().evaluate(code);
+      });
+
+      reset();
+
+    </script>
+
+  </body>
+</html>

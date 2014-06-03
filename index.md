@@ -24,6 +24,10 @@ This is an Arc-language interpreter written in JavaScript. It can run both on no
 | Special syntax (:~.!)                                  | user defined special syntax (defss)                                    |
 | User difined type function (deftf)                     | stack-tracer                                                           |
 
+## Demo
+
+- 1. [Maze generator](demo_mg.html)
+
 ## How to install
 
 You have to install __nodejs__ and __npm__ first.
