@@ -1,18 +1,37 @@
 var Primitives = classify('Primitives', {
   static: {
-    context: null,
-    vm:      null,
-    reader:  null,
-    all: []
+    context:           null,
+    contexts_for_eval: [],
+    vm:                null,
+    reader:            null,
+    all:               [],
   },
   property: {
-    ns:   null,
-    vars: {}
+    installed: false,
+    ns:        null,
+    vars:      {}
   },
   method: {
-    init: function(ns_name) {
-      this.ns = NameSpace.get(ns_name);
+    init: function(ns_name, create) {
+      try {
+        this.ns = NameSpace.get(ns_name);
+      } catch (e) {
+        if (create) {
+          this.ns = NameSpace.create_with_default(ns_name);
+        } else throw e;
+      }
       Primitives.all.push(this);
+    },
+    install_vm: function() {
+      if (Primitives.context) {
+        if (!this.installed) {
+          var vars = this.vars;
+          for (var p in vars) {
+            this.ns.setBox(p, vars[p]);
+          }
+          this.installed = true;
+        }
+      }
     },
     define: function(def) {
       for (var n in def) {
@@ -33,6 +52,7 @@ var Primitives = classify('Primitives', {
           this.vars[n] = f;
         }
       }
+      this.install_vm();
       return this;
     }
   }
@@ -57,10 +77,7 @@ todos_after_all_initialized.push(function() {
   var prim_all = Primitives.all;
   for (var i = 0, l = prim_all.length; i<l; i++) {
     var prm = prim_all[i];
-    var vars = prm.vars;
-    for (var p in vars) {
-      prm.ns.setBox(p, vars[p]);
-    }
+    prm.install_vm();
   }
 
 });

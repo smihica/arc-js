@@ -51,9 +51,12 @@ var NameSpace = classify('NameSpace', {
     root:  null,
     global_ns: null,
     default_ns: null,
-    get: function(name) {
+    get: function(name, ignore_error) {
       var rt = NameSpace.tbl[name];
-      if (!rt) throw new Error('the namespace "' + name + '" is not found.');
+      if (!rt) {
+        if (ignore_error) return nil;
+        throw new Error('the namespace "' + name + '" is not found.');
+      }
       return rt;
     },
     create: function(name, extend, imports, exports) {

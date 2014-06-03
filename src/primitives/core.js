@@ -853,9 +853,9 @@ var primitives_core = (new Primitives('arc.core')).define({
   'find-ns': [{dot: -1}, function(ns) {
     if (!(ns instanceof NameSpace)) {
       if (ns instanceof Symbol) {
-        ns = NameSpace.get(ns.name);
+        ns = NameSpace.get(ns.name, true);
       } else if (typeof ns === 'string') {
-        ns = NameSpace.get(ns);
+        ns = NameSpace.get(ns, true);
       }
     }
     return ns;
@@ -918,3 +918,4 @@ ArcJS.rep       = rep;
 ArcJS.annotate  = annotate;
 ArcJS.list_to_javascript_arr = list_to_javascript_arr;
 ArcJS.javascript_arr_to_list = javascript_arr_to_list;
+ArcJS.stringify_for_disp = stringify_for_disp;

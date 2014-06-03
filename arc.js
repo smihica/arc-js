@@ -702,9 +702,12 @@ var NameSpace = classify('NameSpace', {
     root:  null,
     global_ns: null,
     default_ns: null,
-    get: function(name) {
+    get: function(name, ignore_error) {
       var rt = NameSpace.tbl[name];
-      if (!rt) throw new Error('the namespace "' + name + '" is not found.');
+      if (!rt) {
+        if (ignore_error) return nil;
+        throw new Error('the namespace "' + name + '" is not found.');
+      }
       return rt;
     },
     create: function(name, extend, imports, exports) {
@@ -868,19 +871,38 @@ ArcJS.NameSpace = NameSpace;
 /** @file primitives.js { */
 var Primitives = classify('Primitives', {
   static: {
-    context: null,
-    vm:      null,
-    reader:  null,
-    all: []
+    context:           null,
+    contexts_for_eval: [],
+    vm:                null,
+    reader:            null,
+    all:               [],
   },
   property: {
-    ns:   null,
-    vars: {}
+    installed: false,
+    ns:        null,
+    vars:      {}
   },
   method: {
-    init: function(ns_name) {
-      this.ns = NameSpace.get(ns_name);
+    init: function(ns_name, create) {
+      try {
+        this.ns = NameSpace.get(ns_name);
+      } catch (e) {
+        if (create) {
+          this.ns = NameSpace.create_with_default(ns_name);
+        } else throw e;
+      }
       Primitives.all.push(this);
+    },
+    install_vm: function() {
+      if (Primitives.context) {
+        if (!this.installed) {
+          var vars = this.vars;
+          for (var p in vars) {
+            this.ns.setBox(p, vars[p]);
+          }
+          this.installed = true;
+        }
+      }
     },
     define: function(def) {
       for (var n in def) {
@@ -901,6 +923,7 @@ var Primitives = classify('Primitives', {
           this.vars[n] = f;
         }
       }
+      this.install_vm();
       return this;
     }
   }
@@ -1763,9 +1786,9 @@ var primitives_core = (new Primitives('arc.core')).define({
   'find-ns': [{dot: -1}, function(ns) {
     if (!(ns instanceof NameSpace)) {
       if (ns instanceof Symbol) {
-        ns = NameSpace.get(ns.name);
+        ns = NameSpace.get(ns.name, true);
       } else if (typeof ns === 'string') {
-        ns = NameSpace.get(ns);
+        ns = NameSpace.get(ns, true);
       }
     }
     return ns;
@@ -1828,6 +1851,7 @@ ArcJS.rep       = rep;
 ArcJS.annotate  = annotate;
 ArcJS.list_to_javascript_arr = list_to_javascript_arr;
 ArcJS.javascript_arr_to_list = javascript_arr_to_list;
+ArcJS.stringify_for_disp = stringify_for_disp;
 /** @} */
 /** @file collection.js { */
 var primitives_collection = (new Primitives('arc.collection')).define({
@@ -2000,10 +2024,7 @@ todos_after_all_initialized.push(function() {
   var prim_all = Primitives.all;
   for (var i = 0, l = prim_all.length; i<l; i++) {
     var prm = prim_all[i];
-    var vars = prm.vars;
-    for (var p in vars) {
-      prm.ns.setBox(p, vars[p]);
-    }
+    prm.install_vm();
   }
 
 });
