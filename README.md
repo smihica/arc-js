@@ -9,7 +9,7 @@ A lot of inspired from Paul Graham version of [Arc](http://arclanguage.org/) and
 
 ### Demo (work in a web-site)
 
-- Demo1: [Maze generator](http://smihica.github.io/arc-js/demo_mg.html)
+- 1: [Maze generator](http://smihica.github.io/arc-js/demo_mg.html)
 
 ### How to make
 
