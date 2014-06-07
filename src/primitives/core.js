@@ -84,7 +84,7 @@ var stringify = function stringify(x) {
       if (x === t) return 't';
       return (x.evaluable_name) ? '|' + x.name + '|' : x.name;
     case 'cons':
-      return "(" + stringify_list(x) + ")";
+      return stringify_list(x);
     case 'fn':
       return "#<" + (typeof x === 'function' ?
                      'prim' + (x.prim_name ? (":"+x.prim_name) : "") :
@@ -145,14 +145,92 @@ var stringify = function stringify(x) {
 
 };
 
-var stringify_list = function(cons) {
-  var a = car(cons), d = cdr(cons);
-  return stringify(a) +
-    ((d === nil) ? '' :
-     (d instanceof Cons) ?
-     ' ' + stringify_list(d) :
-     ' . ' + stringify(d));
-};
+var stringify_list = (function() {
+
+  function detect_circular(cons) {
+    var seen = [], circulars = [], idx;
+    (function iter(cons) {
+      if (cons instanceof Cons && cons !== nil) {
+        if ((idx = seen.indexOf(cons)) !== -1) {
+          circulars[idx] = cons;
+          return;
+        }
+        seen.push(cons);
+        iter(car(cons));
+        iter(cdr(cons));
+      }
+    })(cons);
+    var l = circulars.length;
+    if (l === 0) return false;
+    for (var i = 0, rt = []; i < l; i++) {
+      if (circulars[i]) rt.push(circulars[i]);
+    }
+    return rt;
+  }
+
+  function circular_list(cons, circulars) {
+    var defined = [], idx, prefix = '';
+    if ((idx = circulars.indexOf(cons)) !== -1) {
+      defined[idx] = true;
+      prefix = "#" + idx + "=";
+    }
+    var cont = (function iter(cons) {
+      var a = car(cons), d = cdr(cons), astr, dstr;
+      if (a instanceof Cons && a !== nil) {
+        if ((idx = circulars.indexOf(a)) !== -1) {
+          if (defined[idx]) {
+            astr = "#" + idx + "#";
+          } else {
+            defined[idx] = true;
+            astr = "#" + idx + "=(" + iter(a) + ")";
+          }
+        } else {
+          astr = "(" + iter(a) + ")";
+        }
+      } else {
+        astr = stringify(a);
+      }
+      if (d instanceof Cons) {
+        if (d === nil) {
+          dstr = "";
+        } else if ((idx = circulars.indexOf(d)) !== -1) {
+          if (defined[idx]) {
+            dstr = " . #" + idx + "#";
+          } else {
+            defined[idx] = true;
+            dstr = " . #" + idx + "=(" + iter(d) + ")";
+          }
+        } else {
+          dstr = " " + iter(d);
+        }
+      } else {
+        dstr = " . " + stringify(d);
+      }
+      return astr + dstr;
+    })(cons);
+    return prefix + '(' + cont + ')';
+  }
+
+  function normal_list(cons) {
+    var a = car(cons), d = cdr(cons);
+    return (
+      ((a instanceof Cons && a !== nil) ?
+       "(" + normal_list(a) + ")" :
+       stringify(a)) +
+        ((d === nil) ? '' :
+         (d instanceof Cons) ?
+         ' ' + normal_list(d) :
+         ' . ' + stringify(d)));
+  }
+
+  return function(cons) {
+    var circulars = detect_circular(cons);
+    return ((circulars) ?
+            circular_list(cons, circulars) :
+            "(" + normal_list(cons) + ")");
+  };
+
+})();
 
 var stringify_for_disp = function(x) {
   return (type(x).name === 'string') ? x : stringify(x);

@@ -319,9 +319,9 @@ describe('VM eval', function(){
     );
 
     eval_print_eql(
-      '(let s \'(1 2) (list (with (x s) (cdr x)) s))', '((2) (1 2))',
-      '(let s \'(1 2) (list (list (list (with (x s) (cdr x)) s))))', '((((2) (1 2))))',
-      '(let s \'(1 2) (list (let x s (list (let y x (cdr y)) (car x))) s))', '(((2) 1) (1 2))',
+      '(let s \'(1 2) (list (with (x s) (cdr x)) s))', '(#0=(2) (1 . #0#))',
+      '(let s \'(1 2) (list (list (list (with (x s) (cdr x)) s))))', '(((#0=(2) (1 . #0#))))',
+      '(let s \'(1 2) (list (let x s (list (let y x (cdr y)) (car x))) s))', '((#0=(2) 1) (1 . #0#))',
       '((fn (a) (let b \'a (if b (with (c b d b) (list a b c d))))) \'a)', '(a a a a)',
       '(with (s \'(1 2 3)) (list (with (ss s) (with (sss ss) (with (ssss (car sss)) ((fn (sss) (assign s sss)) (cdr ss)) ssss))) s))', '(1 (2 3))'
     );
@@ -564,11 +564,11 @@ describe('VM eval', function(){
         "(arc.compiler::complex-args '(x) '(y))",
         "(x y)",
         "(arc.compiler::complex-args '(x (a b c)) '(y z))",
-        "(x y a (car z) b (car (cdr z)) c (car (cdr (cdr z))))",
+        "(x y a (car z) b (car #0=(cdr z)) c (car (cdr #0#)))",
         "(arc.compiler::complex-args '(x (a b (o c 'x))) '(y z))",
-        "(x y a (car z) b (car (cdr z)) c (if (acons (cdr (cdr z))) (car (cdr (cdr z))) (quote x)))",
+        "(x y a (car z) b (car #0=(cdr z)) c (if (acons #1=(cdr #0#)) (car #1#) (quote x)))",
         "(arc.compiler::complex-args '(x (a b c) (o a b)) '(y z k))",
-        "(x y a (car z) b (car (cdr z)) c (car (cdr (cdr z))) o (car k) a (car (cdr k)) b (car (cdr (cdr k))))"
+        "(x y a (car z) b (car #0=(cdr z)) c (car (cdr #0#)) o (car k) a (car #1=(cdr k)) b (car (cdr #1#)))"
       );
     });
     describe('macex', function() {
@@ -739,34 +739,34 @@ describe('VM eval', function(){
     describe('compile', function() {
       eval_print_eql(
         "(compile '(+ 1 2))",
-        "((frame 10) (constant 1) (argument) (constant 2) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (halt))",
+        "((frame 10) (constant 1) #0=(argument) (constant 2) #0# (constant 2) #0# (refer-global +) (indirect) (apply) (halt))",
 
         "(compile '(+ (- 3 4) (+ 1 (- 1 (* 3 2)))))",
-        "((frame 46) (frame 10) (constant 3) (argument) (constant 4) (argument) (constant 2) (argument) (refer-global -) (indirect) (apply) (argument) (frame 28) (constant 1) (argument) (frame 19) (constant 1) (argument) (frame 10) (constant 3) (argument) (constant 2) (argument) (constant 2) (argument) (refer-global *) (indirect) (apply) (argument) (constant 2) (argument) (refer-global -) (indirect) (apply) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (halt))",
+        "((frame 46) (frame 10) (constant 3) #0=(argument) (constant 4) #0# (constant 2) #0# (refer-global -) #1=(indirect) #2=(apply) #0# (frame 28) (constant 1) #0# (frame 19) (constant 1) #0# (frame 10) (constant 3) #0# (constant 2) #0# (constant 2) #0# (refer-global *) #1# #2# #0# (constant 2) #0# (refer-global -) #1# #2# #0# (constant 2) #0# (refer-global +) #1# #2# #0# (constant 2) #0# (refer-global +) #1# #2# (halt))",
 
         "(compile '((fn (a b) (+ a b)) 10 20))",
-        "((frame 19) (constant 10) (argument) (constant 20) (argument) (constant 2) (argument) (close 0 11 2 -1) (refer-local 1) (argument) (refer-local 0) (argument) (constant 2) (argument) (refer-global +) (indirect) (shift 3 3) (apply) (apply) (halt))",
+        "((frame 19) (constant 10) #0=(argument) (constant 20) #0# (constant 2) #0# (close 0 11 2 -1) (refer-local 1) #0# (refer-local 0) #0# (constant 2) #0# (refer-global +) (indirect) (shift 3 3) #1=(apply) #1# (halt))",
 
         "(compile '(if 'a 1 2))",
         "((constant a) (test 3) (constant 1) (jump 2) (constant 2) (halt))",
 
         "(compile '((fn (c d) (* c ((fn (a b) (+ (- d c) a b d)) d (+ d d)))) 10 3))",
-        "((frame 63) (constant 10) (argument) (constant 3) (argument) (constant 2) (argument) (close 0 55 2 -1) (refer-local 1) (argument) (frame 45) (refer-local 0) (argument) (frame 10) (refer-local 0) (argument) (refer-local 0) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (argument) (constant 2) (argument) (refer-local 1) (argument) (refer-local 0) (argument) (close 2 24 2 -1) (frame 10) (refer-free 0) (argument) (refer-free 1) (argument) (constant 2) (argument) (refer-global -) (indirect) (apply) (argument) (refer-local 1) (argument) (refer-local 0) (argument) (refer-free 0) (argument) (constant 4) (argument) (refer-global +) (indirect) (shift 5 3) (apply) (apply) (argument) (constant 2) (argument) (refer-global *) (indirect) (shift 3 3) (apply) (apply) (halt))",
+        "((frame 63) (constant 10) #0=(argument) (constant 3) #0# (constant 2) #0# (close 0 55 2 -1) (refer-local 1) #0# (frame 45) (refer-local 0) #0# (frame 10) (refer-local 0) #0# (refer-local 0) #0# (constant 2) #0# (refer-global +) #1=(indirect) #2=(apply) #0# (constant 2) #0# (refer-local 1) #0# (refer-local 0) #0# (close 2 24 2 -1) (frame 10) (refer-free 0) #0# (refer-free 1) #0# (constant 2) #0# (refer-global -) #1# #2# #0# (refer-local 1) #0# (refer-local 0) #0# (refer-free 0) #0# (constant 4) #0# (refer-global +) #1# (shift 5 3) #2# #2# #0# (constant 2) #0# (refer-global *) #1# (shift 3 3) #2# #2# (halt))",
 
         "(compile '((fn (a b) (assign a 10) (assign b 30) (* a b)) 1 3))",
-        "((frame 27) (constant 1) (argument) (constant 3) (argument) (constant 2) (argument) (close 0 19 2 -1) (box 0) (box 1) (constant 10) (assign-local 1) (constant 30) (assign-local 0) (refer-local 1) (indirect) (argument) (refer-local 0) (indirect) (argument) (constant 2) (argument) (refer-global *) (indirect) (shift 3 3) (apply) (apply) (halt))",
+        "((frame 27) (constant 1) #0=(argument) (constant 3) #0# (constant 2) #0# (close 0 19 2 -1) (box 0) (box 1) (constant 10) (assign-local 1) (constant 30) (assign-local 0) (refer-local 1) #1=(indirect) #0# (refer-local 0) #1# #0# (constant 2) #0# (refer-global *) #1# (shift 3 3) #2=(apply) #2# (halt))",
 
         "(compile '((fn (a) ((fn (b) ((fn (c d) (assign a 100) ((fn (e) (assign e (+ a e)) (assign c 20) (+ a b c d e)) 5)) 3 4)) 2)) 1))",
-        "((frame 83) (constant 1) (argument) (constant 1) (argument) (close 0 77 1 -1) (box 0) (constant 2) (argument) (constant 1) (argument) (refer-local 0) (argument) (close 1 67 1 -1) (constant 3) (argument) (constant 4) (argument) (constant 2) (argument) (refer-local 0) (argument) (refer-free 0) (argument) (close 2 54 2 -1) (box 1) (constant 100) (assign-free 0) (constant 5) (argument) (constant 1) (argument) (refer-local 0) (argument) (refer-free 1) (argument) (refer-local 1) (argument) (refer-free 0) (argument) (close 4 36 1 -1) (box 0) (frame 12) (refer-free 0) (indirect) (argument) (refer-local 0) (indirect) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (assign-local 0) (constant 20) (assign-free 1) (refer-free 0) (indirect) (argument) (refer-free 2) (argument) (refer-free 1) (indirect) (argument) (refer-free 3) (argument) (refer-local 0) (indirect) (argument) (constant 5) (argument) (refer-global +) (indirect) (shift 6 2) (apply) (shift 2 3) (apply) (shift 3 2) (apply) (shift 2 2) (apply) (apply) (halt))",
+        "((frame 83) (constant 1) #0=(argument) (constant 1) #0# (close 0 77 1 -1) (box 0) (constant 2) #0# (constant 1) #0# (refer-local 0) #0# (close 1 67 1 -1) (constant 3) #0# (constant 4) #0# (constant 2) #0# (refer-local 0) #0# (refer-free 0) #0# (close 2 54 2 -1) (box 1) (constant 100) (assign-free 0) (constant 5) #0# (constant 1) #0# (refer-local 0) #0# (refer-free 1) #0# (refer-local 1) #0# (refer-free 0) #0# (close 4 36 1 -1) (box 0) (frame 12) (refer-free 0) #1=(indirect) #0# (refer-local 0) #1# #0# (constant 2) #0# (refer-global +) #1# #2=(apply) (assign-local 0) (constant 20) (assign-free 1) (refer-free 0) #1# #0# (refer-free 2) #0# (refer-free 1) #1# #0# (refer-free 3) #0# (refer-local 0) #1# #0# (constant 5) #0# (refer-global +) #1# (shift 6 2) #2# (shift 2 3) #2# (shift 3 2) #2# (shift 2 2) #2# #2# (halt))",
 
         "(compile '(let a 10 a))",
         "((constant 10) (argument) (enter-let) (refer-let 0 0) (exit-let 2 2) (halt))",
 
         "(compile '(def fib (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))",
-        "((refer-nil) (argument) (enter-let) (box 0) (refer-let 0 0) (argument) (close 1 57 1 -1) (frame 10) (refer-local 0) (argument) (constant 2) (argument) (constant 2) (argument) (refer-global <) (indirect) (apply) (test 3) (refer-local 0) (jump 43) (frame 17) (frame 10) (refer-local 0) (argument) (constant 1) (argument) (constant 2) (argument) (refer-global -) (indirect) (apply) (argument) (constant 1) (argument) (refer-free 0) (indirect) (apply) (argument) (frame 17) (frame 10) (refer-local 0) (argument) (constant 2) (argument) (constant 2) (argument) (refer-global -) (indirect) (apply) (argument) (constant 1) (argument) (refer-free 0) (indirect) (apply) (argument) (constant 2) (argument) (refer-global +) (indirect) (shift 3 2) (apply) (return 2) (assign-let 0 0) (frame 11) (refer-let 0 0) (indirect) (argument) (constant fib) (argument) (constant 2) (argument) (refer-global fn-name) (indirect) (apply) (refer-let 0 0) (indirect) (exit-let 2 2) (assign-global fib) (halt))",
+        "((refer-nil) #0=(argument) (enter-let) (box 0) (refer-let 0 0) #0# (close 1 57 1 -1) (frame 10) (refer-local 0) #0# (constant 2) #0# (constant 2) #0# (refer-global <) #1=(indirect) #2=(apply) (test 3) (refer-local 0) (jump 43) (frame 17) (frame 10) (refer-local 0) #0# (constant 1) #0# (constant 2) #0# (refer-global -) #1# #2# #0# (constant 1) #0# (refer-free 0) #1# #2# #0# (frame 17) (frame 10) (refer-local 0) #0# (constant 2) #0# (constant 2) #0# (refer-global -) #1# #2# #0# (constant 1) #0# (refer-free 0) #1# #2# #0# (constant 2) #0# (refer-global +) #1# (shift 3 2) #2# (return 2) (assign-let 0 0) (frame 11) (refer-let 0 0) #1# #0# (constant fib) #0# (constant 2) #0# (refer-global fn-name) #1# #2# (refer-let 0 0) #1# (exit-let 2 2) (assign-global fib) (halt))",
 
         "(compile '(+ 1 (ccc (fn (c) (+ 3 5) (apply (fn () (c (* 8 3))))))))",
-        "((frame 52) (constant 1) (argument) (frame 43) (conti 0) (argument) (constant 1) (argument) (close 0 37 1 -1) (frame 10) (constant 3) (argument) (constant 5) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (refer-local 0) (argument) (close 1 17 0 -1) (frame 10) (constant 8) (argument) (constant 3) (argument) (constant 2) (argument) (refer-global *) (indirect) (apply) (argument) (constant 1) (argument) (refer-free 0) (shift 2 1) (apply) (argument) (constant 1) (argument) (refer-global apply) (indirect) (shift 2 2) (apply) (apply) (argument) (constant 2) (argument) (refer-global +) (indirect) (apply) (halt))"
+        "((frame 52) (constant 1) #0=(argument) (frame 43) (conti 0) #0# (constant 1) #0# (close 0 37 1 -1) (frame 10) (constant 3) #0# (constant 5) #0# (constant 2) #0# (refer-global +) #1=(indirect) #2=(apply) (refer-local 0) #0# (close 1 17 0 -1) (frame 10) (constant 8) #0# (constant 3) #0# (constant 2) #0# (refer-global *) #1# #2# #0# (constant 1) #0# (refer-free 0) (shift 2 1) #2# #0# (constant 1) #0# (refer-global apply) #1# (shift 2 2) #2# #2# #0# (constant 2) #0# (refer-global +) #1# #2# (halt))"
       );
     });
   });
@@ -867,6 +867,36 @@ describe('VM eval', function(){
       eval_print_eql("(apply list 'x '(a))",     "(x a)");
       eval_print_eql("(apply list 'x 'y)",       "(x y)");
       eval_print_eql("(apply list 'x 'y nil)",   "(x y)");
+    });
+    describe('circular-list', function() {
+      eval_print_eql("(let s \'(1 2) (list (cdr s) s))",
+                     "(#0=(2) (1 . #0#))");
+      eval_print_eql("(let x \'(b c) `((a ,x) (b ,x)))",
+                     "((a #0=(b c)) (b #0#))");
+      eval_print_eql("(let x \'(b c) (let y `(a ,x) `((a ,x) (b ,y) (c ,y))))",
+                     "((a #0=(b c)) (b #1=(a #0#)) (c #1#))");
+      eval_print_eql("(do (= a \'(a b c)) (scdr (cddr a) a) a)",
+                     "#0=(a b c . #0#)");
+      eval_print_eql("(do (= a \'(a b c)) (scdr (cddr a) a) (cdr a))",
+                     "#0=(b c a . #0#)");
+      eval_print_eql("(do (= a \'(a b c)) (scdr (cddr a) a) (cddr a))",
+                     "#0=(c a b . #0#)");
+      eval_print_eql("(do (= a \'(a b c)) (scdr (cddr a) a) (cdddr a))",
+                     "#0=(a b c . #0#)");
+      eval_print_eql("(do (= b \'(a b (c d (e f)))) (scdr (cdr (caddr (caddr b))) (caddr (caddr b))) b)",
+                     "(a b (c d #0=(e f . #0#)))");
+      eval_print_eql("(do (= b \'(a b (c d (e f)))) (scdr (cdr (caddr (caddr b))) (caddr (caddr b))) (cddr b))",
+                     "((c d #0=(e f . #0#)))");
+      eval_print_eql("(do (= b \'(a b (c d (e f)))) (scdr (cdr (caddr (caddr b))) (caddr (caddr b))) (scdr (cddr b) b) b)",
+                     "#0=(a b (c d #1=(e f . #1#)) . #0#)");
+      eval_print_eql("(do (= b \'(a b (c d (e f)))) (scdr (cdr (caddr (caddr b))) (caddr (caddr b))) (scdr (cddr b) b) (scdr (cddr (caddr b)) b) b)",
+                     "#0=(a b (c d #1=(e f . #1#) . #0#) . #0#)");
+      eval_print_eql("(do (= c \'(a b c)) (scdr (cddr c) (cddr c)) c)",
+                     "(a b . #0=(c . #0#))");
+      eval_print_eql("(do (= b \'(a b (c d (e f)))) (scdr (cdr (caddr (caddr b))) (caddr (caddr b))) (scdr (cddr b) b) (scdr (cddr (caddr b)) b) (cdr b))",
+                     "#0=(b (c d #1=(e f . #1#) . #2=(a . #0#)) . #2#)");
+      eval_print_eql("(do (= b \'(a b (c d (e f)))) (scdr (cdr (caddr (caddr b))) (caddr (caddr b))) (scdr (cddr b) b) (scdr (cddr (caddr b)) b) (cddr b))",
+                     "#0=((c d #1=(e f . #1#) . #2=(a b . #0#)) . #2#)");
     });
 
   });
