@@ -93,6 +93,7 @@ ArcJS.Cons = Cons;
 /** @file char.js { */
 var Char = classify("Char", {
   static: {
+    ESCAPED_CHAR_TBL: {},
     tbl: {},
     get: function(n) {
       var c = null;
@@ -101,6 +102,11 @@ var Char = classify("Char", {
         this.tbl[n] = c;
       }
       return c;
+    },
+    stringify: function(c) {
+      var x;
+      if (x = Char.ESCAPED_CHAR_TBL[c.c]) return "#\\" + x;
+      return "#\\" + c.c;
     }
   },
   property: { c: null },
@@ -111,6 +117,13 @@ var Char = classify("Char", {
   }
 });
 ArcJS.Char = Char;
+todos_after_all_initialized.push(function() {
+  // Char.ESC is inverted Reader.ESC
+  var resc = Reader.ESCAPED_CHAR_TBL, cesc = Char.ESCAPED_CHAR_TBL;
+  for ( var n in resc ) {
+    cesc[resc[n]] = n;
+  }
+});
 /** @} */
 /** @file table.js { */
 var Table = classify("Table", {
@@ -355,7 +368,18 @@ var Reader = classify("Reader", {
     QUASIQUOTE:       Symbol.get('quasiquote'),
     UNQUOTE:          Symbol.get('unquote'),
     UNQUOTE_SPLICING: Symbol.get('unquote-splicing'),
-    NUMBER_PATTERN: /^[-+]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][-+]?[0-9]+)?$/
+    NUMBER_PATTERN:   /^[-+]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][-+]?[0-9]+)?$/,
+    WHITE_SPACES:     String.fromCharCode(9,10,11,12,13,32),
+    ESCAPED_CHAR_TBL: (function() {
+      var tbl = {
+        'null':   0, 'nul':       0,  'backspace':  8,
+        'tab':    9, 'linefeed': 10,  'newline':   10,
+        'vtab':  11, 'page':     12,  'return':    13,
+        'space': 32, 'rubout':  127,
+      };
+      for (var t in tbl) tbl[t] = String.fromCharCode(tbl[t]);
+      return tbl;
+    })()
   },
 
   property: {
@@ -374,7 +398,7 @@ var Reader = classify("Reader", {
     },
 
     whitespace_p: function(c) {
-      return (-1 < String.fromCharCode(9,10,11,12,13,32).indexOf(c));
+      return (-1 < Reader.WHITE_SPACES.indexOf(c));
     },
 
     delimited: function(c) {
@@ -395,7 +419,7 @@ var Reader = classify("Reader", {
 
     read_reader_macro: function(c) {
       if (c === '\\') {
-        if (this.i < this.slen) return Char.get(this.str[this.i++]);
+        if (this.i < this.slen) return this.read_char();
       }
       if (c === '/') {
         if (this.i < this.slen) return this.read_regexp();
@@ -412,6 +436,27 @@ var Reader = classify("Reader", {
       case 'b':
         return parseInt(tok, 2);
       }
+    },
+
+    read_char: function() {
+      var c = this.read_thing(), l, e;
+      if ((l = c.length) == 1) return Char.get(c);
+      if (l == 0) { // specified char was a delimiter.
+        return Char.get(this.str[this.i++]);
+      }
+      if (e = Reader.ESCAPED_CHAR_TBL[c]) {
+        return Char.get(e);
+      }
+      if (c.match(/^0([0-7]{1,3})$/)) {
+        e = String.fromCharCode(parseInt(RegExp.$1, 8))
+        return Char.get(e);
+      }
+      if (c.match(/^u([0-9a-fA-F]{1,4})$/) ||
+          c.match(/^U([0-9a-fA-F]{1,6})$/)) {
+        e = String.fromCharCode(parseInt(RegExp.$1, 16))
+        return Char.get(e);
+      }
+      throw new Error("invalid char declaration \"" + c + "\"");
     },
 
     read_list: function(bracketed) {
@@ -1023,7 +1068,7 @@ var stringify = function stringify(x) {
                      'prim' + (x.prim_name ? (":"+x.prim_name) : "") :
                      'fn' + (x.name ? (":"+x.name) : "")) + ">";
     case 'char':
-      return "#\\" + x.c;
+      return Char.stringify(x);
     case 'table':
       return '#<table n=' + x.n + /* ' | ' + x.stringify_content() + */ '>';
     default:
