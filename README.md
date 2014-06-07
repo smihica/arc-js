@@ -1,5 +1,7 @@
 ### ArcJS
 
+[![Build Status](https://travis-ci.org/smihica/arc-js.svg?branch=master)](https://travis-ci.org/smihica/arc-js)
+
 __An Arc-langugage compiler and VM-interpreter written in JavaScript__
 
 Arc-language can run both on nodejs and on a web-site.
