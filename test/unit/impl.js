@@ -87,9 +87,20 @@ describe('Reader', function(){
       rex('||').equal(ArcJS.Symbol.get('')).property('evaluable_name', true);
     });
     it('character', function() {
+      // normal
       rex('#\\a').equal(ArcJS.Char.get('a'));
+      // delimiter char
       rex('#\\(').equal(ArcJS.Char.get('('));
+      rex('#\\ ').equal(ArcJS.Char.get(' '));
+      // unicode
       rex('#\\あ').equal(ArcJS.Char.get('あ'));
+      // escaped
+      rex('#\\space').equal(ArcJS.Char.get(' '));
+      rex('#\\040').equal(ArcJS.Char.get(' '));
+      rex('#\\077').equal(ArcJS.Char.get('?'));
+      rex('#\\u20').equal(ArcJS.Char.get(' '));
+      rex('#\\u3042').equal(ArcJS.Char.get('あ'));
+      rex('#\\U9b31').equal(ArcJS.Char.get('鬱'));
     });
     it('string', function() {
       rex('"abc"').equal("abc");
@@ -105,6 +116,16 @@ describe('Reader', function(){
       function c(x) { return ArcJS.Char.get(x); }
       rex('#\\a').equal(c('a'));
       expect(stringify(reader.read("#\\a"))).to.equal('#\\a');
+      expect(stringify(reader.read("#\\("))).to.equal('#\\(');
+      // escaped
+      expect(stringify(reader.read("#\\ "))).to.equal('#\\space');
+      expect(stringify(reader.read("#\\null"))).to.equal('#\\nul');
+      expect(stringify(reader.read("#\\linefeed"))).to.equal('#\\newline');
+      expect(stringify(reader.read("#\\040"))).to.equal('#\\space');
+      expect(stringify(reader.read("#\\077"))).to.equal('#\\?');
+      expect(stringify(reader.read("#\\u20"))).to.equal('#\\space');
+      expect(stringify(reader.read("#\\u3042"))).to.equal('#\\あ');
+      expect(stringify(reader.read("#\\u9b31"))).to.equal('#\\鬱');
     });
     it('cons', function() {
       function s(x) { return ArcJS.Symbol.get(x); }

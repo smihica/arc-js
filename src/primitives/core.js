@@ -90,7 +90,7 @@ var stringify = function stringify(x) {
                      'prim' + (x.prim_name ? (":"+x.prim_name) : "") :
                      'fn' + (x.name ? (":"+x.name) : "")) + ">";
     case 'char':
-      return "#\\" + x.c;
+      return Char.stringify(x);
     case 'table':
       return '#<table n=' + x.n + /* ' | ' + x.stringify_content() + */ '>';
     default:
