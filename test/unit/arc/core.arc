@@ -2,6 +2,25 @@
 
 (desc "fundamental"
 
+  (test "< <= > >="
+    (is
+      (< 1 2)                             t
+      (< 1 2 3)                           t
+      (< 1 3 2)                           nil
+      (> 2 1)                             t
+      (> 3 2 1)                           t
+      (> 2 1 3)                           nil
+      (<= 1 1 2 3)                        t
+      (<= 1 1 1)                          t
+      (<= 1 1 0)                          nil
+      (>= 1 0)                            t
+      (>= 3 2 1 1 1 0)                    t
+      (>= 2 3)                            nil
+      (<= #\a #\f #\m #\z)                t
+      (<= #\a #\x #\f)                    nil
+      (< 'abc 'def 'ghi)                  t
+      (> 'abc 'def 'ghi)                  nil))
+
   (test "eval"
     (iso
       (eval '(+ 1 2 3))                   6
