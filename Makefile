@@ -13,7 +13,7 @@ clean:
 
 test:		arc.min.js $(UNIT_TESTS)
 		mocha --reporter tap test/unit/impl.js
-		for tes in $(UNIT_TESTS); do bin/arcjs -r $$tes; done
+		for tes in $(UNIT_TESTS); do bin/arcjs -r $$tes || exit 1; done
 
 auto:
 		make
