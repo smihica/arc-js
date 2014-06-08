@@ -207,12 +207,13 @@
       (cons f args)))
 
 (def expand= (place val (o setters (***setters***)))
-  (if (isa place 'sym)
-      `(assign ,place ,val)
-      (let (vars prev setter) (setforms place setters)
-        (w/uniq g
-          `(with ,(+ vars (list g val)) ;; atwith
-             (,setter ,g))))))
+  (let place (if (isa place 'sym) (ssexpand place) place)
+    (if (isa place 'sym)
+        `(assign ,place ,val)
+        (let (vars prev setter) (setforms place setters)
+          (w/uniq g
+            `(with ,(+ vars (list g val)) ;; atwith
+               (,setter ,g)))))))
 
 (def expand=list (terms (o setters (***setters***)))
   `(do ,@(map (fn ((p v)) (expand= p v setters))  ; [apply expand= _]
