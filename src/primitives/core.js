@@ -752,7 +752,7 @@ var primitives_core = (new Primitives('arc.core')).define({
     return rt;
   }],
   'nrev': [{dot: 1}, function(lis, $$) {
-    var r = $$ || nil;
+    var r = arguments.length < 2 ? nil : $$;
     var tmp;
     while (lis !== nil && 'cdr' in lis) {
       tmp = lis.cdr;
