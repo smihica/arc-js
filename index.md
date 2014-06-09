@@ -14,6 +14,20 @@ This is an Arc-language interpreter written in JavaScript. It can run both on no
   <div id="holder"></div>
 </div>
 
+## Demo
+
+#### Client side
+
+1. [REPL (fullscreen)](demo_repl.html)
+2. [Maze generator](demo_mg.html)
+3. Othello player (comming soon)
+4. Drawing chaos attractor (comming soon)
+5. Game (comming soon)
+
+#### Server side
+
+1. Running on node server (comming soon)
+
 ## Features
 
 | Stack based vm ( [visualizer](stack_visualizer.html) ) | Self-hosting compiler                                                  |
@@ -23,10 +37,6 @@ This is an Arc-language interpreter written in JavaScript. It can run both on no
 | complex-args (let, fn)                                 | regexp (#/exp/)                                                        |
 | Special syntax (:~.!)                                  | user defined special syntax (defss)                                    |
 | User difined type function (deftf)                     | stack-tracer                                                           |
-
-## Demo
-
-- 1. [Maze generator](demo_mg.html)
 
 ## How to install
 
