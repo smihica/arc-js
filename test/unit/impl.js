@@ -835,6 +835,7 @@ describe('VM eval', function(){
       eval_print_eql('(coerce \'bsym \'sym)', 'bsym');
       eval_print_eql('(coerce nil \'string)', '""');
       eval_print_eql('(coerce t \'string)', '"t"');
+      eval_print_eql('(coerce nil \'cons)', 'nil');
     });
     describe('+', function() {
       eval_print_eql('(+ 1 2 3)', '6');

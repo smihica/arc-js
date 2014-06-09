@@ -1371,6 +1371,8 @@ var primitives_core = (new Primitives('arc.core')).define({
         return obj.name;
       case 'sym':
         return obj;
+      case 'cons':
+        if (obj === nil) return nil;
       }
       break;
     case 'table':
