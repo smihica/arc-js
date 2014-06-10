@@ -15,6 +15,7 @@ A lot of inspired from Paul Graham version of [Arc](http://arclanguage.org/) and
 
 1. [REPL](http://smihica.github.io/arc-js/demo_repl.html)
 2. [Maze generator](http://smihica.github.io/arc-js/demo_mg.html)
+3. [Strange attractor](http://smihica.github.io/arc-js/demo_at.html)
 
 ### How to make
 
