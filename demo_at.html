@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <title>Demo: Strange attractor generator</title>
+    <style>
+      h4 {
+        line-height: 20px;
+      }
+      input[type="text"] {
+        width: 50px;
+      }
+      textarea {
+        margin: 0;
+        font-family: Consolas,Monaco,Lucida Console,Liberation Mono, monospace;
+        font-size: 13px;
+      }
+    </style>
+    <script type="text/javascript" src="//code.jquery.com/jquery-1.10.2.js"></script>
+    <script type="text/javascript" src="js/arc.min.js"></script>
+    <script type="text/javascript" src="js/arc_loader.js"></script>
+    <script type="text/arc" src="demo_at.arc">
+      (main 0 255 0 0.8 10.0 28.0 (/ 8.0 3.0) 0.01 10000)
+    </script>
+  </head>
+  <body>
+    <h1 id="title">Strange attractor generator</h1>
+    <div style="width:1060px;">
+     <canvas id="c1" width="500" height="500" style="border: 1px solid black; float:left;"></canvas>
+     <div style="float:right;width:550px;margin:0;padding:0;">
+       <strong>code</strong><br>
+       <textarea id="code" style="width:500px;height:250px" readonly="true"></textarea><br>
+       Values:     a<input type="text" id="a" value="10.0"/>
+                   b<input type="text" id="b" value="28.0"/>
+                   c<input type="text" id="c" value="2.666"/>
+                   d<input type="text" id="d" value="0.01"/>
+                   n<input type="text" id="n" value="10000"/>
+                   <br>
+       Line-color: R<input type="text" id="R" value="0"/>
+                   G<input type="text" id="G" value="255"/>
+                   B<input type="text" id="B" value="0"/>
+                   A<input type="text" id="A" value="0.8"/><br>
+       <input id="generate" type="button" value="generate"/><br><br>
+     </div>
+    </div>
+
+    <script type="text/javascript">
+      var canvas = document.getElementById('c1');
+
+      function reset() {
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = "rgb(0, 0, 0)";
+        ctx.fillRect(0, 0, 500, 500);
+      }
+
+      var ratio = 10.0;
+      var move  = { x: 250, y: 0 };
+      var X = function(x) { return (x * ratio) + move.x; };
+      var Y = function(y) { return (y * ratio) + move.y; };
+
+      // Defining new primitive functions (js-draw-line)
+      (new ArcJS.Primitives('user')).define({
+        'js-draw-line': [{dot: -1}, function(c, x1, y1, x2, y2) {
+          var ctx = canvas.getContext('2d');
+          ctx.beginPath();
+          ctx.moveTo(X(x1), Y(y1));
+          ctx.lineTo(X(x2), Y(y2));
+          ctx.strokeStyle = c;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }]
+      });
+
+      $.ajax({ url: 'demo_at.arc', type: 'get', dataType: 'text' }).success(function(res){ $('#code').val(res); });
+
+      $("#generate").click(function() {
+        reset();
+        var a = parseFloat($("#a").val());
+        var b = parseFloat($("#b").val());
+        var c = parseFloat($("#c").val());
+        var d = parseFloat($("#d").val());
+        var n = parseFloat($("#n").val());
+        var R = parseFloat($("#R").val());
+        var G = parseFloat($("#G").val());
+        var B = parseFloat($("#B").val());
+        var A = parseFloat($("#A").val());
+        ArcJS.context().evaluate('(main '+R+' '+G+' '+B+' '+A+' '+a+' '+b+' '+c+' '+d+' '+n+')');
+      });
+
+      reset();
+
+    </script>
+
+  </body>
+</html>

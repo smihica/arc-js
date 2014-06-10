@@ -20,9 +20,9 @@ This is an Arc-language interpreter written in JavaScript. It can run both on no
 
 1. [REPL (fullscreen)](demo_repl.html)
 2. [Maze generator](demo_mg.html)
-3. Othello player (comming soon)
-4. Drawing chaos attractor (comming soon)
-5. Game (comming soon)
+3. [Strange attractor generator](demo_at.html)
+4. Sudoku solver (comming soon)
+5. Othello player (comming soon)
 
 #### Server side
 
