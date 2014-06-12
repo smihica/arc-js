@@ -9,9 +9,13 @@ You can get more information from the [web site](http://smihica.github.io/arc-js
 
 A lot of inspired from Paul Graham version of [Arc](http://arclanguage.org/) and [Anarki](https://github.com/arclanguage/anarki)
 
-### Demo (work on a web-site)
+### Demo
 
-1. [Maze generator](http://smihica.github.io/arc-js/demo_mg.html)
+#### client side
+
+1. [REPL](http://smihica.github.io/arc-js/demo_repl.html)
+2. [Maze generator](http://smihica.github.io/arc-js/demo_mg.html)
+3. [Strange attractor generator](http://smihica.github.io/arc-js/demo_at.html)
 
 ### How to make
 

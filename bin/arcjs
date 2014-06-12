@@ -32,7 +32,7 @@ function compile(expr) {
 
 var code_hist = '';
 function onenter(code) {
-  var expr = null, res = null, result = '', err = false;
+  var expr = null, res = null, result = '', err = 0;
   if ((code.match(/^\s*$/)) && code_hist === '') return false;
 
   var code_all = code_hist + code;
@@ -44,8 +44,8 @@ function onenter(code) {
       if (expr === ArcJS.Reader.EOF) return false;
     } catch (e) {
       if (vm.reader.i < vm.reader.slen) {
-        result = e.toString();
-        err = true;
+        result = "Reader" + e.toString();
+        err = 1;
       }
       else { /* Not closed yet. ignore.*/
         code_hist = code_all;
@@ -60,7 +60,7 @@ function onenter(code) {
         return true;
       }
     }
-    if (!err) {
+    if (err === 0) {
       var called_ns = vm.ns;
       var called_current_ns = vm.current_ns;
       try {
@@ -73,17 +73,19 @@ function onenter(code) {
         result = e.toString();
         vm.ns = called_ns;
         vm.current_ns = called_current_ns;
-        err = true;
+        err = 2;
       }
     }
-    if (err) {
+    if (err !== 0) {
       process.stderr.write(result + "\n");
-      var call_stack_str = vm.get_call_stack_string();
-      process.stderr.write(call_stack_str + "\n");
+      if (err === 2) { // only error in call
+        var call_stack_str = vm.get_call_stack_string();
+        process.stderr.write(call_stack_str + "\n");
+      }
     } else {
       process.stdout.write(result + "\n");
     }
-    if (vm.warn !== "") {
+    if (vm.warn) {
       process.stderr.write(vm.warn + "\n");
     }
 

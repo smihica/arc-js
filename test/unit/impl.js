@@ -134,6 +134,7 @@ describe('Reader', function(){
       rex("(a (b c))").to.deep.equal(
         cons(s('a'), cons(cons(s('b'), cons(s('c'), nil)), nil)));
       rex("(a . b)").to.deep.equal(cons(s('a'), s('b')));
+      rex("(0 . 0)").to.deep.equal(cons(0, 0));
       rex("(a b (d (e . f)) g)").to.deep.equal(
         cons(s('a'),
              cons(s('b'),

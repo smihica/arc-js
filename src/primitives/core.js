@@ -238,6 +238,12 @@ var stringify_for_disp = function(x) {
 
 var uniq_counter = 0;
 
+var compareable = function(x) {
+  var _t = (typeof x);
+  if (_t === 'number' || _t === 'string') return x;
+  return coerce(x, s_string);
+};
+
 var primitives_core = (new Primitives('arc.core')).define({
 
   /** core **/
@@ -661,26 +667,26 @@ var primitives_core = (new Primitives('arc.core')).define({
     return rt;
   }],
   '<': [{dot: 0}, function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] < arguments[i])) return nil;
+    for (var i=0, l=arguments.length-1, last = compareable(arguments[0]); i<l; i++) {
+      if (!(last < (last = compareable(arguments[i+1])))) return nil;
     }
     return t;
   }],
   '>': [{dot: 0}, function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] > arguments[i])) return nil;
+    for (var i=0, l=arguments.length-1, last = compareable(arguments[0]); i<l; i++) {
+      if (!(last > (last = compareable(arguments[i+1])))) return nil;
     }
     return t;
   }],
   '<=': [{dot: 0}, function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] <= arguments[i])) return nil;
+    for (var i=0, l=arguments.length-1, last = compareable(arguments[0]); i<l; i++) {
+      if (!(last <= (last = compareable(arguments[i+1])))) return nil;
     }
     return t;
   }],
   '>=': [{dot: 0}, function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] >= arguments[i])) return nil;
+    for (var i=0, l=arguments.length-1, last = compareable(arguments[0]); i<l; i++) {
+      if (!(last >= (last = compareable(arguments[i+1])))) return nil;
     }
     return t;
   }],
@@ -746,7 +752,7 @@ var primitives_core = (new Primitives('arc.core')).define({
     return rt;
   }],
   'nrev': [{dot: 1}, function(lis, $$) {
-    var r = $$ || nil;
+    var r = arguments.length < 2 ? nil : $$;
     var tmp;
     while (lis !== nil && 'cdr' in lis) {
       tmp = lis.cdr;
