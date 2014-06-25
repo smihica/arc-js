@@ -1216,6 +1216,12 @@ var stringify_for_disp = function(x) {
 
 var uniq_counter = 0;
 
+var compareable = function(x) {
+  var _t = (typeof x);
+  if (_t === 'number' || _t === 'string') return x;
+  return coerce(x, s_string);
+};
+
 var primitives_core = (new Primitives('arc.core')).define({
 
   /** core **/
@@ -1639,26 +1645,26 @@ var primitives_core = (new Primitives('arc.core')).define({
     return rt;
   }],
   '<': [{dot: 0}, function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] < arguments[i])) return nil;
+    for (var i=0, l=arguments.length-1, last = compareable(arguments[0]); i<l; i++) {
+      if (!(last < (last = compareable(arguments[i+1])))) return nil;
     }
     return t;
   }],
   '>': [{dot: 0}, function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] > arguments[i])) return nil;
+    for (var i=0, l=arguments.length-1, last = compareable(arguments[0]); i<l; i++) {
+      if (!(last > (last = compareable(arguments[i+1])))) return nil;
     }
     return t;
   }],
   '<=': [{dot: 0}, function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] <= arguments[i])) return nil;
+    for (var i=0, l=arguments.length-1, last = compareable(arguments[0]); i<l; i++) {
+      if (!(last <= (last = compareable(arguments[i+1])))) return nil;
     }
     return t;
   }],
   '>=': [{dot: 0}, function($$) {
-    for (var i=1, l=arguments.length; i<l; i++) {
-      if (!(arguments[i-1] >= arguments[i])) return nil;
+    for (var i=0, l=arguments.length-1, last = compareable(arguments[0]); i<l; i++) {
+      if (!(last >= (last = compareable(arguments[i+1])))) return nil;
     }
     return t;
   }],
@@ -1724,7 +1730,7 @@ var primitives_core = (new Primitives('arc.core')).define({
     return rt;
   }],
   'nrev': [{dot: 1}, function(lis, $$) {
-    var r = $$ || nil;
+    var r = arguments.length < 2 ? nil : $$;
     var tmp;
     while (lis !== nil && 'cdr' in lis) {
       tmp = lis.cdr;
@@ -1937,6 +1943,16 @@ var primitives_core = (new Primitives('arc.core')).define({
       return rt;
     }
     throw new Error('newstring requires int, char.');
+  }],
+
+  'odd': [{dot: -1}, function(x) {
+    return (x % 2) ? t : nil;
+  }],
+  'even': [{dot: -1}, function(x) {
+    return (x % 2) ? nil : t;
+  }],
+  'mod': [{dot: -1}, function(x, y) {
+    return (x % y);
   }]
 
 });
@@ -2021,15 +2037,6 @@ var lastcons = primitives_collection.vars.lastcons;
 /** @} */
 /** @file math.js { */
 var primitives_math = (new Primitives('arc.math')).define({
-  'odd': [{dot: -1}, function(x) {
-    return (x % 2) ? t : nil;
-  }],
-  'even': [{dot: -1}, function(x) {
-    return (x % 2) ? nil : t;
-  }],
-  'mod': [{dot: -1}, function(x, y) {
-    return (x % y);
-  }],
 });
 /** @} */
 /** @file time.js { */
@@ -2270,7 +2277,7 @@ preloads.push([
 [0,85,6,90,7,0,76,0,8,6,105,7,6,21,7,11,92,21,22,7,11,86,21,7,12,7,14,20,0,1,0,38,1,-1,6,106,7,0,28,0,19,6,13,7,0,10,9,0,7,12,7,6,4,7,11,49,21,22,7,6,4,7,11,49,21,22,7,12,7,6,4,7,11,49,21,22,7,6,4,7,11,49,21,5,3,2,22,16,0,0,0,11,8,0,0,21,7,6,107,7,6,4,7,11,12,21,22,8,0,0,21,15,2,2,7,6,14,7,11,10,21,22,7,6,4,7,11,15,21,22,19,107,0,11,11,86,21,7,6,21,7,6,4,7,11,11,21,22,19,86,11,107,21,26],
 [1,0,113,3,2,0,28,0,19,0,10,9,2,7,6,108,7,6,4,7,11,109,21,22,7,6,110,7,6,4,7,11,11,21,22,7,6,111,7,6,4,7,11,109,21,22,7,14,6,7,7,0,73,8,0,0,7,0,64,0,55,6,15,7,0,46,6,112,7,0,37,0,28,6,24,7,0,19,8,0,0,7,0,10,9,1,7,9,0,7,6,4,7,11,49,21,22,7,6,4,7,11,49,21,22,7,6,4,7,11,49,21,22,7,12,7,6,4,7,11,49,21,22,7,6,4,7,11,49,21,22,7,6,4,7,11,49,21,22,7,12,7,6,4,7,11,49,21,22,7,6,4,7,11,49,21,22,7,6,4,7,11,49,21,5,3,6,22,7,14,0,10,8,0,0,7,6,113,7,6,4,7,11,12,21,22,0,10,6,6,7,8,0,0,7,6,4,7,11,15,21,22,15,2,2,19,113,26],
 [0,39,6,114,7,12,7,14,20,0,1,0,11,2,-1,9,1,7,9,0,7,6,4,7,11,115,21,5,3,3,22,16,0,0,0,11,8,0,0,21,7,6,116,7,6,4,7,11,12,21,22,8,0,0,21,15,2,2,7,6,4,7,11,15,21,22,19,116,26],
-[0,39,6,114,7,12,7,14,20,0,1,0,11,2,-1,9,1,7,9,0,7,6,4,7,11,115,21,5,3,3,22,16,0,0,0,11,8,0,0,21,7,6,117,7,6,4,7,11,12,21,22,8,0,0,21,15,2,2,7,6,4,7,11,15,21,22,19,117,26],
+[0,63,6,114,7,12,7,14,20,0,1,0,35,3,2,0,10,9,2,7,9,1,7,6,4,7,11,115,21,22,7,14,8,0,0,2,3,8,0,0,3,17,0,8,9,0,7,6,21,7,11,28,21,22,7,14,8,0,0,2,3,8,0,0,3,2,12,15,2,2,15,2,2,23,4,16,0,0,0,11,8,0,0,21,7,6,117,7,6,4,7,11,12,21,22,8,0,0,21,15,2,2,7,6,4,7,11,15,21,22,19,117,26],
 [0,39,6,114,7,12,7,14,20,0,1,0,11,2,-1,9,1,7,9,0,7,6,4,7,11,115,21,5,3,3,22,16,0,0,0,11,8,0,0,21,7,6,118,7,6,4,7,11,12,21,22,8,0,0,21,15,2,2,7,6,4,7,11,15,21,22,19,118,26],
 [12,7,14,20,0,8,0,0,7,1,1,139,2,-1,0,10,9,0,7,6,108,7,6,4,7,11,119,21,22,2,38,0,19,9,1,7,0,10,9,0,7,6,49,7,6,4,7,11,109,21,22,7,6,4,7,10,0,21,22,7,14,8,0,0,2,12,0,10,8,0,0,7,6,108,7,6,4,7,11,109,21,22,3,2,12,15,2,2,3,90,0,10,9,1,7,6,9,7,6,4,7,11,119,21,22,2,69,9,0,7,6,21,7,12,7,14,20,0,8,0,0,7,9,1,7,1,2,38,1,-1,9,0,2,34,0,14,0,8,9,0,7,6,21,7,11,28,21,22,7,6,21,7,10,0,22,2,3,9,0,3,16,0,8,9,0,7,6,21,7,11,33,21,22,7,6,21,7,10,1,21,5,2,2,22,3,2,12,23,2,16,0,0,0,11,8,0,0,21,7,6,25,7,6,4,7,11,12,21,22,8,0,0,21,15,2,2,5,2,3,22,3,11,9,1,7,9,0,7,6,4,7,11,120,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,121,7,6,4,7,11,12,21,22,8,0,0,21,15,2,2,19,121,26],
 [12,7,14,20,0,1,0,32,3,-1,0,11,9,2,7,11,30,21,7,6,4,7,11,30,21,22,2,14,9,2,7,9,1,7,9,0,7,6,14,7,11,122,21,5,4,4,22,3,6,13,2,3,12,3,2,12,23,4,16,0,0,0,11,8,0,0,21,7,6,123,7,6,4,7,11,12,21,22,8,0,0,21,15,2,2,19,123,26],
@@ -2281,7 +2288,7 @@ preloads.push([
 [12,7,14,20,0,8,0,0,7,1,1,75,2,-1,9,1,2,71,0,17,0,8,9,1,7,6,21,7,11,28,21,22,7,9,0,7,6,4,7,11,120,21,22,2,35,0,8,9,1,7,6,21,7,11,28,21,22,7,0,17,0,8,9,1,7,6,21,7,11,33,21,22,7,9,0,7,6,4,7,10,0,21,22,7,6,4,7,11,49,21,5,3,3,22,3,18,0,8,9,1,7,6,21,7,11,33,21,22,7,9,0,7,6,4,7,10,0,21,5,3,3,22,3,2,12,23,3,16,0,0,0,11,8,0,0,21,7,6,129,7,6,4,7,11,12,21,22,8,0,0,21,15,2,2,19,129,26],
 [12,7,14,20,0,8,0,0,7,1,1,129,3,2,0,8,9,0,7,6,21,7,11,66,21,22,2,10,0,8,9,0,7,6,21,7,11,28,21,22,3,2,12,2,19,9,2,7,14,8,0,0,2,3,8,0,0,3,10,9,1,7,14,8,0,0,2,3,8,0,0,3,2,12,15,2,2,15,2,2,3,2,12,7,14,8,0,0,2,3,8,0,0,3,14,9,2,2,3,9,1,3,2,12,7,14,8,0,0,2,3,8,0,0,3,2,12,15,2,2,15,2,2,2,67,0,8,9,2,7,6,21,7,11,28,21,22,7,0,49,0,8,9,1,7,6,21,7,11,28,21,22,7,0,33,0,8,9,2,7,6,21,7,11,33,21,22,7,0,8,9,1,7,6,21,7,11,33,21,22,7,0,8,9,0,7,6,21,7,11,28,21,22,7,6,14,7,10,0,21,22,7,6,4,7,11,49,21,22,7,6,4,7,11,49,21,5,3,4,22,3,2,12,23,4,16,0,0,0,11,8,0,0,21,7,6,130,7,6,4,7,11,12,21,22,8,0,0,21,15,2,2,19,130,26],
 ]);
-preload_vals.push(["arc.core","0","***curr-ns***","(mac rfn afn if and or let def aif caselet case quasiquote map1 withs w/uniq compose complement defns export import defss namespace-ss compose-ss complement-ss sexp-ss sexp-with-quote-ss keyword-ss deftf cons-tf table-tf string-tf mem union map mappend keep set-minus set-intersect zip)","2","***export***","mac","assign","with","fn","list","+","fn-name","quote","3","annotate","(quote mac)","4","collect-bounds-in-ns","***macros***","_","1","***cut-fn***","5","rfn","self","afn","%pair","car","len","is","%if","cadr","cdr","if","and","uniq","or","let","def","it","aif","no","cddr","caselet","case","-","firstn","nthcdr","cons","apply","map1","reccase","type","unquote","unquote-splicing","find-qq-eval","\"cannot use ,@ after .\"","err","quasiquote","expand-qq","qq-pair","\",@ cannot be used immediately after `\"","nrev","do","withs","acons","w/uniq","g","idfn","compose","complement","***defns***",":extend","s",":import","i",":export","e","\"The name \\\"\"","\"\\\" is not specified how to use.\"","defns","(***curr-ns***)","export","***import***","import","***special-syntax-order***","(quote special-syntax)","(assign ***special-syntax-order*** (+ ***special-syntax-order*** 1))","defss","special-syntax","\"^(.+?)::(.+)$\"","regex","orig","rt","ns","namespace-ss","\"^(.*[^:]):([^:].*)$\"","compose-ss","\"^\\\\~(.+)$\"","complement-ss","\"^(.*[^.])\\\\.([^.].*)$\"","sexp-ss","\"^(.+)\\\\!(.+)$\"","sexp-with-quote-ss","\"^:(.+)$\"","keyword","keyword-ss","string","coerce","\"-tf\"","sym","(quote type-fn)","deftf","type-fn","ref","cons-tf","table-tf","string-tf","isa","%mem","mem","%union","union","min","map","mappend","keep","set-minus","set-intersect","zip"]);
+preload_vals.push(["arc.core","0","***curr-ns***","(mac rfn afn if and or let def aif caselet case reccase quasiquote map1 withs w/uniq compose complement defns export import defss namespace-ss compose-ss complement-ss sexp-ss sexp-with-quote-ss keyword-ss deftf cons-tf table-tf string-tf mem union map mappend keep set-minus set-intersect zip)","2","***export***","mac","assign","with","fn","list","+","fn-name","quote","3","annotate","(quote mac)","4","collect-bounds-in-ns","***macros***","_","1","***cut-fn***","5","rfn","self","afn","%pair","car","len","is","%if","cadr","cdr","if","and","uniq","or","let","def","it","aif","no","cddr","caselet","case","-","firstn","nthcdr","cons","apply","map1","reccase","type","unquote","unquote-splicing","find-qq-eval","\"cannot use ,@ after .\"","err","quasiquote","expand-qq","qq-pair","\",@ cannot be used immediately after `\"","nrev","do","withs","acons","w/uniq","g","idfn","compose","complement","***defns***",":extend","s",":import","i",":export","e","\"The name \\\"\"","\"\\\" is not specified how to use.\"","defns","(***curr-ns***)","export","***import***","import","***special-syntax-order***","(quote special-syntax)","(assign ***special-syntax-order*** (+ ***special-syntax-order*** 1))","defss","special-syntax","\"^(.+?)::(.+)$\"","regex","orig","rt","ns","namespace-ss","\"^(.*[^:]):([^:].*)$\"","compose-ss","\"^\\\\~(.+)$\"","complement-ss","\"^(.*[^.])\\\\.([^.].*)$\"","sexp-ss","\"^(.+)\\\\!(.+)$\"","sexp-with-quote-ss","\"^:(.+)$\"","keyword","keyword-ss","string","coerce","\"-tf\"","sym","(quote type-fn)","deftf","type-fn","ref","cons-tf","table-tf","string-tf","isa","%mem","mem","%union","union","min","map","mappend","keep","set-minus","set-intersect","zip"]);
 /** @} */
 /** @file compiler.fasl { */
 // This is an auto generated file.
