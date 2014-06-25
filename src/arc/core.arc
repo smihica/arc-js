@@ -274,7 +274,7 @@
              (annotate 'type-fn (rfn ,name ,vars ,@body)))))
 
 (deftf cons   (c n)   (ref c n))
-(deftf table  (tbl k) (ref tbl k))
+(deftf table  (tbl k . default) (or (ref tbl k) (car default)))
 (deftf string (str n) (ref str n))
 
 ;; util fns
