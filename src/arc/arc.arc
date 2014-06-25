@@ -539,10 +539,9 @@
 (def int (x (o b 10)) (coerce x 'int b))
 
 (defss x-plus-ss      #/^(\d+)\+$/ (x) `(fn (a) (+ ,x a)))
-(defss x-minus-ss     #/^(\d+)\-$/ (x) `(fn (a) (- ,x a)))
+(defss x-minus-ss     #/^(\d+)\-$/ (x) `(fn (a) (- a ,x)))
 (defss x-mul-ss       #/^(\d+)\*$/ (x) `(fn (a) (* ,x a)))
-(defss x-div-ss       #/^(\d+)\/$/ (x) `(fn (a) (/ ,x a)))
-(defss x-div-inv-ss   #/^\/(\d+)$/ (x) `(fn (a) (/ a ,x)))
+(defss x-div-ss       #/^(\d+)\/$/ (x) `(fn (a) (/ a ,x)))
 
 (mac rand-choice exprs
   (let l (len exprs)
