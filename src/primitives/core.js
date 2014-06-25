@@ -965,6 +965,16 @@ var primitives_core = (new Primitives('arc.core')).define({
       return rt;
     }
     throw new Error('newstring requires int, char.');
+  }],
+
+  'odd': [{dot: -1}, function(x) {
+    return (x % 2) ? t : nil;
+  }],
+  'even': [{dot: -1}, function(x) {
+    return (x % 2) ? nil : t;
+  }],
+  'mod': [{dot: -1}, function(x, y) {
+    return (x % y);
   }]
 
 });

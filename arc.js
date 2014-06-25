@@ -1943,6 +1943,16 @@ var primitives_core = (new Primitives('arc.core')).define({
       return rt;
     }
     throw new Error('newstring requires int, char.');
+  }],
+
+  'odd': [{dot: -1}, function(x) {
+    return (x % 2) ? t : nil;
+  }],
+  'even': [{dot: -1}, function(x) {
+    return (x % 2) ? nil : t;
+  }],
+  'mod': [{dot: -1}, function(x, y) {
+    return (x % y);
   }]
 
 });
@@ -2027,15 +2037,6 @@ var lastcons = primitives_collection.vars.lastcons;
 /** @} */
 /** @file math.js { */
 var primitives_math = (new Primitives('arc.math')).define({
-  'odd': [{dot: -1}, function(x) {
-    return (x % 2) ? t : nil;
-  }],
-  'even': [{dot: -1}, function(x) {
-    return (x % 2) ? nil : t;
-  }],
-  'mod': [{dot: -1}, function(x, y) {
-    return (x % y);
-  }],
 });
 /** @} */
 /** @file time.js { */
