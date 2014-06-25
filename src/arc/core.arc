@@ -4,7 +4,7 @@
   ;; layer 0
   mac rfn afn if and or let def aif
   ;; layer 1
-  caselet case quasiquote
+  caselet case reccase quasiquote
   ;; layer 2
   map1 withs w/uniq compose complement
   ;; ns
