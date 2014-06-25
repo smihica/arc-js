@@ -126,8 +126,8 @@
   (test "some"
     (iso
       (some 'x '(1 2 3 x y z))            t
-      (some arc.math::even '(1 2 3))      t
-      (some arc.math::odd '(2 4 6))       nil
+      (some even '(1 2 3))      t
+      (some odd '(2 4 6))       nil
       (some #\a "hogehage")               t))
 
   (test "all"
@@ -150,8 +150,8 @@
     (iso
       (find 'abc '(def ghi jkl abc))      'abc
       (find 'abc '(xxx yyy zzz))          nil
-      (find arc.math::odd  '(2 4 6 8 9))  9
-      (find arc.math::even '(3 1 5))      nil))
+      (find odd  '(2 4 6 8 9))  9
+      (find even '(3 1 5))      nil))
 
   (test "map"
     (iso
