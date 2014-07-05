@@ -1,6 +1,6 @@
 var ArcJS = (function() {
   var ArcJS = this;
-  ArcJS.version = '0.1.2';
+  ArcJS.version = '0.1.3';
 
   var todos_after_all_initialized = [];
 
