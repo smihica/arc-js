@@ -552,7 +552,29 @@ var Reader = classify("Reader", {
     },
 
     read_symbol: function(tok) {
-      if (arguments.length < 1) tok = this.read_thing();
+      if (arguments.length < 1) {
+        var tok = '', start_sb = false;
+        while (this.i < this.slen) {
+          var c = this.str[this.i];
+          if (this.delimited(c)) {
+            if (c === '[') {
+              var s  = this.i;
+              this.i++;
+              var n1 = this.read_expr();
+              var n2 = this.read_token();
+              if (n2 === Reader.RBRACK && !(n1 instanceof Cons)) {
+                tok += this.str.slice(s, this.i);
+                continue;
+              } else {
+                this.i = s;
+              }
+            }
+            break;
+          }
+          tok += c;
+          this.i++;
+        }
+      }
       if (tok.length === 0) return Reader.EOF;
       return this.make_symbol(tok, false);
     },

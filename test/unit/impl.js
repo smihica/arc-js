@@ -85,6 +85,14 @@ describe('Reader', function(){
       rex('|"|').equal(ArcJS.Symbol.get('"')).property('evaluable_name', true);
       rex('|#|').equal(ArcJS.Symbol.get('#')).property('evaluable_name', true);
       rex('||').equal(ArcJS.Symbol.get('')).property('evaluable_name', true);
+      rex('x[abc]').equal(ArcJS.Symbol.get('x[abc]'))
+      rex('x[10]').equal(ArcJS.Symbol.get('x[10]'))
+      rex('x["name"]').equal(ArcJS.Symbol.get('x["name"]'))
+      rex('x[y[z[2]]]').equal(ArcJS.Symbol.get('x[y[z[2]]]'))
+      rex('x[abc].m[10:20].s[xyz]').equal(ArcJS.Symbol.get('x[abc].m[10:20].s[xyz]'))
+      rex('x[(abc)]').equal(ArcJS.Symbol.get('x'))
+      rex('x[abc def]').equal(ArcJS.Symbol.get('x'))
+      rex('x[[abc]]').equal(ArcJS.Symbol.get('x'))
     });
     it('character', function() {
       // normal
@@ -160,6 +168,13 @@ describe('Reader', function(){
     it('shortfn', function() {
       expect(stringify(reader.read("[car _]"))).to.equal('(***cut-fn*** (car _))');
       expect(stringify(reader.read("[car ([car _] _)]"))).to.equal('(***cut-fn*** (car ((***cut-fn*** (car _)) _)))');
+
+      expect(stringify(reader.read("x[x _ y]"))).to.equal('x');
+      expect(stringify(reader.read())).to.equal('(***cut-fn*** (x _ y))');
+
+      expect(stringify(reader.read("x[[abc]]"))).to.equal('x');
+      expect(stringify(reader.read())).to.equal('(***cut-fn*** ((***cut-fn*** (abc))))');
+
     });
     it('regexp', function() {
       expect(car(cdr(reader.read("#/abc\\ndef/")))).to.equal('abc\ndef');
