@@ -111,6 +111,8 @@ function main(mode, scripts) {
         eval('var fasl = (function() {\nvar preloads = [], preload_vals = [];\n' + data +
              'return {preloads: preloads, preload_vals: preload_vals};\n})();');
         ArcJS.fasl_loader(ArcJS.NameSpace.get('user'), fasl.preloads, fasl.preload_vals);
+      } else if (scripts[i].match(/\.js$/)) {
+        eval('(function(){' + data + '})()');
       } else {
         runner.evaluate(data);
       }
