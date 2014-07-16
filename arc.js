@@ -521,6 +521,7 @@ var Reader = classify("Reader", {
     },
 
     read_number: function() {
+      var i_bk = this.i;
       var tok = this.read_thing();
       if (tok.length === 0) return Reader.EOF;
       if (tok === '.')      return Reader.DOT;
@@ -528,7 +529,8 @@ var Reader = classify("Reader", {
       if (tok === '-inf.0') return -Infinity;
       if (tok.match(Reader.NUMBER_PATTERN))
         return this.make_number(tok);
-      return this.read_symbol(tok);
+      this.i = i_bk; // restore i pos.
+      return this.read_symbol();
     },
 
     make_number: function(tok) {
@@ -551,29 +553,27 @@ var Reader = classify("Reader", {
       throw new Error("unexpected end-of-file while reading symbol");
     },
 
-    read_symbol: function(tok) {
-      if (arguments.length < 1) {
-        var tok = '', start_sb = false;
-        while (this.i < this.slen) {
-          var c = this.str[this.i];
-          if (this.delimited(c)) {
-            if (c === '[') {
-              var s  = this.i;
-              this.i++;
-              var n1 = this.read_expr();
-              var n2 = this.read_token();
-              if (n2 === Reader.RBRACK && !(n1 instanceof Cons)) {
-                tok += this.str.slice(s, this.i);
-                continue;
-              } else {
-                this.i = s;
-              }
+    read_symbol: function() {
+      var tok = '', start_sb = false;
+      while (this.i < this.slen) {
+        var c = this.str[this.i];
+        if (this.delimited(c)) {
+          if (c === '[') {
+            var s  = this.i;
+            this.i++;
+            var n1 = this.read_expr();
+            var n2 = this.read_token();
+            if (n2 === Reader.RBRACK && !(n1 instanceof Cons)) {
+              tok += this.str.slice(s, this.i);
+              continue;
+            } else {
+              this.i = s;
             }
-            break;
           }
-          tok += c;
-          this.i++;
+          break;
         }
+        tok += c;
+        this.i++;
       }
       if (tok.length === 0) return Reader.EOF;
       return this.make_symbol(tok, false);
