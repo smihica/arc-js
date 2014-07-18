@@ -3,3 +3,6 @@ memo*
 backup/
 copy.sh
 _site/
+docs/build/
+docs/env/
+node_modules/
