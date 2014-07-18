@@ -1,12 +1,14 @@
 var Reader = classify("Reader", {
 
   static: {
-    EOF:    new Object(),
-    DOT:    new Object(),
-    LPAREN: new Object(),
-    RPAREN: new Object(),
-    LBRACK: new Object(),
-    RBRACK: new Object(),
+    EOF:              new Object(),
+    DOT:              new Object(),
+    LPAREN:           new Object(),
+    RPAREN:           new Object(),
+    LBRACK:           new Object(),
+    RBRACK:           new Object(),
+    LBRACE:           new Object(),
+    RBRACE:           new Object(),
     QUOTE:            Symbol.get('quote'),
     QUASIQUOTE:       Symbol.get('quasiquote'),
     UNQUOTE:          Symbol.get('unquote'),
@@ -45,7 +47,7 @@ var Reader = classify("Reader", {
     },
 
     delimited: function(c) {
-      return this.whitespace_p(c) || (-1 < '()[]";'.indexOf(c));
+      return this.whitespace_p(c) || (-1 < '()[]{}";'.indexOf(c));
     },
 
     number_p: function(c) {
@@ -102,52 +104,65 @@ var Reader = classify("Reader", {
       throw new Error("invalid char declaration \"" + c + "\"");
     },
 
-    read_list: function(bracketed) {
+    read_list: function(type) {
+      type = type ? type : 'parenthesized';
       var token;
       var lis = nil;
-      while ((token = this.read_token()) !== Reader.EOF) {
-        if (token === Reader.RPAREN) {
-          if (bracketed) throw new Error("bracketed list terminated by parenthesis");
+      while (true) {
+        token = this.read_token();
+        switch (token) {
+        case Reader.EOF:
+          throw new Error("unexpected end-of-file while reading list");
+        case Reader.RPAREN:
+          if (type !== 'parenthesized') throw new Error(type + " list terminated by parenthesis");
           return nreverse(lis, nil);
-        }
-        if (token === Reader.RBRACK) {
-          if (!bracketed) throw new Error("parenthesized list terminated by bracket");
+        case Reader.RBRACK:
+          if (type !== 'bracketed')     throw new Error(type + " list terminated by bracket");
           return nreverse(lis, nil);
-        }
-        if (token === Reader.LPAREN) {
-          lis = cons(this.read_list(), lis);
-          continue;
-        }
-        if (token === Reader.LBRACK) {
-          lis = cons(this.read_blist(), lis);
-          continue;
-        }
-        if (token === Reader.DOT) {
-          if (lis === nil) throw new Error("misplaced dot('.') while reading list.");
+        case Reader.RBRACE:
+          if (type !== 'braced')        throw new Error(type + " list terminated by brace");
+          return nreverse(lis, nil);
+        case Reader.LPAREN:
+          token = this.read_list();
+          break;
+        case Reader.LBRACK:
+          token = this.read_blist();
+          break;
+        case Reader.LBRACE:
+          token = this.read_clist();
+          break;
+        case Reader.DOT:
+          if (lis === nil) throw new Error("misplaced dot('.') while reading list");
           var rest = this.read_expr();
-          if (rest === Reader.DOT) throw new Error("misplaced dot('.') while reading list.");
-          token = this.read_token();
-          if (token === Reader.RPAREN) {
-            if (bracketed) throw new Error("bracketed list terminated by parenthesis.");
-            lis = nreverse(lis, rest);
-            return lis;
+          if (rest === Reader.DOT) throw new Error("misplaced dot('.') while reading list");
+          switch (this.read_token()) {
+          case Reader.EOF:
+            throw new Error("unexpected end-of-file while reading list");
+          case Reader.RPAREN:
+            if (type !== 'parenthesized') throw new Error(type + " list terminated by parenthesis");
+            return nreverse(lis, rest);
+          case Reader.RBRACK:
+            if (type !== 'bracketed')     throw new Error(type + " list terminated by bracket");
+            return nreverse(lis, rest);
+          case Reader.RBRACE:
+            if (type !== 'braced')        throw new Error(type + " list terminated by brace");
+            return nreverse(lis, rest);
+          default:
+            throw new Error("more than one item following dot('.') while reading list");
           }
-          if (token === Reader.RBRACK) {
-            if (!bracketed) throw new Error("parenthesized list terminated by bracket.");
-            lis = nreverse(lis, rest);
-            return lis;
-          }
-          if (token === Reader.EOF) throw new Error("unexpected end-of-file while reading list.");
-          throw new Error("more than one item following dot('.') while reading list.");
         }
         lis = cons(token, lis);
       }
-      throw new Error("unexpected end-of-file while reading list");
     },
 
     read_blist: function() {
-      var body = this.read_list(true);
+      var body = this.read_list('bracketed');
       return cons(Symbol.get('***cut-fn***'), cons(body, nil));
+    },
+
+    read_clist: function() {
+      var body = this.read_list('braced');
+      return cons(Symbol.get('table'), body);
     },
 
     read_thing: function() {
@@ -311,6 +326,8 @@ var Reader = classify("Reader", {
         case ')': return Reader.RPAREN;
         case '[': return Reader.LBRACK;
         case ']': return Reader.RBRACK;
+        case '{': return Reader.LBRACE;
+        case '}': return Reader.RBRACE;
         case "'": {
           var obj = this.read_expr();
           if (obj === Reader.EOF) throw new Error("unexpected end-of-file following quotation-mark(')");
@@ -341,8 +358,10 @@ var Reader = classify("Reader", {
       var token = this.read_token();
       if (token === Reader.RPAREN) throw new Error("unexpected closing parenthesis");
       if (token === Reader.RBRACK) throw new Error("unexpected closing bracket");
+      if (token === Reader.RBRACE) throw new Error("unexpected closing brace");
       if (token === Reader.LPAREN) return this.read_list();
       if (token === Reader.LBRACK) return this.read_blist();
+      if (token === Reader.LBRACE) return this.read_clist();
       return token;
     },
 

@@ -177,6 +177,15 @@ describe('Reader', function(){
       expect(stringify(reader.read())).to.equal('(***cut-fn*** ((***cut-fn*** (abc))))');
 
     });
+    it('table', function() {
+      expect(stringify(reader.read("{ :abc \"abc\" 'def 2 }"))).to.equal('(table :abc "abc" (quote def) 2)');
+      expect(stringify(reader.read("{ :a { :b :c } :d { :e { :f { :g :h }}}} "))).to.equal('(table :a (table :b :c) :d (table :e (table :f (table :g :h))))');
+      expect(stringify(reader.read("x{:a :b}"))).to.equal('x');
+      expect(stringify(reader.read())).to.equal('(table :a :b)');
+      expect(stringify(reader.read("x{ {:x :y} :z }"))).to.equal('x');
+      expect(stringify(reader.read())).to.equal('(table (table :x :y) :z)');
+
+    });
     it('regexp', function() {
       expect(car(cdr(reader.read("#/abc\\ndef/")))).to.equal('abc\ndef');
       expect(car(cdr(reader.read("#/\\/\\/\\~/")))).to.equal('//\\~');
