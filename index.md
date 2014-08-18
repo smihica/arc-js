@@ -57,7 +57,7 @@ Then, You can run __REPL__.
     arc> (average 2 4)
     3
 
-## How to use in your web-site
+## How to use on the website
 
 ### 1. Basic interface
 In the HTML '<head>'
