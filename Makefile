@@ -1,4 +1,4 @@
-COMPRESS=uglifyjs
+COMPRESS=node_modules/uglify-js/bin/uglifyjs
 CONSTRUCT=tools/jsconstruct
 COMPILE_ARC=bin/arcjsc
 DATETIME=$(shell date +'%Y%m%d%H%M%S')
@@ -12,7 +12,7 @@ clean:
 		rm -f arc.js arc.min.js arc.min.js.gz
 
 test:		arc.min.js $(UNIT_TESTS)
-		mocha --reporter tap test/unit/impl.js
+		node_modules/mocha/bin/mocha --reporter tap test/unit/impl.js
 		for tes in $(UNIT_TESTS); do bin/arcjs -r $$tes || exit 1; done
 
 auto:
@@ -63,5 +63,10 @@ install_web:	arc.min.js
 		git push origin gh-pages
 		git checkout $(CURRENT_BRANCH)
 		rm -f arc.js.bk arc.min.js.bk
+
+setup:
+		npm install uglify-js
+		npm install mocha
+		npm install chai
 
 .PHONY:		all clean
