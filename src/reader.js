@@ -80,6 +80,8 @@ var Reader = classify("Reader", {
         return parseInt(tok, 8);
       case 'b':
         return parseInt(tok, 2);
+      default:
+        throw new Error("Invalid macro character #" + c);
       }
     },
 

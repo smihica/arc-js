@@ -12,8 +12,7 @@ clean:
 		rm -f arc.js arc.min.js arc.min.js.gz
 
 test:		arc.min.js $(UNIT_TESTS)
-		node_modules/mocha/bin/mocha --reporter tap test/unit/impl.js
-		for tes in $(UNIT_TESTS); do bin/arcjs -r $$tes || exit 1; done
+		npm test
 
 auto:
 		make
@@ -68,5 +67,11 @@ setup:
 		npm install uglify-js
 		npm install mocha
 		npm install chai
+
+doc:
+		cd docs && make html
+
+doc_clean:
+		cd docs && make clean
 
 .PHONY:		all clean
