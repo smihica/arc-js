@@ -187,14 +187,15 @@ var Reader = classify("Reader", {
       if (tok === '-inf.0') return -Infinity;
       if (tok.match(Reader.NUMBER_PATTERN))
         return this.make_number(tok);
-      this.i = i_bk; // restore i pos.
+      // This will be not a number. restore i pos.
+      this.i = i_bk;
       return this.read_symbol();
     },
 
     make_number: function(tok) {
       var n = parseFloat(tok);
       // TODO flaction, imagine, +pattern.
-      if (n === NaN) throw new Error("parsing failed the number " + tok);
+      if (isNaN(n)) throw new Error("parsing failed the number " + tok);
       return n;
     },
 
