@@ -19,13 +19,17 @@ A lot of inspired from Paul Graham version of [Arc](http://arclanguage.org/) and
 
 ### How to make
 
-#### install Node.js
+#### install Node.js and npm (on mac)
 
+    # from port
     $ sudo port install nodejs
 
-#### install uglifyjs
+    # or from brew
+    $ brew install node.js
 
-    $ sudo npm install -g uglify-js
+#### setup the compressor and unit-test framework.
+
+    $ make setup
 
 #### make ArcJS
 
