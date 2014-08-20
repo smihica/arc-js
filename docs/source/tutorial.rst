@@ -22,8 +22,12 @@ In mac:
 
 .. code-block:: sh
 
+   # from port
    $ sudo port install nodejs
    $ sudo port install npm
+
+   # from brew
+   $ brew install node.js
 
 In linux (debian):
 
@@ -40,7 +44,7 @@ Clone this repository and make.
    $ git clone https://github.com/smihica/arc-js.git
    $ cd arc-js
    $ npm install
-   $ make; make test;
+   $ make; make test
 
 Then go to your project.
 
@@ -54,14 +58,14 @@ Using in node
 .. code-block:: sh
 
    $ node
-   arc> var ArcJS = require('arc-js');
-   arc> ArcJS.version
+   > var ArcJS = require('arc-js');
+   > ArcJS.version
    'X.X.X'
-   arc> var arc = ArcJS.context();
-   arc> arc.evaluate('(prn "hello world")');
+   > var arc = ArcJS.context();
+   > arc.evaluate('(prn "hello world")');
    hello world
    'hello world'
-   arc>
+   >
 
 more information
 
@@ -432,7 +436,7 @@ to get more information for ``defset`` read `here <refs.html#defset>`_.
 multiple expressions
 ^^^^^^^^^^^^^^^^^^^^
 
-You can run some expressions sequentially using ``do`` ``do1``.
+You can run some expressions sequentially using ``do`` or ``do1``.
 ``do`` returns result of the last expression.
 
 .. code-block:: clojure
@@ -633,7 +637,7 @@ Then
    arc> (ssexpand 'cadadar)
    (fn (x) (car (cdr (car (cdr (car x))))))
 
-So you are able to do
+So you are able to do this
 
 .. code-block:: clojure
 
@@ -643,7 +647,8 @@ So you are able to do
 namespaces
 ^^^^^^^^^^
 
-ArcJS has a clojure like namespace expansion.
+ArcJS has a namespace extension.
+It works like ``Clojure`` 's namespace
 To create a namespace use ``(defns xx)``.
 
 .. code-block:: clojure
@@ -659,7 +664,7 @@ And then you can go into the namespace by using ``(ns namespace)``.
    #<namespace A>
    arc:A>
 
-Or you also can use ``string`` or ``namespace object`` as the argument.
+Or you also can use ``string`` or ``namespace object`` as its' first argument.
 
 .. code-block:: clojure
 
@@ -675,17 +680,17 @@ Or you also can use ``string`` or ``namespace object`` as the argument.
    #<namespace B>
    arc:B>
 
-As you see, the prompt changes ``arc:A>`` to describe where namespace we are in now.
+As you see, the prompt has been changed to ``arc:A>`` to describe where namespace we are in now.
 
-To get the namespace we are in now, use ``(***curr-ns***)``.
+To get the namespace that we are in now use ``(***curr-ns***)``.
 
 .. code-block:: clojure
 
    arc:A> (***curr-ns***)
    #<namespace A>
 
-By the way, To the value that was bound in a variable named like ``***VAR***``, You can access from any namespaces.
-In a word, a variable named like ``***VAR***`` will be truly global.
+By the way, When you define a varibale named like ``***VAR***``, You can access same value bound in it wherever you are.
+In a word, a variable named like ``***VAR***`` will behave a namespace global variable.
 
 To export names use ``:export`` like
 
@@ -694,7 +699,7 @@ To export names use ``:export`` like
    arc> (defns A :export fn1 macro1 fn2)
 
 Then, You can access ``fn1 / macro1 / fn2`` in any namespaces that import ``namespace A``.
-If you don't specify ``:export``, every variables in the namespace will export.
+If you don't specify ``:export``, every variables in the namespace will be exported.
 
 And To import other namespace use ``:import`` like
 
@@ -702,7 +707,7 @@ And To import other namespace use ``:import`` like
 
    arc> (defns C :import A B)
 
-Then, You can access values export in namespace B and C when you go into namespace A but you can't access values import in B and C.
+Then, You can access values exported in namespace B and C when you go into namespace A. But you can't access values imported in B and C.
 By this time, namespace B and C must be loaded beforhand.
 
 And there is also ``:extend`` option.
@@ -712,49 +717,370 @@ And there is also ``:extend`` option.
    arc> (defns D :extend A)
 
 When you use it, you can extend the specified namespace.
-In the new namespace, you can access all variables in specified namespace.
+In the new namespace, you can access all the variables in specified namespace.
 
 more information
 
-Using in a web-page
-===================
+How to use on a web page
+========================
 
-Now, let's create a simple example on a web-page.
-For example, I'd like to create a reversi game that works on the web.
-シンプルなオセロゲームを作りたいと思います。
-And I plan to use ArcJS for its search engine.
-例として、自動プレイの思考部にArcJSで作った探索エンジンを使いたいと思います。
-まずは以下のようなHTMLを書きます。
-
-See :download:`this example script <_static/othello.html>`
-
-arc_loader.js をロードすると、script type に "text/arc" が指定された arc スクリプトが onload上から順番に読み込まれます。
+Now, Let's see how to work ArcJS on a website.
+First, We will begin with ``Hello Word``.
+Please create html like following.
 
 .. code-block:: html
 
-   <script type="text/arc" src="othello.arc"></script>
+   <!doctype html>
+   <html>
+     <head>
+       <script type="text/javascript" src="//code.jquery.com/jquery-1.10.2.js"></script>
+       <script type="text/javascript" src="arc.min.js"></script>
+       <script type="text/javascript" src="arc_loader.js"></script>
+     </head>
+     <body>
+       <textarea id="holder" style="width:500px;height:600px;"></textarea>
+     </body>
+   </html>
+
+:download:`arc.min.js <_static/arc.min.js>`
+:download:`arc_loader.js <_static/arc_loader.js>`
+
+このhtmlにarcコードを書いて、textareaの中に、Hello world が書き込まれるようにしましょう。
+``<script>`` 内に、以下のように書きましょう。
+
+.. code-block:: html
+
+   ...
+   <script type="text/javascript" src="arc_loader.js"></script>
+   <script type="text/arc">
+   (js/log "Hello world !!")
+   </script>
+   ...
+
+``arc_loader.js`` をリードしている場合、このような "text/arc" typeのコードがon_load時に実行されます
+もちろん, src="hello_world.arc" のようにして外だしすることもできます。
+
+.. code-block:: html
+
+   ...
+   <script type="text/arc" src="hello_world.arc"></script>
+   ...
+
+``arc_loader.js`` には jQuery が必要です。
+
+How to define native function (JS bridge)
+-----------------------------------------
+
+さて、 ``js/log`` がまだ定義されていないため、このままだと動きません。
+なので、arcのネームスペースに ``js/log`` という primitive function を定義する必要があります。
+
+以下のようにします。
+
+.. code-block:: html
+
+   ...
+   <script type="text/javascript">
+   var holder = $('#holder'), txt = '';
+   ArcJS.Primitives('user').define({
+     'js/log': [{dot: -1}, function(log) {
+       txt += log + "\n";
+       holder.text(txt);
+     }]
+   });
+   </script>
+   ...
+
+.. code-block:: javascript
+
+   ArcJS.Primitives(string namespace).define({
+     'name': [option, function]
+   });
+
+このようにして、名前空間に ``native function`` を定義することができます。
+``option`` 部分の ``{dot: -1}`` この数以降の変数が任意の長さのリストになります。
+つまり、 ``(fn args...) => {dot: 0}`` もしくは ``(fn a b args...) => {dot: 2}`` となります。
+
+全体では以下のような形になります。
+
+.. code-block:: html
+
+   <!doctype html>
+   <html>
+     <head>
+       <script type="text/javascript" src="//code.jquery.com/jquery-1.10.2.js"></script>
+       <script type="text/javascript" src="arc.min.js"></script>
+       <script type="text/javascript" src="arc_loader.js"></script>
+       <script type="text/arc">
+       (js/log "Hello world !!")
+       </script>
+     </head>
+     <body>
+       <textarea id="holder" style="width:500px;height:600px;"></textarea>
+     </body>
+     <script type="text/javascript">
+     var holder = $('#holder'), txt = '';
+     ArcJS.Primitives('user').define({
+       'js/log': [{dot: -1}, function(log) {
+         txt += log + "\n";
+         holder.text(txt);
+       }]
+     });
+     </script>
+   </html>
+
+See :download:`hw.html <_static/hw.html>`
+
+How to call arc function from JavaScript
+----------------------------------------
+
+FizzBuzzも追加してみましょう。
+arcを書き換えます。
+
+.. code-block:: clojure
 
    <script type="text/arc">
-   (start-game)
+
+   (js/log "Hello world !!")
+
+   (def FizzBuzz (l)
+     (for n 1 l
+       (js/log:string
+         (case (gcd n 15)
+           1 n
+           3 'Fizz
+           5 'Buzz
+           'FizzBuzz))))
+
    </script>
 
-arc_loader.js を使うにはjqueryが必要です。
+FizzBuzz関数を定義しました。
+このFizzBuzz関数をJavaScriptから呼ぶには以下のようにします。
 
-othello.arcはこのようになっています。
+.. code-block:: javascript
 
-See :download:`this example script <_static/othello.arc>`
+   <script type="text/javascript">
+   ArcJS.Primitives('user').define({ /* ... */ });
+   $(function(){
+     var ctx = ArcJS.context();
+     ctx.evaluate('(FizzBuzz 100)');
+   });
+   </script>
 
+
+全体では以下のような形になります。
+
+.. code-block:: html
+
+   <!doctype html>
+   <html>
+     <head>
+       <script type="text/javascript" src="//code.jquery.com/jquery-1.10.2.js"></script>
+       <script type="text/javascript" src="arc.min.js"></script>
+       <script type="text/javascript" src="arc_loader.js"></script>
+       <script type="text/arc">
+       (js/log "Hello world !!")
+       (def FizzBuzz (l)
+         (for n 1 l
+           (js/log:string
+             (case (gcd n 15)
+               1 n
+               3 'Fizz
+               5 'Buzz
+               'FizzBuzz))))
+       </script>
+     </head>
+     <body>
+       <textarea id="holder" style="width:500px;height:600px;"></textarea>
+     </body>
+     <script type="text/javascript">
+     var holder = $('#holder'), txt = '';
+     ArcJS.Primitives('user').define({
+       'js/log': [{dot: -1}, function(log) {
+         txt += log + "\n";
+         holder.text(txt);
+       }]
+     });
+     $(function() {
+       var ctx = ArcJS.context();
+       ctx.evaluate('(FizzBuzz 100)');
+     });
+     </script>
+   </html>
+
+See :download:`fizzbuzz.html <_static/fizzbuzz.html>`
+
+Further example (reversi)
+-------------------------
+
+Now, let's create a simple example work on web-page.
+For example, I'd like to create a game named Reversi on web page.
+And I'm going to to use ArcJS for its' search engine.
 単純なAB探索で3手先まで読むようになっています。
 読みの深さと一手についての最大幅をev-depthとev-spaceでそれぞれ指定できます。
 
-See :download:`this example script <_static/arc.min.js>`
-See :download:`this example script <_static/arc_loader.js>`
+.. code-block:: html
+
+   <!doctype html>
+   <html lang="en">
+     <head>
+       <title>Reversi</title>
+       <script type="text/javascript" src="//code.jquery.com/jquery-1.10.2.js"></script>
+       <script type="text/javascript" src="arc.min.js"></script>
+       <script type="text/javascript" src="arc_loader.js"></script>
+       <script type="text/arc" src="reversi.arc"></script>
+     </head>
+     <body>
+       <h3>Reversi</h3>
+       <canvas id="c1" width="600" height="600" style="float:left;border:1px solid #d3d3d3;"></canvas>
+       <textarea id="holder" style="float:left;width:500px;height:600px;font-family:Consolas,Monaco,monospace;font-size:18px;"></textarea>
+       <script type="text/javascript" src="reversi_bridge.js"></script>
+       <script type="text/arc">
+         (start-game)
+       </script>
+     </body>
+   </html>
+
+:download:`reversi.html <_static/reversi.html>`
+
+The main search function in Arc
+
+.. code-block:: clojure
+
+   (def get-best (board color depth)
+     ((afn (board color depth target-color alpha beta)
+        (if (or (is depth 0)
+                (no (has-empty? board))) ;; last-depth or game-set
+            (list (get-points board target-color))
+            (withs (my-turn      (is target-color color)
+                    best-con     (if my-turn > <)
+                    best-fn      (fn (a b) (best-con (car a) (car b)))
+                    invert-color (invert color))
+              (iflet
+                puttable (get-puttable-positions-all board color)
+                (ccc
+                  (fn (return)
+                    (best
+                      best-fn
+                      (map
+                        (fn (vp)
+                          (let new-board (put vp board color)
+                            (ret point-move (self new-board invert-color (- depth 1) target-color alpha beta)
+                              (let point (car point-move)
+                                (if my-turn
+                                    (when (> point alpha)
+                                      (= alpha point)
+                                      (if (>= alpha beta)
+                                          (return (cons beta vp))))  ;; alpha-cut
+                                    (when (< point beta)
+                                      (= beta point)
+                                      (if (>= alpha beta)
+                                          (return (cons alpha vp))))))  ;; beta-cut
+                              (scdr point-move vp))))
+                        (get-rand puttable ev-space))))) ;; cut-off if candidates are over space.
+                (self board invert-color (- depth 1) target-color alpha beta))))) ;; pass
+      board color depth color -inf.0 +inf.0))
+
+:download:`reversi.arc <_static/reversi.arc>`
+
+And the bridge code.
+
+.. code-block:: javascript
+
+   (function() {
+     var canvas = document.getElementById('c1'), size = 600;
+     var txt = '', holder = $('#holder');
+
+     function clear_board() {
+       var ctx = canvas.getContext('2d');
+       ctx.fillStyle = "rgb(0, 153, 0)";
+       ctx.fillRect(0, 0, size, size);
+       var unit = size / 8;
+       for (var i = 1, l = 8; i<l; i++) {
+         var x = i*unit;
+         for (var j=0; j<2; j++) {
+           ctx.beginPath();
+           ctx.moveTo(j?0:x, j?x:0);
+           ctx.lineTo(j?size:x, j?x:size);
+           ctx.closePath();
+           ctx.stroke();
+         }
+       }
+     }
+
+     function draw_stone(x, y, color) {
+       var ctx = canvas.getContext('2d');
+       var unit = size / 8;
+       var xp = (unit*x) + (unit/2);
+       var yp = (unit*y) + (unit/2);
+       var r = unit * 0.85;
+       ctx.beginPath();
+       ctx.arc(xp, yp, r/2, 0, 2 * Math.PI, false);
+       ctx.fillStyle = color;
+       ctx.fill();
+       ctx.lineWidth = 1;
+       ctx.strokeStyle = '#000';
+       ctx.stroke();
+     }
+
+     function js_log() {
+       txt += Array.prototype.slice.call(arguments).join(' ') + "\n";
+       holder.text(txt);
+       holder.scrollTop(holder[0].scrollHeight);
+     }
+
+     ArcJS.Primitives('user').define({
+       'js/clear-board': [{dot:-1}, clear_board],
+       'js/draw-stone':  [{dot:-1}, draw_stone],
+       'js/log':         [{dot:0},  js_log]
+     });
+
+     clear_board();
+
+   })();
+
+:download:`reversi_bridge.js <_static/reversi_bridge.js>`
+
+How to run in a machine
+=======================
+
+Run arc script
+--------------
+
+.. code-block:: sh
+
+   $ echo "(prn (gcd 33 77))" > test.arc
+   $ ./bin/arcjs -r test.arc
+   11
+   $
+
+Run REPL with pre-loading arc scripts
+-------------------------------------
+
+.. code-block:: sh
+
+``arcjs`` コマンドの引数にスクリプトを与えてください。
+
+   $ echo "(def average (x y) (/ (+ x y) 2))" > avg.arc
+   $ ./bin/arcjs avg.arc
+   arc> (average 10 20)
+   15
+
+How to compile an arc script into 
+
+    $ echo "(def average (x y) (/ (+ x y) 2))" > avg.arc
+    $ ./bin/arcjsc -o avg.js.fasl avg.arc
+    $ cat avg.js.fasl
+    // This is an auto generated file.
+    // Compiled from ['avg.arc'].
+    // DON'T EDIT !!!
+    preloads.push([
+    [12,7,14,20,0,1,0,20,2,-1,0,10,9,1, ...
+    ]);
+    preload_vals.push(["2","+","/", ...
+    $
 
 
 
-
-Prepare project tree
---------------------
 
 
 Create HTML

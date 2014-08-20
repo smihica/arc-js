@@ -193,8 +193,8 @@
 
    board color depth color -inf.0 +inf.0))
 
-(= ev-depth 3)
-(= ev-space 10)
+(= ev-depth 5)
+(= ev-space 100)
 
 (def count-color (board color)
   (len (get-all-positions-of-color board color)))
@@ -207,7 +207,8 @@
           e "--"
           w "WW"
           b "BB"))))
-      (prn str))))
+      (js/log str)))
+  (js/log ""))
 
 (def make-new-board ()
   (list-to-table (n-of 8 (n-of 8 'e))))
@@ -222,14 +223,14 @@
          turn  'b
          n     0)
 
-    (prn "\n\n\n\n\n\n *** NEW GAME START *** \n\n")
+    (js/log "\n\n\n\n\n\n *** NEW GAME START *** \n\n")
 
     (while
       (has-empty? board)
       (print-board board)
-      (prn "")
-      (prn "TURN " n ": " (if (is turn 'b) "BLACK" "WHITE"))
-      (prn "POINT: " (get-points board turn))
+      (js/log "")
+      (js/log "TURN " n ": " (if (is turn 'b) "BLACK" "WHITE"))
+      (js/log "POINT: " (get-points board turn))
       (let pos (cdr (get-best board turn ev-depth))
         (if pos
             (do
@@ -238,13 +239,13 @@
             board))
       (= turn (invert turn))
       (++ n)
-      (prn ""))
+      (js/log ""))
 
     (with (wnum (count-color board 'w)
            bnum (count-color board 'b))
-      (prn "WHITE: " wnum)
-      (prn "BLACK: " bnum "\n\n")
-      (prn (if (> wnum bnum)
+      (js/log "WHITE: " wnum)
+      (js/log "BLACK: " bnum "\n\n")
+      (js/log (if (> wnum bnum)
                " !!! WHITE won !!!\n\n"
                (> bnum wnum)
                " !!! BLACK won !!!\n\n"
@@ -263,17 +264,16 @@
   (if (has-empty? board)
       (do1
         t
-        (prn "TURN " n ": " (if (is turn 'b) "BLACK" "WHITE"))
-        (prn "POINT: " (get-points board turn))
-        (prn "Searching... ")
+        (js/log "TURN " n ": " (if (is turn 'b) "BLACK" "WHITE"))
+        (js/log "POINT: " (get-points board turn))
+        (js/log "Searching... ")
         (let pos (cdr (get-best board turn ev-depth))
           (if pos
               (do
-                (prn "PUT: " pos)
+                (js/log "PUT: " pos)
                 (put pos board turn nil)
-                ;(draw-board board)
-                (print-board board)
-                (prn ""))
+                (draw-board board)
+                (print-board board))
               board)))))
 
 (def start-game ()
@@ -281,14 +281,14 @@
          turn  'b
          n     0)
 
-    (prn "\n\n\n\n\n\n *** NEW GAME START *** \n")
+    (js/log "\n\n\n\n\n\n *** NEW GAME START *** \n")
 
     (def game-set ()
       (with (wnum (count-color board 'w)
              bnum (count-color board 'b))
-        (prn "WHITE: " wnum)
-        (prn "BLACK: " bnum "\n\n")
-        (prn (if (> wnum bnum)
+        (js/log "WHITE: " wnum)
+        (js/log "BLACK: " bnum "\n\n")
+        (js/log (if (> wnum bnum)
                  " !!! WHITE won !!!\n\n"
                  (> bnum wnum)
                  " !!! BLACK won !!!\n\n"
@@ -299,7 +299,7 @@
            (do
              (= turn (invert turn))
              (++ n)
-             (prn "")
+             (js/log "")
              (set-timer iter 10))
            (game-set)))
 
