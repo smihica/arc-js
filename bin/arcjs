@@ -138,34 +138,52 @@ function main(mode, scripts) {
 var argv = process.argv.slice(2);
 var scripts = [];
 var mode = 'repl';
-for (var i=0,l=argv.length; i<l; i++) {
-  if (argv[i] === '--run' || argv[i] === '-r') {
-    mode = 'run';
+var arglen = argv.length;
+if (0 < arglen) mode = 'run';
+for (var i=0,l=arglen; i<l; i++) {
+  if (argv[i] === '--load' || argv[i] === '-l') {
+    mode = 'repl';
     scripts = argv.slice(i+1);
     break;
   }
   scripts.push(argv[i]);
 }
 
-if (-1 < scripts.indexOf('-h') || -1 < scripts.indexOf('--help')) {
-  console.log('arcjs -- Arc language interpreter or REPL written in JavaScript');
+function print_usage() {
   console.log('');
-  console.log('Usage: arcjs [options] preload-file [preload-files ... ] | -r run-file [run-files ... ]');
-  console.log('  -h, --help                          : show help');
-  console.log('  -v, --version                       : show version');
-  console.log('  -r, --run run-file [run-files ... ] : run the files.');
+  console.log('Usage: arcjs [options] run-file [run-files ... ] | -l preload-file [preload-files ... ]');
+  console.log('  -h, --help                                   : show help');
+  console.log('  -v, --version                                : show version');
+  console.log('  -l, --load preload-file [preload-files ... ] : preload files and run REPL.');
   console.log('');
   console.log('Example:');
   console.log('  simple REPL                         : $ arcjs');
-  console.log('  set preload-files for REPL          : $ arcjs lib.fasl lib2.arc');
-  console.log('  script runner                       : $ arcjs -r script.arc srcipt2.arc');
+  console.log('  script runner                       : $ arcjs script.arc srcipt2.arc');
+  console.log('  set preload-files for REPL          : $ arcjs -l lib.fasl lib2.arc');
   console.log('');
+}
+
+if (-1 < scripts.indexOf('-h') || -1 < scripts.indexOf('--help')) {
+  console.log('arcjs -- Arc language interpreter or REPL written in JavaScript');
+  print_usage();
   process.exit();
 }
 
 if (-1 < scripts.indexOf('-v') || -1 < scripts.indexOf('--version')) {
   console.log(ArcJS.version);
   process.exit();
+}
+
+var supported = ['l', 'load'];
+for (var i = 0, l = scripts.length; i<l; i++) {
+  if (scripts[i].match(/^\--?(.+)$/)) {
+    var t = RegExp.$1;
+    if (supported.indexOf(t) < 0) {
+      console.log('Unknown option: ' + scripts[i]);
+      print_usage();
+      process.exit();
+    }
+  }
 }
 
 main(mode, scripts);

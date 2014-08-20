@@ -5,7 +5,7 @@
   "homepage": "http://smihica.github.io/arc-js/",
   "main": "arc.js",
   "scripts": {
-    "test": "node_modules/mocha/bin/mocha --reporter tap test/unit/impl.js || exit 1; for tes in `ls test/unit/arc/*.arc`; do bin/arcjs -r $tes || exit 1; done;"
+    "test": "node_modules/mocha/bin/mocha --reporter tap test/unit/impl.js || exit 1; for tes in `ls test/unit/arc/*.arc`; do bin/arcjs $tes || exit 1; done;"
   },
   "files": [
     "arc.js",
