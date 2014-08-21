@@ -1,7 +1,7 @@
 {
   "name": "arc-js",
-  "version": "0.1.3",
-  "description": "An Arc-langugage interpreter written in JavaScript",
+  "version": "0.1.4",
+  "description": "An Arc-langugage compiler and VM-interpreter written in JavaScript.",
   "homepage": "http://smihica.github.io/arc-js/",
   "main": "arc.js",
   "scripts": {
@@ -24,9 +24,8 @@
     "arclang"
   ],
   "author": "smihica",
-  "license": "MIT",
+  "license": "Artistic-2.0",
   "readmeFilename": "README.md",
-  "gitHead": "8ed960129798a42bf3d38f95a5ee801a43db7d72",
   "bin": {
     "arcjs": "./bin/arcjs",
     "arcjsc": "./bin/arcjsc"

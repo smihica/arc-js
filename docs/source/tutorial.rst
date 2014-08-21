@@ -67,8 +67,6 @@ Using in node
    'hello world'
    >
 
-more information
-
 Using on a webpage (JavaScript)
 -------------------------------
 
@@ -89,8 +87,8 @@ Using on a webpage (JavaScript)
 
 When open the webpage then "hello world" will be in console.
 
-Using in web-page (Arc)
------------------------
+Using on a webpage (Arc)
+----------------------
 
 .. code-block:: html
 
@@ -105,8 +103,6 @@ Using in web-page (Arc)
        </script>
      </head>
    </html>
-
-more information
 
 Playing in REPL
 ===============
@@ -719,8 +715,6 @@ And there is also ``:extend`` option.
 When you use it, you can extend the specified namespace.
 In the new namespace, you can access all the variables in specified namespace.
 
-more information
-
 How to use on a webpage
 =======================
 
@@ -925,7 +919,6 @@ Whole code will be like as follows.
    </html>
 
 See example :download:`fizzbuzz.html <_static/fizzbuzz.html>`
-
 
 More complicated example on website (Reversi player)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
