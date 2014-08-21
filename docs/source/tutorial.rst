@@ -1057,7 +1057,7 @@ And the bridge code.
 :download:`reversi_bridge.js <_static/reversi_bridge.js>`
 
 How to run on your machine
-=======================
+==========================
 
 Run arc scripts
 ---------------

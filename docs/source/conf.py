@@ -109,12 +109,19 @@ html_theme = 'default'
 html_theme_path = []
 
 # --------------- Change theme -----------------------
-import sphinx_rtd_theme
 
-html_theme = "sphinx_rtd_theme"
+# on_rtd is whether we are on readthedocs.org
+import os
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
-# --------------- -----------------------------------
+if not on_rtd:  # only import and set the theme if we're building docs locally
+    import sphinx_rtd_theme
+    html_theme = 'sphinx_rtd_theme'
+    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
+# otherwise, readthedocs.org uses their theme by default, so no need to specify it
+
+# ----------------------------------------------------
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
