@@ -18,12 +18,12 @@ Contents
 What is ArcJS?
 ^^^^^^^^^^^^^^
 
-ArcJS is an Arc-language's implementation written in JavaScript.
-It has a compiler and the compiled code is run in it's StackVM written in JavaScript.
+ArcJS is an Arc-language implementation written in JavaScript.
+It consists of a self-hosting compiler written in Arc and a StackVM written in JavaScript.
 
 **Main features**
 
-* It runs on its StackVM [#f1]_ so the Arc-code is compiled into its asm-code in advance, not runs successively. So its run time is enough fast.
+* It runs on its StackVM [#f1]_ so the Arc-code is compiled into asm-code in advance for performance.
 * The Arc compiler is written in Arc itself. (Self-hosting compiler) [#f2]_
 * macros, objects, first-class continuations and tail-call optimization are completely supported.
 * Arc's characteristic features; default function, ssyntax are also supported.
@@ -31,8 +31,8 @@ It has a compiler and the compiled code is run in it's StackVM written in JavaSc
 **ArcJS's original features (Not in official Arc-language)**
 
 * User defined ssyntax.
-* Support of clojure like namepace system.
-* some new syntax (table, etc)
+* clojure-like namepace system.
+* new syntax (table, etc)
 * stack tracer. (debuger)
 
 .. [#f1] `vm.js <https://github.com/smihica/arc-js/blob/master/src/vm.js>`_

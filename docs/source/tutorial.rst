@@ -131,7 +131,7 @@ otherwise ``npm install``
 Atoms
 -----
 
-after ``;`` will be comment in arc.
+everything following ``;`` is a comment (until end-of-line)
 
 Symbols
 ^^^^^^^
@@ -228,7 +228,7 @@ Hash table
    arc> (table 'key 'val)
    #<table n=1>
 
-``n=d`` means properties num.
+``n=d`` indicates the number of properties.
 And to access the key
 
 .. code-block:: scheme
@@ -240,7 +240,7 @@ And to access the key
    arc> (tbl 'notfound)
    nil
 
-If the key is not found then nil returns.
+If the key is not found nil is returned.
 
 Special syntax for table.
 ``{ key value }`` to be ``(table key value)``
@@ -251,7 +251,7 @@ Special syntax for table.
    #<table n=2>
 
 
-keys are able to be any type.
+keys can be any type.
 
 .. code-block:: clojure
 
@@ -343,7 +343,7 @@ There is some condition statements. ``if`` ``when`` ``aif`` ``awhen`` ``case``
 
 ``(if condition then else)``
 
-In arc, all the non-nil values will be considered as true.
+In arc, all non-nil values are truthy.
 
 .. code-block:: clojure
 
@@ -792,7 +792,7 @@ Like this.
    </html>
    ...
 
-Then, ``js/log`` was defined into ArcJS's ``user`` namespace.
+Then, ``js/log`` is defined into ArcJS's ``user`` namespace.
 
 .. code-block:: javascript
 
@@ -858,7 +858,7 @@ Then let's add ``FizzBuzz``.
    </script>
 
 Then you have defined ``FizzBuzz`` function.
-To call it from JavaScript, do like this.
+You can call it from JavaScript like this:
 
 .. code-block:: javascript
 
@@ -870,7 +870,7 @@ To call it from JavaScript, do like this.
    });
    </script>
 
-Or of course you can simply do like this.
+Or of course you can simply do:
 
 .. code-block:: clojure
 
@@ -931,8 +931,8 @@ More complicated example on website (Reversi player)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This is an automatic reversi player. The main search logic is written in Arc.
-It searchs 3 turns depth by using depth-first seatch and Alpha-beta pruning.
-You can customize the depth and the space of searching by reconfigurating ``ev-depth`` and ``ev-space`` in ``reversi.arc``.
+It searches 3 turns depth by using depth-first search and Alpha-beta pruning.
+You can customize the depth and the space of searching by configuring ``ev-depth`` and ``ev-space`` in ``reversi.arc``.
 
 See example :download:`reversi.html <_static/reversi.html>`
 
@@ -1056,13 +1056,13 @@ And the bridge code.
 
 :download:`reversi_bridge.js <_static/reversi_bridge.js>`
 
-How to run in a machine
+How to run on your machine
 =======================
 
 Run arc scripts
 ---------------
 
-Give scripts to ``arcjs`` command as its' arguments.
+You can pre-compile arc code to JavaSript. Pass your scripts to the ``arcjs`` command.
 
 .. code-block:: sh
 
