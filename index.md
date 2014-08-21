@@ -21,12 +21,16 @@ This is an Arc-language interpreter written in JavaScript. It can run both on no
 1. [REPL (fullscreen)](demo_repl.html)
 2. [Maze generator](demo_mg.html)
 3. [Strange attractor generator](demo_at.html)
-4. Sudoku solver (comming soon)
-5. Othello player (comming soon)
+4. [Reversi player](reversi.html)
+5. Sudoku solver (comming soon)
 
 #### Server side
 
 1. Running on node server (comming soon)
+
+## Documentation
+
+- [Read the Docs](http://arcjs.readthedocs.org/en/latest/)
 
 ## Features
 

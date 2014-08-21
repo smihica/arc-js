@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Reversi</title>
+    <script type="text/javascript" src="//code.jquery.com/jquery-1.10.2.js"></script>
+    <script type="text/javascript" src="js/arc.min.js"></script>
+    <script type="text/javascript" src="js/arc_loader.js"></script>
+    <script type="text/arc-fasl"   src="reversi.fasl"></script>
+  </head>
+  <body>
+    <h3>Reversi</h3>
+    <canvas id="c1" width="600" height="600" style="float:left;border:1px solid #d3d3d3;"></canvas>
+    <textarea id="holder" style="float:left;width:500px;height:600px;font-family:Consolas,Monaco,monospace;font-size:18px;"></textarea>
+    <script type="text/javascript" src="reversi_bridge.js"></script>
+    <script type="text/arc">(start-game)</script>
+  </body>
+</html>
