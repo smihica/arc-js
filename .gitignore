@@ -1,3 +1,5 @@
 memo*
 backup/
 _site/
+docs/
+node_modules/
