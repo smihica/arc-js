@@ -7,7 +7,7 @@
 /** @file arc.js { */
 var ArcJS = (function() {
   var ArcJS = this;
-  ArcJS.version = '0.1.3';
+  ArcJS.version = '0.1.4';
 
   var todos_after_all_initialized = [];
 
