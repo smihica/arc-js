@@ -1,6 +1,7 @@
 ### ArcJS
 
 [![Build Status](https://travis-ci.org/smihica/arc-js.svg?branch=master)](https://travis-ci.org/smihica/arc-js)
+[![Docs](https://readthedocs.org/projects/arcjs/badge/?version=latest)](http://arcjs.readthedocs.org/en/latest/)
 
 __An Arc-langugage compiler and VM-interpreter written in JavaScript__
 
