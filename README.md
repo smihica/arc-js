@@ -6,7 +6,8 @@
 __An Arc-langugage compiler and VM-interpreter written in JavaScript__
 
 Arc-language can run both on nodejs and on a web-site.
-You can get more information from the [web site](http://smihica.github.io/arc-js/).
+You can get more information from the [website](http://smihica.github.io/arc-js/)
+or [documentation](http://arcjs.readthedocs.org/en/latest/).
 
 A lot of inspired from Paul Graham version of [Arc](http://arclanguage.org/) and [Anarki](https://github.com/arclanguage/anarki)
 
