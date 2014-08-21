@@ -69,8 +69,8 @@ Using in node
 
 more information
 
-Using in web-page (JavaScript)
-------------------------------
+Using on a webpage (JavaScript)
+-------------------------------
 
 .. code-block:: html
 
@@ -87,10 +87,10 @@ Using in web-page (JavaScript)
      <body></body>
    </html>
 
-When open the web-page then "hello world" will be in console.
+When open the webpage then "hello world" will be in console.
 
 Using in web-page (Arc)
--------------------------
+-----------------------
 
 .. code-block:: html
 
@@ -721,10 +721,10 @@ In the new namespace, you can access all the variables in specified namespace.
 
 more information
 
-How to use on a web page
-========================
+How to use on a webpage
+=======================
 
-Now, Let's see how to work ArcJS on a website.
+Now, Let's see how to work ArcJS on a webpage.
 First, We will begin with ``Hello Word``.
 Please create html like following.
 
@@ -745,8 +745,7 @@ Please create html like following.
 :download:`arc.min.js <_static/arc.min.js>`
 :download:`arc_loader.js <_static/arc_loader.js>`
 
-このhtmlにarcコードを書いて、textareaの中に、Hello world が書き込まれるようにしましょう。
-``<script>`` 内に、以下のように書きましょう。
+Then please add some ``hello world`` in ArcJS after ``arc_loader.js``
 
 .. code-block:: html
 
@@ -757,28 +756,30 @@ Please create html like following.
    </script>
    ...
 
-``arc_loader.js`` をリードしている場合、このような "text/arc" typeのコードがon_load時に実行されます
-もちろん, src="hello_world.arc" のようにして外だしすることもできます。
+As you see, In case of you've loaded ``arc_loader.js``, The content in ``<script type="text/arc">...</script>`` will be run in ArcJS's context on page ``onload`` timing.
+And Of course you can do like this ``src="hello_world.arc"`` to export arc code as another file.
+Like this.
 
 .. code-block:: html
 
    ...
+   <script type="text/javascript" src="arc_loader.js"></script>
    <script type="text/arc" src="hello_world.arc"></script>
    ...
 
-``arc_loader.js`` には jQuery が必要です。
+``arc_loader.js`` requires jQuery.
 
-How to define native function (JS bridge)
------------------------------------------
+How to define native functions (JS bridge)
+------------------------------------------
 
-さて、 ``js/log`` がまだ定義されていないため、このままだと動きません。
-なので、arcのネームスペースに ``js/log`` という primitive function を定義する必要があります。
-
-以下のようにします。
+You've written ``Hello world`` in Arc but there isn't a function named ``js/log`` yet.
+So you need to define a primitive function named ``js/log`` into ArcJS's namespace.
+Like this.
 
 .. code-block:: html
 
    ...
+   </body>
    <script type="text/javascript">
    var holder = $('#holder'), txt = '';
    ArcJS.Primitives('user').define({
@@ -788,7 +789,10 @@ How to define native function (JS bridge)
      }]
    });
    </script>
+   </html>
    ...
+
+Then, ``js/log`` was defined into ArcJS's ``user`` namespace.
 
 .. code-block:: javascript
 
@@ -796,11 +800,12 @@ How to define native function (JS bridge)
      'name': [option, function]
    });
 
-このようにして、名前空間に ``native function`` を定義することができます。
-``option`` 部分の ``{dot: -1}`` この数以降の変数が任意の長さのリストになります。
-つまり、 ``(fn args...) => {dot: 0}`` もしくは ``(fn a b args...) => {dot: 2}`` となります。
+As you see, you can define a ``native function`` into a specified namespace.
+``{dot: -1}`` on ``option`` means that after the number of args will be a list have arbitrary length and will be passed like :rest parameter in CommonLisp.
+(``-1`` means there is no rest parameters)
+For examle, ``(fn args...) => {dot: 0}`` or ``(fn a b args...) => {dot: 2}``.
 
-全体では以下のような形になります。
+The whole code will be like as follows.
 
 .. code-block:: html
 
@@ -828,13 +833,12 @@ How to define native function (JS bridge)
      </script>
    </html>
 
-See :download:`hw.html <_static/hw.html>`
+See example :download:`hw.html <_static/hw.html>`
 
-How to call arc function from JavaScript
-----------------------------------------
+How to call Arc functions from JavaScript
+-----------------------------------------
 
-FizzBuzzも追加してみましょう。
-arcを書き換えます。
+Then let's add ``FizzBuzz``.
 
 .. code-block:: clojure
 
@@ -853,8 +857,8 @@ arcを書き換えます。
 
    </script>
 
-FizzBuzz関数を定義しました。
-このFizzBuzz関数をJavaScriptから呼ぶには以下のようにします。
+Then you have defined ``FizzBuzz`` function.
+To call it from JavaScript, do like this.
 
 .. code-block:: javascript
 
@@ -866,8 +870,21 @@ FizzBuzz関数を定義しました。
    });
    </script>
 
+Or of course you can simply do like this.
 
-全体では以下のような形になります。
+.. code-block:: clojure
+
+   <script type="text/arc">
+
+   (def FizzBuzz (l)
+    ;; ...
+    )
+
+   (FizzBuzz 100)
+
+   </script>
+
+Whole code will be like as follows.
 
 .. code-block:: html
 
@@ -907,16 +924,17 @@ FizzBuzz関数を定義しました。
      </script>
    </html>
 
-See :download:`fizzbuzz.html <_static/fizzbuzz.html>`
+See example :download:`fizzbuzz.html <_static/fizzbuzz.html>`
 
-Further example (reversi)
--------------------------
 
-Now, let's create a simple example work on web-page.
-For example, I'd like to create a game named Reversi on web page.
-And I'm going to to use ArcJS for its' search engine.
-単純なAB探索で3手先まで読むようになっています。
-読みの深さと一手についての最大幅をev-depthとev-spaceでそれぞれ指定できます。
+More complicated example on website (Reversi player)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This is an automatic reversi player. The main search logic is written in Arc.
+It searchs 3 turns depth by using depth-first seatch and Alpha-beta pruning.
+You can customize the depth and the space of searching by reconfigurating ``ev-depth`` and ``ev-space`` in ``reversi.arc``.
+
+See example :download:`reversi.html <_static/reversi.html>`
 
 .. code-block:: html
 
@@ -940,9 +958,7 @@ And I'm going to to use ArcJS for its' search engine.
      </body>
    </html>
 
-:download:`reversi.html <_static/reversi.html>`
-
-The main search function in Arc
+The main search function in Arc.
 
 .. code-block:: clojure
 
@@ -980,7 +996,7 @@ The main search function in Arc
                 (self board invert-color (- depth 1) target-color alpha beta))))) ;; pass
       board color depth color -inf.0 +inf.0))
 
-:download:`reversi.arc <_static/reversi.arc>`
+See :download:`reversi.arc <_static/reversi.arc>`
 
 And the bridge code.
 
@@ -1043,66 +1059,76 @@ And the bridge code.
 How to run in a machine
 =======================
 
-Run arc script
---------------
+Run arc scripts
+---------------
+
+Give scripts to ``arcjs`` command as its' arguments.
 
 .. code-block:: sh
 
-   $ echo "(prn (gcd 33 77))" > test.arc
-   $ ./bin/arcjs -r test.arc
+   $ echo "(prn (gcd 33 77))" > script.arc
+   $ arcjs script.arc
    11
    $
 
 Run REPL with pre-loading arc scripts
 -------------------------------------
 
+Specifiy scripts after ``-l`` option.
+
 .. code-block:: sh
 
-``arcjs`` コマンドの引数にスクリプトを与えてください。
-
    $ echo "(def average (x y) (/ (+ x y) 2))" > avg.arc
-   $ ./bin/arcjs avg.arc
+   $ arcjs -l avg.arc
    arc> (average 10 20)
    15
 
-How to compile an arc script into 
+How to compile an arc script into JavaScript
+============================================
 
-    $ echo "(def average (x y) (/ (+ x y) 2))" > avg.arc
-    $ ./bin/arcjsc -o avg.js.fasl avg.arc
-    $ cat avg.js.fasl
-    // This is an auto generated file.
-    // Compiled from ['avg.arc'].
-    // DON'T EDIT !!!
-    preloads.push([
-    [12,7,14,20,0,1,0,20,2,-1,0,10,9,1, ...
-    ]);
-    preload_vals.push(["2","+","/", ...
-    $
+Use ``arcjsc`` to comple arc to JavaScript.
 
+.. code-block:: sh
 
+   $ echo "(def average (x y) (/ (+ x y) 2))" > avg.arc
+   $ arcjsc -o avg.js.fasl avg.arc
+   $ cat avg.js.fasl
+   // This is an auto generated file.
+   // Compiled from ['avg.arc'].
+   // DON'T EDIT !!!
+   preloads.push([
+   [12,7,14,20,0,1,0,20,2,-1,0,10,9,1, ...
+   ]);
+   preload_vals.push(["2","+","/", ...
+   $
 
+:download:`avg.js.fasl <_static/avg.js.fasl>`
 
+Then you can use the script in arcjs.
 
-Create HTML
------------
+.. code-block:: sh
 
+   $ arcjs -l avg.js.fasl
+   arc> (average 10 20)
+   15
 
-Create 
+Or on a webpage.
 
+.. code-block:: html
 
-Run compiler
-============
+   <!doctype html>
+   <html lang="en">
+     <head>
+       <script type="text/javascript" src="//code.jquery.com/jquery-1.10.2.js"></script>
+       <script type="text/javascript" src="arc.min.js"></script>
+       <script type="text/javascript" src="arc_loader.js"></script>
+       <script type="text/arc-fasl"   src="avg.js.fasl"></script>
+     </head>
+     <body>
+       <script type="text/arc">
+        (prn (average 10 20)) ;; will be printed in console.log()
+       </script>
+     </body>
+   </html>
 
-
-
-How to write your own JavaScript driver
-=======================================
-
-How to use in your JavaScript application
-=========================================
-
-Case1: A little game in your webpage
-====================================
-
-Case2: web server
-=================
+See example :download:`fasl_example.html <_static/fasl_example.html>`

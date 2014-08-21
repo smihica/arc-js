@@ -42,6 +42,6 @@ What is Arc-language?
 ^^^^^^^^^^^^^^^^^^^^^
 
 Arc-language is a dialect of the Lisp programming language now under development by Paul Graham and Robert Morris.
-Its simpler than Common-Lisp and more powerful than Scheme and more appropriate than Clojure (IMO). [#f3]_
+Its simpler than Common-Lisp and more powerful than Scheme (IMO). [#f3]_
 
 .. [#f3] `Official Home Page <http://arclanguage.org/>`_

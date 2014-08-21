@@ -1,5 +1,8 @@
 (import "arc.time")
 
+(= ev-depth 3)  ;; depth of searching
+(= ev-space 10) ;; space of searching
+
 (mac keying (x y)
   `(+ ,x "-" ,y))
 
@@ -192,9 +195,6 @@
              (self board invert-color (- depth 1) target-color alpha beta))))) ;; pass
 
    board color depth color -inf.0 +inf.0))
-
-(= ev-depth 5)
-(= ev-space 100)
 
 (def count-color (board color)
   (len (get-all-positions-of-color board color)))
