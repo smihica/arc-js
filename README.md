@@ -64,13 +64,13 @@ Try Arc's [tutorial](http://ycombinator.com/arc/tut.txt)
 ### How to run scripts
 
     $ echo "(prn (gcd 33 77))" > test.arc
-    $ ./bin/arcjs -r test.arc
+    $ ./bin/arcjs test.arc
     11
 
-### How to run repl with loading some scripts
+### How to run repl with preloading some scripts
 
     $ echo "(def average (x y) (/ (+ x y) 2))" > avg.arc
-    $ ./bin/arcjs avg.arc
+    $ ./bin/arcjs -l avg.arc
     arc> (average 10 20)
     15
 

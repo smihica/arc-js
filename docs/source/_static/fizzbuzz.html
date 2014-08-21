@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+  <head>
+    <script type="text/javascript" src="//code.jquery.com/jquery-1.10.2.js"></script>
+    <script type="text/javascript" src="arc.min.js"></script>
+    <script type="text/javascript" src="arc_loader.js"></script>
+    <script type="text/arc">
+
+    (js/log "Hello world !!")
+
+    (def FizzBuzz (l)
+      (for n 1 l
+        (js/log:string
+          (case (gcd n 15)
+            1 n
+            3 'Fizz
+            5 'Buzz
+            'FizzBuzz))))
+
+    </script>
+  </head>
+  <body>
+    <textarea id="holder" style="width:500px;height:600px;"></textarea>
+  </body>
+  <script type="text/javascript">
+  var holder = $('#holder'), txt = '';
+  ArcJS.Primitives('user').define({
+    'js/log': [{dot: -1}, function(log) {
+      txt += log + "\n";
+      holder.text(txt);
+    }]
+  });
+  $(function() {
+    var ctx = ArcJS.context();
+    ctx.evaluate('(FizzBuzz 100)');
+  });
+  </script>
+</html>
