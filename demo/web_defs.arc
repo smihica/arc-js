@@ -1,16 +1,13 @@
-;; Don't use this code as production.
-;; This is a toy.
-
 (ns (defns "user.server"))
 
 (= *url* (table))
 
 ;; entry point from js.
-(def exec-url (uri)
+(def exec-url (uri method data headers)
   (pair
-    (aif (*url* uri)
+    (aif (*url* (list method uri))
          (list "code" 200
-               "body" (apply it nil)
+               "body" (apply it data headers)
                "Content-Type" "text/html")
          (list "code" 404
                "body" (+ uri " is not Found.")
@@ -26,19 +23,29 @@
             (isa c 'cons)
             (string:map [simple-render _] lis)))))
 
-(mac defpage (url reqs . body)
+(def mappendtable (f tbl)
+  (let l (coerce tbl 'cons)
+    (mappend [f car._ cadr._] l)))
+
+(defgeneric table-to-html (obj) (string obj))
+(defmethod table-to-html (obj) cons
+  `(li ,@(map1 (fn (i) `(li ,(table-to-html i))) obj)))
+(defmethod table-to-html (obj) table
+  `(dl ,@(mappendtable (fn (k v) `((dt ,k) (dd ,(table-to-html v)))) obj)))
+
+(mac defpage (method path reqs . body)
   `(sref *url*
      (fn ,reqs (simple-render (do ,@body))) ;; this is demo, reqs is simply ignored.
-     ,(string url)))
+     (list ',method ,(string path))))
 
-(defpage /index ()
+(defpage GET /index (data headers)
   `(html
      (body
        (h1 ,"hello this is index-page.")
        (p  ,(+ "now is " (arc.time::msec))))))
 
 (let times 0
-  (defpage /page1 ()
+  (defpage GET /page1 (data headers)
     `(html
        (body
          (h1 ,"this is page1")
