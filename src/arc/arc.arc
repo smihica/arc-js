@@ -1079,7 +1079,7 @@
        (or ,val (,setter ,expr)))))
 
 (= vtables* (table))
-(mac defgeneric(name args . body)
+(mac defgeneric (name args . body)
   `(do
      (or= (vtables* ',name) (table))
      (def ,name allargs
@@ -1090,7 +1090,7 @@
                  (let ,args allargs
                    ,@body))))))
 
-(mac defmethod(name args type . body)
+(mac defmethod (name args type . body)
   `(= ((vtables* ',name) ',type)
       (fn ,args
         ,@body)))
