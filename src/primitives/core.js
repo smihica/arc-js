@@ -714,13 +714,23 @@ var primitives_core = (new Primitives('arc.core')).define({
       rt = cons(arguments[i], rt);
     return rt;
   }],
-  'len': [{dot: -1}, function(lis) {
-    if (typeof lis === 'string') return lis.length;
-    var i = 0;
-    while (lis !== nil) {
-      i++; lis = cdr(lis);
+  'len': [{dot: -1}, function(obj) {
+    if (obj === nil) return 0;
+    var typ = type(obj).name;
+    switch (typ) {
+    case 'string':
+      return obj.length;
+    case 'cons':
+      var i = 0;
+      while (obj !== nil) {
+        i++; obj = cdr(obj);
+      }
+      return i;
+    case 'table':
+      return obj.n;
+    default:
+      throw new Error('"' + typ + '" is not a countable value.');
     }
-    return i;
   }],
   'nthcdr': [{dot: -1}, function(n, lis) {
     for (;0 < n && lis !== nil;n--) lis = cdr(lis);

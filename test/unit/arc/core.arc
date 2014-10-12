@@ -50,6 +50,16 @@
       (alref '((b a) (c d) (a b)) 'a)     'b
       (alref '((a b) (2 10) ("x" y)) 'x)  nil))
 
+  (test "len"
+    (iso
+      (len "abc")                         3
+      (len "")                            0
+      (len nil)                           0
+      (len '(1 2 3))                      3
+      (len '(1 (2 3 4) 5))                3
+      (len (table))                       0
+      (len (table :a 1 :b 2))             2))
+
   (test "join"
     (iso
       (join '(a b) nil '(c d))            '(a b c d)
