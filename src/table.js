@@ -20,9 +20,16 @@ var Table = classify("Table", {
                (obj === t)   ? 't' :
                obj.name);
         break;
+
+      // TODO: this way will be incorrect
+      //       if the struct would be changed after it assigned.
       case 'cons':
-        key = keying(car(obj)) + keying(cdr(obj));
+      case 'table':
+        key = ArcJS.stringify_struct(obj);
         break;
+      //
+      //
+
       default:
         obj.key_for_table = obj.key_for_table || Table.genkey();
         key = obj.key_for_table;
@@ -73,14 +80,19 @@ var Table = classify("Table", {
       }
       return this;
     },
+    convert_to_array: function() {
+      var rt = [];
+      for (var k in this.src) {
+        rt.push(this.key_src[k]);
+        rt.push(this.src[k]);
+      }
+      return rt;
+    },
     load_from_js_hash: function(h) {
       for (var k in h) {
         this.put(Symbol.get(k), h[k]);
       }
       return this;
-    },
-    stringify_content: function() {
-      return '()'; // TODO: mendokuse.
     }
   }
 });

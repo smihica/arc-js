@@ -458,8 +458,8 @@ describe('VM eval', function(){
 
   describe('table', function() {
     eval_print_eql(
-      "(table)", "#<table n=0>",
-      "(assign tbl (table))", "#<table n=0>",
+      "(table)", "{}",
+      "(assign tbl (table))", "{}",
       "(sref tbl 'a 0)", "a",
       "(ref tbl 0)", "a",
       "(sref tbl 'b 1.3)", "b",
@@ -898,7 +898,8 @@ describe('VM eval', function(){
       eval_print_eql("(apply list 'x 'y)",       "(x y)");
       eval_print_eql("(apply list 'x 'y nil)",   "(x y)");
     });
-    describe('circular-list', function() {
+    describe('circular', function() {
+      // list
       eval_print_eql("(let s \'(1 2) (list (cdr s) s))",
                      "(#0=(2) (1 . #0#))");
       eval_print_eql("(let x \'(b c) `((a ,x) (b ,x)))",
@@ -927,6 +928,24 @@ describe('VM eval', function(){
                      "#0=(b (c d #1=(e f . #1#) . #2=(a . #0#)) . #2#)");
       eval_print_eql("(do (= b \'(a b (c d (e f)))) (scdr (cdr (caddr (caddr b))) (caddr (caddr b))) (scdr (cddr b) b) (scdr (cddr (caddr b)) b) (cddr b))",
                      "#0=((c d #1=(e f . #1#) . #2=(a b . #0#)) . #2#)");
+      // table
+      eval_print_eql("(do (= x {:a :b}) (= (x :a) x) x)",
+                     "#0={:a #0#}");
+      eval_print_eql("(do (= x {:a :b}) (= (x :a) x) (= (x x) x) x)",
+                     "#0={:a #0# #0# #0#}");
+      // list and table
+      eval_print_eql("(do (= x `(a ,{:a :b :c :d})) (= ((cadr x) :c) x) x)",
+                     "#0=(a {:a :b :c #0#})");
+      eval_print_eql("(do (= x `(a ,{:a :b :c :d})) (= ((cadr x) :c) x) (cadr x))",
+                     "#0={:a :b :c (a #0#)}");
+      eval_print_eql("(do (= x `(a b ,{:a :b :c :d})) (= ((caddr x) :c) x) (= (cadr x) (caddr x)) x)",
+                     "#0=(a #1={:a :b :c #0#} #1#)");
+      eval_print_eql("(do (= x `(a b ,{:a :b :c :d})) (= ((caddr x) :c) x) (= (cadr x) (caddr x)) (cadr x))",
+                     "#0={:a :b :c (a #0# #0#)}");
+      eval_print_eql("(do (= x `(a b ,{:a :b :c :d :e '(f . g)})) (= ((caddr x) :c) x) (= (cadr x) (caddr x)) (= ((cadr x) :a) ((cadr x) :e)) (= (cdr ((cadr x) :a)) (cdr x)) x)",
+                     "#0=(a . #1=(#2={:a #3=(f . #1#) :c #0# :e #3#} #2#))");
+      eval_print_eql("(do (= x `(a b ,{:a :b :c :d :e '(f . g)})) (= ((caddr x) :c) x) (= (cadr x) (caddr x)) (= ((cadr x) :a) ((cadr x) :e)) (= (cdr ((cadr x) :a)) (cdr x)) (cadr x))",
+                     "#0={:a #1=(f . #2=(#0# #0#)) :c (a . #2#) :e #1#}");
     });
 
   });

@@ -84,15 +84,14 @@ var stringify = function stringify(x) {
       if (x === t) return 't';
       return (x.evaluable_name) ? '|' + x.name + '|' : x.name;
     case 'cons':
-      return stringify_list(x);
+    case 'table':
+      return stringify_struct(x);
     case 'fn':
       return "#<" + (typeof x === 'function' ?
                      'prim' + (x.prim_name ? (":"+x.prim_name) : "") :
                      'fn' + (x.name ? (":"+x.name) : "")) + ">";
     case 'char':
       return Char.stringify(x);
-    case 'table':
-      return '#<table n=' + x.n + /* ' | ' + x.stringify_content() + */ '>';
     default:
       if (x instanceof Tagged)    return '#<tagged ' + type_name + ' ' + stringify(x.obj) + '>';
       if (x instanceof Box)       return '#<internal-reference ' + stringify(x.unbox()) + '>';
@@ -145,21 +144,31 @@ var stringify = function stringify(x) {
 
 };
 
-var stringify_list = (function() {
+var stringify_struct = (function() {
 
-  function detect_circular(cons) {
+  function detect_circular(c) {
     var seen = [], circulars = [], idx;
-    (function iter(cons) {
-      if (cons instanceof Cons && cons !== nil) {
-        if ((idx = seen.indexOf(cons)) !== -1) {
-          circulars[idx] = cons;
+    (function iter(c) {
+      if (c instanceof Cons && c !== nil) {
+        if ((idx = seen.indexOf(c)) !== -1) {
+          circulars[idx] = c;
           return;
         }
-        seen.push(cons);
-        iter(car(cons));
-        iter(cdr(cons));
+        seen.push(c);
+        iter(car(c));
+        iter(cdr(c));
+      } else if (c instanceof Table) {
+        if ((idx = seen.indexOf(c)) !== -1) {
+          circulars[idx] = c;
+          return;
+        }
+        seen.push(c);
+        var arr = c.convert_to_array();
+        for (var i = 0, l = arr.length; i < l; i++) {
+          iter(arr[i]);
+        }
       }
-    })(cons);
+    })(c);
     var l = circulars.length;
     if (l === 0) return false;
     for (var i = 0, rt = []; i < l; i++) {
@@ -168,24 +177,33 @@ var stringify_list = (function() {
     return rt;
   }
 
-  function circular_list(cons, circulars) {
-    var defined = [], idx, prefix = '';
-    if ((idx = circulars.indexOf(cons)) !== -1) {
-      defined[idx] = true;
-      prefix = "#" + idx + "=";
-    }
-    var cont = (function iter(cons) {
-      var a = car(cons), d = cdr(cons), astr, dstr;
+  function circular_struct(c, circulars) {
+
+    var defined = [], prefix = "";
+
+    function iter_cons(cons) {
+      var a = car(cons), d = cdr(cons), astr, dstr, idx;
       if (a instanceof Cons && a !== nil) {
         if ((idx = circulars.indexOf(a)) !== -1) {
           if (defined[idx]) {
             astr = "#" + idx + "#";
           } else {
             defined[idx] = true;
-            astr = "#" + idx + "=(" + iter(a) + ")";
+            astr = "#" + idx + "=(" + iter_cons(a) + ")";
           }
         } else {
-          astr = "(" + iter(a) + ")";
+          astr = "(" + iter_cons(a) + ")";
+        }
+      } else if (a instanceof Table) {
+        if ((idx = circulars.indexOf(a)) !== -1) {
+          if (defined[idx]) {
+            astr = "#" + idx + "#";
+          } else {
+            defined[idx] = true;
+            astr = "#" + idx + "=" + iter_table(a);
+          }
+        } else {
+          astr = iter_table(a);
         }
       } else {
         astr = stringify(a);
@@ -198,36 +216,127 @@ var stringify_list = (function() {
             dstr = " . #" + idx + "#";
           } else {
             defined[idx] = true;
-            dstr = " . #" + idx + "=(" + iter(d) + ")";
+            dstr = " . #" + idx + "=(" + iter_cons(d) + ")";
           }
         } else {
-          dstr = " " + iter(d);
+          dstr = " " + iter_cons(d);
+        }
+      } else if (d instanceof Table) {
+        if ((idx = circulars.indexOf(d)) !== -1) {
+          if (defined[idx]) {
+            dstr = " . #" + idx + "#";
+          } else {
+            defined[idx] = true;
+            dstr = " . #" + idx + "=" + iter_table(a);
+          }
+        } else {
+          dstr = " . " + iter_table(a);
         }
       } else {
         dstr = " . " + stringify(d);
       }
       return astr + dstr;
-    })(cons);
-    return prefix + '(' + cont + ')';
+    }
+
+    function iter_table(tbl) {
+      var arr = tbl.convert_to_array(), acc = [], idx;
+      for (var i = 0, l = arr.length; i < l; i+=2) {
+        for (var k = i; k < i+2; k++) {
+          var x = arr[k];
+          if (x instanceof Cons && x !== nil) {
+            if ((idx = circulars.indexOf(x)) !== -1) {
+              if (defined[idx]) {
+                acc.push("#" + idx + "#");
+              } else {
+                defined[idx] = true;
+                acc.push("#" + idx + "=(" + iter_cons(x) + ")");
+              }
+            } else {
+              acc.push("(" + iter_cons(x) + ")");
+            }
+          } else if (x instanceof Table) {
+            if ((idx = circulars.indexOf(x)) !== -1) {
+              if (defined[idx]) {
+                acc.push("#" + idx + "#");
+              } else {
+                defined[idx] = true;
+                acc.push("#" + idx + "=" + iter_table(x));
+              }
+            } else {
+              acc.push(iter_table(x));
+            }
+          } else {
+            acc.push(stringify(x));
+          }
+        }
+      }
+      return "{" + acc.join(" ") + "}";
+    }
+
+    var idx;
+    if ((idx = circulars.indexOf(c)) !== -1) {
+      defined[idx] = true;
+      prefix = "#" + idx + "=";
+    }
+
+    if (c instanceof Cons) {
+      return prefix + "(" + iter_cons(c) + ")";
+    }
+
+    if (c instanceof Table) {
+      return prefix + iter_table(c);
+    }
+
+    throw new Error(c + " is not a Cons or a Table.");
   }
 
   function normal_list(cons) {
-    var a = car(cons), d = cdr(cons);
-    return (
-      ((a instanceof Cons && a !== nil) ?
-       "(" + normal_list(a) + ")" :
-       stringify(a)) +
-        ((d === nil) ? '' :
-         (d instanceof Cons) ?
-         ' ' + normal_list(d) :
-         ' . ' + stringify(d)));
+    var a = car(cons), d = cdr(cons), astr, dstr;
+    if (a instanceof Cons && a !== nil) {
+      astr = "(" + normal_list(a) + ")";
+    } else if (a instanceof Table) {
+      astr = normal_table(a);
+    } else {
+      astr = stringify(a);
+    }
+    if (d === nil) {
+      dstr = "";
+    } else if (d instanceof Cons) {
+      dstr = " " + normal_list(d);
+    } else if (d instanceof Table) {
+      dstr = " . " + normal_table(d);
+    } else {
+      dstr = " . " + stringify(d);
+    }
+    return astr + dstr;
   }
 
-  return function(cons) {
-    var circulars = detect_circular(cons);
+  function normal_table(tbl) {
+    var arr = tbl.convert_to_array(), acc = [];
+    for (var i = 0, l = arr.length; i < l; i+=2) {
+      for (var k = i; k < i+2; k++) {
+        var x = arr[k];
+        if (x instanceof Cons && x !== nil) {
+          acc.push("(" + normal_list(x) + ")");
+        } else if (x instanceof Table) {
+          acc.push(normal_table(x));
+        } else {
+          acc.push(stringify(x));
+        }
+      }
+    }
+    return "{" + acc.join(" ") + "}";
+  }
+
+  return function stringify_struct(c) {
+    var circulars = detect_circular(c);
     return ((circulars) ?
-            circular_list(cons, circulars) :
-            "(" + normal_list(cons) + ")");
+            circular_struct(c, circulars) :
+            (c instanceof Cons) ?
+            "(" + normal_list(c) + ")" :
+            (c instanceof Table) ?
+            normal_table(c) :
+            stringify(c));
   };
 
 })();
@@ -1026,3 +1135,4 @@ ArcJS.annotate  = annotate;
 ArcJS.list_to_javascript_arr = list_to_javascript_arr;
 ArcJS.javascript_arr_to_list = javascript_arr_to_list;
 ArcJS.stringify_for_disp = stringify_for_disp;
+ArcJS.stringify_struct = stringify_struct;
