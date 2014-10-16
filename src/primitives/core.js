@@ -421,7 +421,7 @@ var primitives_core = (new Primitives('arc.core')).define({
     throw new Error(stringify(x) + ' is not cons type.');
   }],
   'scar': [{dot: -1}, function(x, v) {
-    if (x instanceof Cons) return (x.car = v);
+    if (x instanceof Cons && x !== nil) return (x.car = v);
     throw new Error(stringify(x) + ' is not cons type.');
   }],
   'cdr': [{dot: -1}, function(x) {
@@ -429,7 +429,7 @@ var primitives_core = (new Primitives('arc.core')).define({
     throw new Error(stringify(x) + ' is not cons type.');
   }],
   'scdr': [{dot: -1}, function(x, v) {
-    if (x instanceof Cons) return (x.cdr = v);
+    if (x instanceof Cons && x !== nil) return (x.cdr = v);
     throw new Error(stringify(x) + ' is not cons type.');
   }],
 
