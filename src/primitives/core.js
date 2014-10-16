@@ -461,7 +461,8 @@ var primitives_core = (new Primitives('arc.core')).define({
     throw new Error('(ref obj idx) supports only cons or string or table. but ' + typename + ' given.');
   }],
   'sref': [{dot: -1}, function(obj, val, idx) {
-    switch (type(obj).name) {
+    var typename = type(obj).name;
+    switch (typename) {
     case 'string':
       throw new Error('TODO: mutable string is not supported yet.');
       return val;
