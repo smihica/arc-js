@@ -220,9 +220,9 @@ Hash table
 .. code-block:: scheme
 
    arc> (table)
-   #<table n=0>
+   {}
    arc> (table 'key 'val)
-   #<table n=1>
+   {key val}
 
 ``n=d`` indicates the number of properties.
 And to access the key
@@ -230,7 +230,7 @@ And to access the key
 .. code-block:: scheme
 
    arc> (= tbl (table 'key 'val))
-   #<table n=1>
+   {key val}
    arc> (tbl 'key)
    val
    arc> (tbl 'notfound)
@@ -244,7 +244,7 @@ Special syntax for table.
 .. code-block:: clojure
 
    arc> { :key1 :value1 "key2" "value2" }
-   #<table n=2>
+   {:key1 :value1 "key2" "value2"}
 
 
 keys can be any type.
@@ -257,7 +257,7 @@ keys can be any type.
     'mno  "pqr"
      10   100
    })
-   #<table n=4>
+   {:abc "def" "GHI" jkl mno "pqr" 10 100}
    arc> (tbl :abc)
    "def"
    arc> (tbl "GHI")
@@ -275,7 +275,7 @@ Tagged
 .. code-block:: clojure
 
    arc> (annotate 'my-type (table))
-   #<tagged my-type #<table n=0>>
+   #<tagged my-type {}>
 
 Expressions
 -----------

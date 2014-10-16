@@ -69,6 +69,9 @@ setup:
 		npm install chai
 
 doc:
+		cp arc.js docs/source/_static/arc.js
+		cp arc.min.js docs/source/_static/arc.min.js
+		cp arc_loader.js docs/source/_static/arc_loader.js
 		cd docs && make html
 
 doc_clean:
