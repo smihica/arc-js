@@ -4,7 +4,7 @@ var ArcJS = (function() {
 
   var todos_after_all_initialized = [];
 
-  include("../lib/classify.min.js");
+  include("../lib/classify.js");
   include("stack.js");
   include("symbol.js");
   include("cons.js");

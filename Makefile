@@ -8,6 +8,8 @@ UNIT_TESTS=$(shell ls test/unit/arc/*.arc)
 
 all:		arc.js arc.min.js arc.min.js.gz
 
+noeval:		arc_noeval.js arc.min.js arc.min.js.gz
+
 clean:
 		rm -f arc.js arc.min.js arc.min.js.gz
 
@@ -19,7 +21,14 @@ auto:
 		./tools/update-watcher src/*.js src/arc/*.arc -- make
 
 arc.js:		src/*.js src/primitives/*.js src/*.fasl
+		cd lib/; rm -f classify.js; ln -s classify.normal.js classify.js; cd ..
 	        $(CONSTRUCT) -o arc.tmp.js src/arc.js
+		cat src/comments.js arc.tmp.js > arc.js
+		rm arc.tmp.js
+
+arc_noeval.js:  src/*.js src/primitives/*.js src/*.fasl
+		cd lib/; rm -f classify.js; ln -s classify.simple.js classify.js; cd ..
+		$(CONSTRUCT) -o arc.tmp.js src/arc.js
 		cat src/comments.js arc.tmp.js > arc.js
 		rm arc.tmp.js
 
