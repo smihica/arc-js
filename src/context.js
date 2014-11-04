@@ -93,10 +93,14 @@ var Context = classify("Context", {
             if (path.match(/\.arc$/)) {
               self.evaluate(data);
             } else if (path.match(/\.fasl$/)) {
+#ifdef NO_EVAL
+              throw new Error('noeval mode ArcJS cannot load fasl file.');
+#else
               eval('var fasl = (function() {\nvar preloads = [], preload_vals = [];\n' +
                    data +
                    'return {preloads: preloads, preload_vals: preload_vals};\n})();');
               ArcJS.fasl_loader(self.vm.ns, fasl.preloads, fasl.preload_vals);
+#endif
             } else {
               throw new Error('ArcJS.context.require() supports only files that have .arc or .fasl as its suffix.');
             }

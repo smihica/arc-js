@@ -1,7 +1,7 @@
 var VM = classify("VM", {
   static: {
     operators:
-    include("operators.js");
+#include "operators.js"
   },
   property: {
     x: null,

@@ -59,10 +59,10 @@ var Primitives = classify('Primitives', {
 });
 ArcJS.Primitives = Primitives;
 
-include("primitives/core.js");
-include("primitives/collection.js");
-include("primitives/math.js");
-include("primitives/time.js");
+#include "primitives/core.js"
+#include "primitives/collection.js"
+#include "primitives/math.js"
+#include "primitives/time.js"
 
 todos_after_all_initialized.push(function() {
 

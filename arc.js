@@ -7,15 +7,12 @@
 /** @file arc.js { */
 var ArcJS = (function() {
   var ArcJS = this;
+
   ArcJS.version = '0.1.4';
 
   var todos_after_all_initialized = [];
 
 /** @file classify.js { */
-/*
-  copyright (c) smihica.
-  Mit license
-*/
 var classify = (function(ns) {
 
   var classify = ns;

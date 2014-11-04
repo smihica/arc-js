@@ -7,4 +7,3 @@ docs/build/
 docs/env/
 node_modules/
 arc.min.js.gz
-lib/classify.js
