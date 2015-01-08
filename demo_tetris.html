@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <style> #c1 {float:left;border:1px solid #ddd;background:#000;} #editor {float:left;width:800px;height:600px;} #holder { width:800px;height:600px;font-family:Consolas,Monaco,monospace;font-size:14px; } #run { float:left; font-size:20px; } </style>
+    <script src="js/arc.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+  </head>
+  <body>
+    <h1>Tetris in ArcJS 80Lines : Arrow Keys (→←↑↓)</h1>
+    <div>
+    <canvas id="c1" width="300" height="600"></canvas>
+    <div id="editor">
+      <textarea id="holder">(= score 0 span 800)
+(def keydown (c) (stage 'keydown c))
+(def make-tetromino (typ stage)
+  (withs ((base color)
+          (case typ
+            I '(((0 . 0) (1  . 0) (-1 . 0) (-2 . 0)) "#0FF")
+            O '(((0 . 0) (1  . 0) (1  . 1) (0  . 1)) "#FF0")
+            T '(((0 . 0) (0  . 1) (1  . 0) (-1 . 0)) "#F0F")
+            J '(((0 . 0) (-2 . 0) (-1 . 0) (0  . 1)) "#00F")
+            L '(((0 . 0) (0  . 1) (1  . 0) (2  . 0)) "#F70")
+            S '(((0 . 0) (1  . 0) (0  . 1) (-1 . 1)) "#0F0")
+            Z '(((0 . 0) (-1 . 0) (0  . 1) (1  . 1)) "#F00"))
+          p           '(4 . 0)
+          origin      (fn (p) (fn ((x . y)) (cons (+ car.p x) (+ cdr.p y))))
+          r           idfn
+          rotate      (fn (r) (compose (fn ((x . y)) (cons y (- x))) r))
+          get         (fn (p r) (map1 (compose origin.p r) base)))
+    (rfn tetromino (cmd (o arg nil))
+      (case cmd
+        color  color
+        get    (get p r)
+        move   (let np
+                   (case arg
+                     left  (cons (- car.p 1) cdr.p)
+                     right (cons (+ car.p 1) cdr.p)
+                     down  (cons car.p (+ cdr.p 1)))
+                 (when (stage 'can-put? (get np r)) (= p np) t))
+        rotate (let nr (rotate r)
+                 (when (stage 'can-put? (get p nr))
+                   (= r nr) t))
+        draw   (each pn (get p r) (draw car.pn cdr.pn color))))))
+(def make-stage ()
+  (withs (field      {}
+          positions  (mappend (fn (y) (map1 [cons _ y] (range 0 9))) (nrev (range 0 19)))
+          target     (fn _)
+          overflow?  (fn (x y) (no (and (<= 0 x 9) (<= 0 y 19)))))
+    (rfn stage (cmd (o o1 nil) (o o2 nil))
+      (case cmd
+        can-put?
+        (no (ccc (fn (cc) (each p o1 (when (or (overflow? car.p cdr.p) (field p)) (cc t))))))
+        tick
+        (unless (do1 (target 'move 'down) (stage 'draw))
+          (each p (target 'get) (= (field p) (target 'color)))
+          (stage 'line-clear)
+          (stage 'add (make-tetromino (rand-elt '(I O T J L S Z)) stage)))
+        add
+        (if (stage 'can-put? (o1 'get))
+            (= target o1)
+            (game-over 'over))
+        draw
+        (do (clear) (target 'draw)
+            (each p positions (aif (field p) (draw car.p cdr.p it))))
+        keydown
+        (do (case o1
+              37 (target 'move 'left)  ;left
+              38 (target 'rotate)      ;up
+              39 (target 'move 'right) ;right
+              40 (target 'move 'down)) ;down
+            (stage 'draw))
+        line-clear
+        ((afn (lines)
+           (when lines
+             (let line car.lines
+               (if (no (pos [no (field _)] line))
+                   (do (map (fn (l1 l2) (map (fn (p1 p2) (= (field p1) (field p2))) l1 l2)) lines cdr.lines)
+                       (each p (car:last lines) (= (field p) nil))
+                       (= score (+ score 100) span (int (* span 0.9)))
+                       (self lines))
+                   (self cdr.lines)))))
+         (tuples positions 10))))))
+(when
+    (is 'over
+        (ccc
+          (fn (cc)
+            (= game-over cc
+               stage (make-stage))
+            ((afn (stage)
+               (stage 'tick)
+               (stage 'draw)
+               (arc.time::set-timer
+                 self span nil
+                 stage))
+             stage))))
+  (alert (+ "GAME OVER - SCORE " score)))</textarea>
+    </div>
+    </div>
+  </body>
+  <script>
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) { if (w < 2 * r) r = w / 2; if (h < 2 * r) r = h / 2; this.beginPath(); this.moveTo(x+r, y); this.arcTo(x+w, y, x+w, y+h, r); this.arcTo(x+w, y+h, x, y+h, r); this.arcTo(x, y+h, x, y, r); this.arcTo(x, y, x+w, y, r); this.closePath(); return this; }
+    var arcjs = ArcJS.context();
+    function run() {
+      var code = document.getElementById("holder").value;
+      arcjs.evaluate(code);
+    }
+    var canvas = document.getElementById('c1');
+    var ctx = canvas.getContext('2d');
+    ArcJS.Primitives('user').define({
+      'draw': [{dot: -1}, function(x, y, color) {
+        ctx.fillStyle = color;
+        ctx.lineWidth=1;
+        ctx.strokeStyle="#000000";
+        var r = ctx.roundRect(x*30, y*30, 30, 30, 6);
+        r.fill(); r.stroke();
+        return ArcJS.nil;
+      }],
+      'clear': [{dot: -1}, function () {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, 300, 600);
+        return ArcJS.nil;
+      }],
+      'alert': [{dot: -1}, function (x) {
+        alert(x);
+        return ArcJS.nil;
+      }]
+    });
+    $(window).keydown(function(e){
+      arcjs.evaluate("(keydown " + e.which + ")");
+    });
+    $(function() { run(); });
+  </script>
+</html>

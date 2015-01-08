@@ -22,7 +22,7 @@ This is an Arc-language interpreter written in JavaScript. It can run both on no
 2. [Maze generator](demo_mg.html)
 3. [Strange attractor generator](demo_at.html)
 4. [Reversi player](reversi.html)
-5. Sudoku solver (comming soon)
+5. [Tetris](demo_tetris.html)
 
 #### Server side
 
