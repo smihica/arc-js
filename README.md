@@ -19,6 +19,7 @@ A lot of inspired from Paul Graham version of [Arc](http://arclanguage.org/) and
 2. [Maze generator](http://smihica.github.io/arc-js/demo_mg.html)
 3. [Strange attractor generator](http://smihica.github.io/arc-js/demo_at.html)
 4. [Automatic reversi player](http://smihica.github.io/arc-js/reversi.html)
+5. [Tetris](http://smihica.github.io/arc-js/demo_tetris.html)
 
 ### How to make
 
