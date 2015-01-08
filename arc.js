@@ -2029,7 +2029,9 @@ var primitives_core = (new Primitives('arc.core')).define({
   'uniq': [{dot: 0}, function($$) {
     var u = '%g'+uniq_counter;
     if (0 < arguments.length) {
-      u += ('-' + arguments[0].name);
+      if (arguments[0] !== nil) {
+        u += ('-' + arguments[0].name);
+      }
     }
     var rt = Symbol.get(u);
     uniq_counter++;
