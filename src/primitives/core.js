@@ -22,7 +22,7 @@ var s_regex              = Symbol.get('regex');
 
 var list_to_javascript_arr = function(lis, depth) {
   var rt = (function list_to_javascript_arr_iter(lis, depth) {
-    if (lis !== nil && type(lis).name !== 'cons') return lis;
+    if (lis !== nil && !(lis instanceof Cons)) return lis;
     var rt = [], itm = null;
     while (lis !== nil) {
       itm = car(lis);

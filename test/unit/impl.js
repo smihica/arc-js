@@ -110,6 +110,10 @@ describe('Reader', function(){
       rex('#\\u20').equal(ArcJS.Char.get(' '));
       rex('#\\u3042').equal(ArcJS.Char.get('あ'));
       rex('#\\U9b31').equal(ArcJS.Char.get('鬱'));
+      rex('#\\u9b31').equal(ArcJS.Char.get('鬱'));
+      rex('#\\u9B31').equal(ArcJS.Char.get('鬱'));
+      rex('#\\U09B31').equal(ArcJS.Char.get('鬱'));
+      rex('#\\U009B31').equal(ArcJS.Char.get('鬱'));
     });
     it('string', function() {
       rex('"abc"').equal("abc");
@@ -134,7 +138,8 @@ describe('Reader', function(){
       expect(stringify(reader.read("#\\077"))).to.equal('#\\?');
       expect(stringify(reader.read("#\\u20"))).to.equal('#\\space');
       expect(stringify(reader.read("#\\u3042"))).to.equal('#\\あ');
-      expect(stringify(reader.read("#\\u9b31"))).to.equal('#\\鬱');
+      expect(stringify(reader.read("#\\U003042"))).to.equal('#\\あ');
+      expect(stringify(reader.read("#\\U9b31"))).to.equal('#\\鬱');
     });
     it('cons', function() {
       function s(x) { return ArcJS.Symbol.get(x); }

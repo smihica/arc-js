@@ -537,6 +537,7 @@ var Call = classify("Call", {
     init: function(fn, name, args) {
       if (fn) this.fn = fn;
       else if (name) this.name = name;
+      else throw new Error("Must be set valid fn or name");
       this.args = args;
     },
     codegen: function() {
@@ -609,10 +610,6 @@ var Box = classify('Box', {
     init: function(v) {
       this.v = v;
     },
-    value: function(v) {
-      if (argument.length === 1) this.v = v;
-      else                       return this.v;
-    },
     unbox: function() {
       return this.v;
     },
@@ -655,6 +652,7 @@ var Reader = classify("Reader", {
     UNQUOTE:          Symbol.get('unquote'),
     UNQUOTE_SPLICING: Symbol.get('unquote-splicing'),
     NUMBER_PATTERN:   /^[-+]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][-+]?[0-9]+)?$/,
+    NUMBER_UNIT_TBL:  { 'x':16, 'd':10, 'o':8, 'b':2 },
     WHITE_SPACES:     String.fromCharCode(9,10,11,12,13,32),
     ESCAPED_CHAR_TBL: (function() {
       var tbl = {
@@ -665,7 +663,8 @@ var Reader = classify("Reader", {
       };
       for (var t in tbl) tbl[t] = String.fromCharCode(tbl[t]);
       return tbl;
-    })()
+    })(),
+    ESCAPED_STR_TBL:  { 'n':'\n', 'r':'\r', 's':'\s', 't':'\t' }
   },
 
   property: {
@@ -704,26 +703,15 @@ var Reader = classify("Reader", {
     },
 
     read_reader_macro: function(c) {
-      if (c === '\\') {
-        if (this.i < this.slen) return this.read_char();
-      }
-      if (c === '/') {
-        if (this.i < this.slen) return this.read_regexp();
+      if (this.i < this.slen) {
+        if (c === '\\') return this.read_char();
+        if (c === '/')  return this.read_regexp();
       }
       var tok = this.read_thing();
       if (tok.length === 0) throw new Error("unexpected end-of-file while reading macro-char #" + c);
-      switch (c) {
-      case 'x':
-        return parseInt(tok, 16);
-      case 'd':
-        return parseInt(tok, 10);
-      case 'o':
-        return parseInt(tok, 8);
-      case 'b':
-        return parseInt(tok, 2);
-      default:
-        throw new Error("Invalid macro character #" + c);
-      }
+      var unit = Reader.NUMBER_UNIT_TBL[c];
+      if (unit) return parseInt(tok, unit);
+      else      throw new Error("invalid macro character #" + c);
     },
 
     read_char: function() {
@@ -739,20 +727,18 @@ var Reader = classify("Reader", {
         e = String.fromCharCode(parseInt(RegExp.$1, 8))
         return Char.get(e);
       }
-      if (c.match(/^u([0-9a-fA-F]{1,4})$/) ||
-          c.match(/^U([0-9a-fA-F]{1,6})$/)) {
-        e = String.fromCharCode(parseInt(RegExp.$1, 16))
+      if (c.match(/^(?:u([0-9a-fA-F]{1,4})|U([0-9a-fA-F]{1,6}))$/)) {
+        e = String.fromCharCode(parseInt(RegExp.$1 || RegExp.$2, 16))
         return Char.get(e);
       }
       throw new Error("invalid char declaration \"" + c + "\"");
     },
 
     read_list: function(type) {
-      type = type ? type : 'parenthesized';
-      var token;
+      type = type || 'parenthesized';
       var lis = nil;
       while (true) {
-        token = this.read_token();
+        var token = this.read_token();
         switch (token) {
         case Reader.EOF:
           throw new Error("unexpected end-of-file while reading list");
@@ -891,13 +877,12 @@ var Reader = classify("Reader", {
       delimiter = delimiter || '"';
       type = type || 'string';
       var str = '', esc = false;
-      var escaped_char_tbl = {n: '\n', r: '\r', s: '\s', t: '\t'};
       while(this.i < this.slen) {
         var c = this.str[this.i++];
         // TODO more Escape patterns.
         if (esc) {
           esc = false;
-          var escaped_char = ((escaped_char_tbl)[c]);
+          var escaped_char = Reader.ESCAPED_STR_TBL[c];
           if (escape_only_delimiter && !escaped_char && c !== delimiter) {
             str += '\\' + c;
           } else {
@@ -914,17 +899,16 @@ var Reader = classify("Reader", {
               str += c;
             }
           }
-          continue;
         } else {
           switch(c) {
           case '\\':
             esc = true;
-            continue;
+            break;
           case delimiter:
             return str;
           default:
             str += c;
-            continue;
+            break;
           }
         }
       }
@@ -1328,7 +1312,7 @@ var s_regex              = Symbol.get('regex');
 
 var list_to_javascript_arr = function(lis, depth) {
   var rt = (function list_to_javascript_arr_iter(lis, depth) {
-    if (lis !== nil && type(lis).name !== 'cons') return lis;
+    if (lis !== nil && !(lis instanceof Cons)) return lis;
     var rt = [], itm = null;
     while (lis !== nil) {
       itm = car(lis);

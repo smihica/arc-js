@@ -8,6 +8,7 @@ var Call = classify("Call", {
     init: function(fn, name, args) {
       if (fn) this.fn = fn;
       else if (name) this.name = name;
+      else throw new Error("Must be set valid fn or name");
       this.args = args;
     },
     codegen: function() {
