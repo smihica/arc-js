@@ -951,6 +951,10 @@ describe('VM eval', function(){
                      "#0=(a . #1=(#2={:a #3=(f . #1#) :c #0# :e #3#} #2#))");
       eval_print_eql("(do (= x `(a b ,{:a :b :c :d :e '(f . g)})) (= ((caddr x) :c) x) (= (cadr x) (caddr x)) (= ((cadr x) :a) ((cadr x) :e)) (= (cdr ((cadr x) :a)) (cdr x)) (cadr x))",
                      "#0={:a #1=(f . #2=(#0# #0#)) :c (a . #2#) :e #1#}");
+      eval_print_eql("(do (= x {:a :b}) (= (x :a) x) (cons 1 x))",
+                     "(1 . #0={:a #0#})");
+      eval_print_eql("(do (= x {:a :b}) (= (x :a) x) (= y {}) (cons x y))",
+                     "(#0={:a #0#} . {})");
     });
 
   });

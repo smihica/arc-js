@@ -227,10 +227,10 @@ var stringify_struct = (function() {
             dstr = " . #" + idx + "#";
           } else {
             defined[idx] = true;
-            dstr = " . #" + idx + "=" + iter_table(a);
+            dstr = " . #" + idx + "=" + iter_table(d);
           }
         } else {
-          dstr = " . " + iter_table(a);
+          dstr = " . " + iter_table(d);
         }
       } else {
         dstr = " . " + stringify(d);
@@ -240,34 +240,32 @@ var stringify_struct = (function() {
 
     function iter_table(tbl) {
       var arr = tbl.convert_to_array(), acc = [], idx;
-      for (var i = 0, l = arr.length; i < l; i+=2) {
-        for (var k = i; k < i+2; k++) {
-          var x = arr[k];
-          if (x instanceof Cons && x !== nil) {
-            if ((idx = circulars.indexOf(x)) !== -1) {
-              if (defined[idx]) {
-                acc.push("#" + idx + "#");
-              } else {
-                defined[idx] = true;
-                acc.push("#" + idx + "=(" + iter_cons(x) + ")");
-              }
+      for (var i = 0, l = arr.length; i < l; i++) {
+        var x = arr[i];
+        if (x instanceof Cons && x !== nil) {
+          if ((idx = circulars.indexOf(x)) !== -1) {
+            if (defined[idx]) {
+              acc.push("#" + idx + "#");
             } else {
-              acc.push("(" + iter_cons(x) + ")");
-            }
-          } else if (x instanceof Table) {
-            if ((idx = circulars.indexOf(x)) !== -1) {
-              if (defined[idx]) {
-                acc.push("#" + idx + "#");
-              } else {
-                defined[idx] = true;
-                acc.push("#" + idx + "=" + iter_table(x));
-              }
-            } else {
-              acc.push(iter_table(x));
+              defined[idx] = true;
+              acc.push("#" + idx + "=(" + iter_cons(x) + ")");
             }
           } else {
-            acc.push(stringify(x));
+            acc.push("(" + iter_cons(x) + ")");
           }
+        } else if (x instanceof Table) {
+          if ((idx = circulars.indexOf(x)) !== -1) {
+            if (defined[idx]) {
+              acc.push("#" + idx + "#");
+            } else {
+              defined[idx] = true;
+              acc.push("#" + idx + "=" + iter_table(x));
+            }
+          } else {
+            acc.push(iter_table(x));
+          }
+        } else {
+          acc.push(stringify(x));
         }
       }
       return "{" + acc.join(" ") + "}";
