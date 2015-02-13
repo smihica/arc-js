@@ -499,7 +499,7 @@
 
     (ignore (x) nil)
 
-    nil))
+    (err "Unknown operation: " x)))
 
 (def compile (x)
   (preproc

@@ -805,8 +805,11 @@ var primitives_core = (new Primitives('arc.core')).define({
   'no': [{dot: -1}, function(x) {
     return (x === nil) ? t : nil;
   }],
-  'is': [{dot: -1}, function(a, b) {
-    return (a === b) ? t : nil;
+  'is': [{dot: 0}, function($$) {
+    for (var i=0, l=arguments.length-1, last=arguments[0]; i<l; i++) {
+      if (last !== (last = arguments[i+1])) return nil;
+    }
+    return t;
   }],
   'atom': [{dot: -1}, function(x) {
     return (type(x) === s_cons) ? nil : t;

@@ -2,6 +2,14 @@
 
 (desc "fundamental"
 
+  (test "is"
+    (is
+      (is 1 1)                            t
+      (is 1 2)                            nil
+      (is 1 1 1)                          t
+      (is 1 1 1 2)                        nil
+      (is 1)                              t))
+
   (test "< <= > >="
     (is
       (< 1 2)                             t
