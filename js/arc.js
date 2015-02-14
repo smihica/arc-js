@@ -7,12 +7,284 @@
 /** @file arc.js { */
 var ArcJS = (function() {
   var ArcJS = this;
-  ArcJS.version = '0.1.4';
+
+  ArcJS.version = '0.1.5';
 
   var todos_after_all_initialized = [];
 
-/** @file classify.min.js { */
-var classify=function(ns){function randomAscii(a){for(var b="";0<a;a--)b+=String.fromCharCode(32+Math.round(Math.random()*94));return b.replace(/'|"|\\/g,"@")}function ClassifyError(a){Error.apply(this,arguments),Error.captureStackTrace!==void 0&&Error.captureStackTrace(this,this.constructor),this.message=a}function createExceptionClass(a){var b=function(){ClassifyError.apply(this,arguments)};return b.prototype=new ClassifyError,b.prototype.name=a,b}function _atomic_p(a,b){return a===null||a===void 0||(b=typeof a)==="number"||b==="string"||b==="boolean"||a.valueOf!==Object.prototype.valueOf&&!(a instanceof Date)}function _clone(a,b){if(_atomic_p(a))return a;var c,d;if(a instanceof Date){c=new Date(a.getTime());if(b instanceof Date)for(d in b)b.hasOwnProperty(d)&&(c[d]=_clone(b[d],c[d]))}else if(typeof a=="function"){c=function(){return a.apply(this,arguments)};if(typeof b=="function")for(d in b)b.hasOwnProperty(d)&&(c[d]=_clone(b[d],c[d]))}else c=!_atomic_p(b)&&typeof b!="function"?b:new a.constructor;for(d in a)a.hasOwnProperty(d)&&(c[d]=_clone(a[d],c[d]));return c}function __super__(){return this.constructor.__super__.prototype}function inherits(a,b){a.__super__=b;var c=function(){};c.prototype=b.prototype,c.prototype.constructor=b,a.prototype=new c,a.prototype.__super__=__super__;var d=a[iop];return a[iop]=function(a){var c=b[iop];c&&c(a),d(a)},a}function method(a,b,c){a.prototype[b]=c}function mixin(a,b){var c=b.prototype;for(var d in c)d=="init"?a.prototype["init@"+b["@CLASSNAME"]]=c[d]:d!=="__super__"&&d!=="constructor"&&(a.prototype[d]=c[d]);var e=a[iop];a[iop]=function(a){var c=b[iop];c&&c(a),e(a)}}function check_interface(a,b){for(var c in b.prototype)if(b.prototype.hasOwnProperty(c)&&!a.prototype.hasOwnProperty(c))throw new DeclarationError("The class '"+a["@CLASSNAME"]+"' must provide property or method '"+c+"' imposed by '"+b["@CLASSNAME"]+"'.")}function hasProp(a){for(var b in a)if(a.hasOwnProperty(b))return!0;return!1}function expand(a,b){if(!b)return a;var c,d,e,f=[],g="property,static,method,parent,mixin,implement".split(",");for(c in userDirectives)f.push(c);for(;;){var h=!1;for(c in b)if(0>g.indexOf(c)){if(0>f.indexOf(c))throw new ArgumentError("You gave '"+c+"' as definition, but the classify() excepts"+' only "'+g.concat(f).join(", ")+'".');hasProp(b[c])&&(h=!0)}else a[c]=b[c];if(!h)break;for(c in userDirectives)a[c]=a[c]||{};for(c in userDirectives){e=0;for(d in b[c]){e==0&&(a=userDirectives[c].one_time_fn(a)),a&&(a=userDirectives[c](a,d,b[c][d]));if(!a)throw new DeclarationError('directives must return context. ON YOUR directive "'+c+'"');delete b[c][d],e++}}b=a}return a}var classify=ns;ClassifyError.prototype=Error();var ArgumentError=createExceptionClass("ArgumentError"),DeclarationError=createExceptionClass("DeclarationError"),genclassid=function(a){return function(){return"ANONYMOUS_CLASS_"+ ++a}}(0),iop=randomAscii(64),userDirectives={},classify=function classify(name,def){var __class__,i,j,l,k,c,type,context;if((l=arguments.length)==1)return typeof name!="string"?classify(genclassid(),name):classify(name,{});if(l==2&&typeof name=="string"&&def instanceof Object){if(!name.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*$/))throw new ArgumentError('You give "'+name+'" as class name. But class name must be a valid variable name in JavaScript.');context={property:{},"static":{},method:{},parent:Object,mixin:[],implement:[]},context=expand(context,def);var inner_new_call_identifier=randomAscii(64);eval("__class__ = function "+name+"(arg) {"+"if (this.constructor === "+name+") {"+name+"['"+iop+"'](this);"+"if (arg !== '"+inner_new_call_identifier+"') "+("init"in context.method?"this.init.apply(this, arguments);":"_clone(arg, this);")+"return this;"+"}"+"var self = new "+name+"('"+inner_new_call_identifier+"');"+("init"in context.method?"self.init.apply(self, arguments);":"_clone(arg, self);")+"return self;"+"}"),__class__[iop]=function(a){for(var b in context.property)a[b]=_clone(context.property[b])},inherits(__class__,context.parent);for(j=0,l=context.mixin.length;j<l;j++)mixin(__class__,context.mixin[j]);for(i in context.method)context.method.hasOwnProperty(i)&&method(__class__,i,context.method[i]);__class__.prototype.constructor=__class__,__class__.prototype.__class__=__class__,__class__["@CLASSNAME"]=name;for(j=0,l=context.implement.length;j<l;j++)check_interface(__class__,context.implement[j]);for(i in context.static)__class__[i]=context.static[i];return typeof context.static.init=="function"&&context.static.init.call(__class__),__class__}throw new ArgumentError("Expects classify(name, definition) or classify(name) or classify(definition).")};return classify.addDirective=function(b,c,d){c.one_time_fn=d||function(a){return a},userDirectives[b]=c},classify.removeDirective=function(b){delete userDirectives[b]},classify.expand=expand,classify.error={ClassifyError:ClassifyError,ArgumentError:ArgumentError,DeclarationError:DeclarationError},classify}({});typeof exports!="undefined"&&(exports.classify=classify);/** @} */
+/** @file classify.js { */
+var classify = (function(ns) {
+
+  var classify = ns;
+
+  function randomAscii(len) {
+    for(var rt='';0<len;len--) rt += String.fromCharCode(32+Math.round(Math.random()*94));
+    return rt.replace(/'|"|\\/g, '@');
+  };
+
+  function ClassifyError(message) {
+    Error.apply(this, arguments);
+    if (Error.captureStackTrace !== void(0))
+      Error.captureStackTrace(this, this.constructor);
+    this.message = message;
+  };
+  ClassifyError.prototype = new Error();
+
+  function createExceptionClass(exceptionClassName) {
+    var exceptionClass = function() { ClassifyError.apply(this, arguments); };
+    exceptionClass.prototype = new ClassifyError();
+    exceptionClass.prototype.name = exceptionClassName;
+    return exceptionClass;
+  };
+
+  var ArgumentError    = createExceptionClass('ArgumentError');
+  var DeclarationError = createExceptionClass('DeclarationError');
+
+  // test the obj is atomic or not.
+  function _atomic_p(obj, t) {
+    return ( obj === null || obj === void(0) ||
+             (t = typeof obj) === 'number' ||
+             t === 'string' ||
+             t === 'boolean' ||
+             ((obj.valueOf !== Object.prototype.valueOf) &&
+              !(obj instanceof Date)));
+  };
+
+  // make deep clone of the object
+  function _clone(obj, target) {
+    if (_atomic_p(obj)) return obj;
+
+    // if target is given. clone obj properties into it.
+    var clone, p;
+    if (obj instanceof Date) {
+      clone = new Date(obj.getTime());
+      if (target instanceof Date) {
+        for (p in target) if (target.hasOwnProperty(p)) clone[p] = _clone(target[p], clone[p]);
+      }
+    } else if (typeof obj === 'function') {
+      clone = function(){return obj.apply(this, arguments);};
+      if (typeof target === 'function') {
+        for (p in target) if (target.hasOwnProperty(p)) clone[p] = _clone(target[p], clone[p]);
+      }
+    } else {
+      clone = (!_atomic_p(target) && typeof target !== 'function') ?
+        target : new obj.constructor();
+    }
+
+    for (p in obj)
+      if (obj.hasOwnProperty(p))
+        clone[p] = _clone(obj[p], clone[p]);
+
+    return clone;
+  };
+
+  var genclassid = (function(i) {
+    return function genclassid() {
+      return "ANONYMOUS_CLASS_"+(++i);
+    };
+  })(0);
+
+  var iop = randomAscii(64);
+
+  function __super__() {
+    return this.constructor.__super__.prototype;
+  };
+
+  function inherits(_class, parent) {
+    _class.__super__ = parent;
+
+    var f = function() {};
+    f.prototype = parent.prototype;
+    f.prototype.constructor = parent;
+    _class.prototype = new f();
+    _class.prototype.__super__ = __super__;
+
+    var iiop = _class[iop];
+
+    _class[iop] = function(inst) {
+      var parent_iiop = parent[iop];
+      if (parent_iiop) parent_iiop(inst);
+      iiop(inst);
+    };
+
+    return _class;
+  };
+
+  function method(_class, name, func) {
+    _class.prototype[name] = func;
+  };
+
+  function mixin(_class, include) {
+    var incproto = include.prototype;
+    for (var i in incproto) {
+      if (i == 'init') {
+        _class.prototype['init@' + include['@CLASSNAME']] = incproto[i];
+      } else if (i !== "__super__" && i !== "constructor") {
+        _class.prototype[i] = incproto[i];
+      }
+    }
+
+    var iiop = _class[iop];
+    _class[iop] = function(inst) {
+      var include_iiop = include[iop];
+      if (include_iiop) include_iiop(inst);
+      iiop(inst);
+    };
+  };
+
+  function check_interface(_class, impl) {
+    for (var i in impl.prototype) {
+      if (impl.prototype.hasOwnProperty(i)) {
+        if (!_class.prototype.hasOwnProperty(i)) {
+          throw new DeclarationError(
+            'The class \'' + _class['@CLASSNAME'] +
+              '\' must provide property or method \'' + i +
+              '\' imposed by \'' + impl['@CLASSNAME'] +"'.");
+        }
+      }
+    }
+  };
+
+  function hasProp (d) {
+    for (var p in d)
+      if (d.hasOwnProperty(p)) return true;
+    return false;
+  }
+
+  var userDirectives = {};
+
+  function expand (context, def) {
+
+    if (!def) return context;
+
+    var i, k, t, directivenames = [],
+    base = "property,static,method,parent,mixin,implement".split(',');
+
+    for (i in userDirectives) directivenames.push(i);
+
+    while (1) {
+      var rec = false;
+
+      for (i in def) {
+        if (0 <= base.indexOf(i)) context[i] = def[i];
+        else if (0 <= directivenames.indexOf(i)) {
+          if (hasProp(def[i])) rec = true;
+        } else throw new ArgumentError(
+          'You gave \'' + i + '\' as definition, but the classify() excepts' +
+            ' only "' + base.concat(directivenames).join(', ') + '".');
+      }
+
+      if (!rec) break;
+
+      for (i in userDirectives) context[i] = context[i] || {};
+      for (i in userDirectives) {
+        t = 0;
+        for (k in def[i]) {
+          if (t == 0) context = userDirectives[i].one_time_fn(context);
+          if (context) context = userDirectives[i](context, k, def[i][k]);
+          if (!context) throw new DeclarationError('directives must return context. ON YOUR directive "' + i + '"');
+          delete def[i][k]; // for recursive directive definition.
+          t++;
+        }
+      }
+
+      def = context;
+    }
+
+    return context;
+  };
+
+  var classify = function classify(name, def) {
+    var __class__, i, j, l, k, c, type, context;
+
+    if ((l = arguments.length) == 1) return (typeof name !== 'string') ? classify(genclassid(), name) : classify(name, {});
+    else if (!(l == 2 && typeof name === 'string' && def instanceof Object)) // TODO: check is def a plainObject or no ?
+      throw new ArgumentError('Expects classify(name, definition) or classify(name) or classify(definition).');
+
+    if (!name.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*$/))
+      throw new ArgumentError('You give "' + name + '" as class name. But class name must be a valid variable name in JavaScript.');
+
+    context = {
+      property:   {},
+      static:     {},
+      method:     {},
+      parent:     Object,
+      mixin:      [],
+      implement:  []
+    };
+
+    context = expand(context, def);
+
+    var inner_new_call_identifier = randomAscii(64);
+    eval("__class__ = function " + name + "(arg) {" +
+      "if (this.constructor === " + name + ") {" +
+         name + "['" + iop + "'](this);" +
+         "if (arg !== '" + inner_new_call_identifier + "') " +
+         (('init' in context.method) ? "this.init.apply(this, arguments);" : "_clone(arg, this);") +
+         "return this;" +
+      "}" +
+      "var self = new " + name + "('" + inner_new_call_identifier + "');" +
+      (('init' in context.method) ? "self.init.apply(self, arguments);" : "_clone(arg, self);") +
+      "return self;" +
+    "}");
+
+    // TODO optimization.
+    __class__[iop] = function(inst) {
+      for (var p in context.property) {
+        inst[p] = _clone(context.property[p]);
+      }
+    };
+
+    inherits(__class__, context.parent);
+
+    for (j = 0, l = context.mixin.length; j < l; j++) {
+      mixin(__class__, context.mixin[j]);
+    }
+
+    for (i in context.method) {
+      if (context.method.hasOwnProperty(i)) {
+        method(__class__, i, context.method[i]);
+      }
+    }
+    __class__.prototype.constructor = __class__;
+    __class__.prototype.__class__ = __class__;
+
+    __class__['@CLASSNAME'] = name;
+
+    for (j=0, l=context.implement.length; j<l; j++) {
+      check_interface(__class__, context.implement[j]);
+    }
+
+    for (i in context.static) {
+      __class__[i] = context.static[i];
+    }
+
+    (typeof context.static['init'] === 'function') && context.static['init'].call(__class__);
+
+    return __class__;
+  };
+
+  classify.addDirective = function addDirective(directiveName, fn, ofn) {
+    fn.one_time_fn = ofn || function(c){return c};
+    userDirectives[directiveName] = fn;
+  };
+  classify.removeDirective = function removeDirective(directiveName) {
+    delete userDirectives[directiveName];
+  };
+  classify.expand = expand;
+
+  classify.error = {
+    ClassifyError    : ClassifyError,
+    ArgumentError    : ArgumentError,
+    DeclarationError : DeclarationError
+  };
+
+  return classify;
+
+})({});
+// for node.js
+if (typeof exports !== 'undefined') exports.classify = classify;
+/** @} */
 /** @file stack.js { */
 var Stack = classify("Stack", {
   property: {
@@ -265,6 +537,7 @@ var Call = classify("Call", {
     init: function(fn, name, args) {
       if (fn) this.fn = fn;
       else if (name) this.name = name;
+      else throw new Error("Must be set valid fn or name");
       this.args = args;
     },
     codegen: function() {
@@ -337,10 +610,6 @@ var Box = classify('Box', {
     init: function(v) {
       this.v = v;
     },
-    value: function(v) {
-      if (argument.length === 1) this.v = v;
-      else                       return this.v;
-    },
     unbox: function() {
       return this.v;
     },
@@ -383,6 +652,7 @@ var Reader = classify("Reader", {
     UNQUOTE:          Symbol.get('unquote'),
     UNQUOTE_SPLICING: Symbol.get('unquote-splicing'),
     NUMBER_PATTERN:   /^[-+]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][-+]?[0-9]+)?$/,
+    NUMBER_UNIT_TBL:  { 'x':16, 'd':10, 'o':8, 'b':2 },
     WHITE_SPACES:     String.fromCharCode(9,10,11,12,13,32),
     ESCAPED_CHAR_TBL: (function() {
       var tbl = {
@@ -393,7 +663,8 @@ var Reader = classify("Reader", {
       };
       for (var t in tbl) tbl[t] = String.fromCharCode(tbl[t]);
       return tbl;
-    })()
+    })(),
+    ESCAPED_STR_TBL:  { 'n':'\n', 'r':'\r', 's':'\s', 't':'\t' }
   },
 
   property: {
@@ -432,26 +703,15 @@ var Reader = classify("Reader", {
     },
 
     read_reader_macro: function(c) {
-      if (c === '\\') {
-        if (this.i < this.slen) return this.read_char();
-      }
-      if (c === '/') {
-        if (this.i < this.slen) return this.read_regexp();
+      if (this.i < this.slen) {
+        if (c === '\\') return this.read_char();
+        if (c === '/')  return this.read_regexp();
       }
       var tok = this.read_thing();
       if (tok.length === 0) throw new Error("unexpected end-of-file while reading macro-char #" + c);
-      switch (c) {
-      case 'x':
-        return parseInt(tok, 16);
-      case 'd':
-        return parseInt(tok, 10);
-      case 'o':
-        return parseInt(tok, 8);
-      case 'b':
-        return parseInt(tok, 2);
-      default:
-        throw new Error("Invalid macro character #" + c);
-      }
+      var unit = Reader.NUMBER_UNIT_TBL[c];
+      if (unit) return parseInt(tok, unit);
+      else      throw new Error("invalid macro character #" + c);
     },
 
     read_char: function() {
@@ -467,20 +727,18 @@ var Reader = classify("Reader", {
         e = String.fromCharCode(parseInt(RegExp.$1, 8))
         return Char.get(e);
       }
-      if (c.match(/^u([0-9a-fA-F]{1,4})$/) ||
-          c.match(/^U([0-9a-fA-F]{1,6})$/)) {
-        e = String.fromCharCode(parseInt(RegExp.$1, 16))
+      if (c.match(/^(?:u([0-9a-fA-F]{1,4})|U([0-9a-fA-F]{1,6}))$/)) {
+        e = String.fromCharCode(parseInt(RegExp.$1 || RegExp.$2, 16))
         return Char.get(e);
       }
       throw new Error("invalid char declaration \"" + c + "\"");
     },
 
     read_list: function(type) {
-      type = type ? type : 'parenthesized';
-      var token;
+      type = type || 'parenthesized';
       var lis = nil;
       while (true) {
-        token = this.read_token();
+        var token = this.read_token();
         switch (token) {
         case Reader.EOF:
           throw new Error("unexpected end-of-file while reading list");
@@ -619,13 +877,12 @@ var Reader = classify("Reader", {
       delimiter = delimiter || '"';
       type = type || 'string';
       var str = '', esc = false;
-      var escaped_char_tbl = {n: '\n', r: '\r', s: '\s', t: '\t'};
       while(this.i < this.slen) {
         var c = this.str[this.i++];
         // TODO more Escape patterns.
         if (esc) {
           esc = false;
-          var escaped_char = ((escaped_char_tbl)[c]);
+          var escaped_char = Reader.ESCAPED_STR_TBL[c];
           if (escape_only_delimiter && !escaped_char && c !== delimiter) {
             str += '\\' + c;
           } else {
@@ -642,17 +899,16 @@ var Reader = classify("Reader", {
               str += c;
             }
           }
-          continue;
         } else {
           switch(c) {
           case '\\':
             esc = true;
-            continue;
+            break;
           case delimiter:
             return str;
           default:
             str += c;
-            continue;
+            break;
           }
         }
       }
@@ -1056,7 +1312,7 @@ var s_regex              = Symbol.get('regex');
 
 var list_to_javascript_arr = function(lis, depth) {
   var rt = (function list_to_javascript_arr_iter(lis, depth) {
-    if (lis !== nil && type(lis).name !== 'cons') return lis;
+    if (lis !== nil && !(lis instanceof Cons)) return lis;
     var rt = [], itm = null;
     while (lis !== nil) {
       itm = car(lis);
@@ -1261,10 +1517,10 @@ var stringify_struct = (function() {
             dstr = " . #" + idx + "#";
           } else {
             defined[idx] = true;
-            dstr = " . #" + idx + "=" + iter_table(a);
+            dstr = " . #" + idx + "=" + iter_table(d);
           }
         } else {
-          dstr = " . " + iter_table(a);
+          dstr = " . " + iter_table(d);
         }
       } else {
         dstr = " . " + stringify(d);
@@ -1274,34 +1530,32 @@ var stringify_struct = (function() {
 
     function iter_table(tbl) {
       var arr = tbl.convert_to_array(), acc = [], idx;
-      for (var i = 0, l = arr.length; i < l; i+=2) {
-        for (var k = i; k < i+2; k++) {
-          var x = arr[k];
-          if (x instanceof Cons && x !== nil) {
-            if ((idx = circulars.indexOf(x)) !== -1) {
-              if (defined[idx]) {
-                acc.push("#" + idx + "#");
-              } else {
-                defined[idx] = true;
-                acc.push("#" + idx + "=(" + iter_cons(x) + ")");
-              }
+      for (var i = 0, l = arr.length; i < l; i++) {
+        var x = arr[i];
+        if (x instanceof Cons && x !== nil) {
+          if ((idx = circulars.indexOf(x)) !== -1) {
+            if (defined[idx]) {
+              acc.push("#" + idx + "#");
             } else {
-              acc.push("(" + iter_cons(x) + ")");
-            }
-          } else if (x instanceof Table) {
-            if ((idx = circulars.indexOf(x)) !== -1) {
-              if (defined[idx]) {
-                acc.push("#" + idx + "#");
-              } else {
-                defined[idx] = true;
-                acc.push("#" + idx + "=" + iter_table(x));
-              }
-            } else {
-              acc.push(iter_table(x));
+              defined[idx] = true;
+              acc.push("#" + idx + "=(" + iter_cons(x) + ")");
             }
           } else {
-            acc.push(stringify(x));
+            acc.push("(" + iter_cons(x) + ")");
           }
+        } else if (x instanceof Table) {
+          if ((idx = circulars.indexOf(x)) !== -1) {
+            if (defined[idx]) {
+              acc.push("#" + idx + "#");
+            } else {
+              defined[idx] = true;
+              acc.push("#" + idx + "=" + iter_table(x));
+            }
+          } else {
+            acc.push(iter_table(x));
+          }
+        } else {
+          acc.push(stringify(x));
         }
       }
       return "{" + acc.join(" ") + "}";
@@ -1757,7 +2011,9 @@ var primitives_core = (new Primitives('arc.core')).define({
   'uniq': [{dot: 0}, function($$) {
     var u = '%g'+uniq_counter;
     if (0 < arguments.length) {
-      u += ('-' + arguments[0].name);
+      if (arguments[0] !== nil) {
+        u += ('-' + arguments[0].name);
+      }
     }
     var rt = Symbol.get(u);
     uniq_counter++;
@@ -1839,8 +2095,11 @@ var primitives_core = (new Primitives('arc.core')).define({
   'no': [{dot: -1}, function(x) {
     return (x === nil) ? t : nil;
   }],
-  'is': [{dot: -1}, function(a, b) {
-    return (a === b) ? t : nil;
+  'is': [{dot: 0}, function($$) {
+    for (var i=0, l=arguments.length-1, last=arguments[0]; i<l; i++) {
+      if (last !== (last = arguments[i+1])) return nil;
+    }
+    return t;
   }],
   'atom': [{dot: -1}, function(x) {
     return (type(x) === s_cons) ? nil : t;
@@ -2495,10 +2754,10 @@ preloads.push([
 [12,7,14,20,0,8,0,0,7,1,1,59,3,-1,0,8,9,2,7,6,6,7,11,7,21,22,2,3,9,0,3,47,0,8,9,2,7,6,6,7,11,11,21,22,7,9,1,7,0,28,0,8,9,2,7,6,6,7,11,10,21,22,7,9,1,7,0,10,6,94,7,9,0,7,6,4,7,11,34,21,22,7,6,38,7,11,74,21,22,7,6,38,7,10,0,21,5,4,4,22,23,4,16,0,0,0,11,8,0,0,21,7,6,95,7,6,4,7,11,13,21,22,8,0,0,21,15,2,2,19,95,26],
 [12,7,14,20,0,1,0,111,2,-1,9,1,2,107,0,8,9,0,7,6,6,7,11,10,21,22,7,0,8,9,0,7,6,6,7,11,43,21,22,7,0,8,9,0,7,6,6,7,11,65,21,22,7,14,0,76,8,0,0,7,8,0,1,7,8,0,2,7,1,3,61,1,-1,0,17,9,0,7,0,8,10,0,7,6,6,7,11,75,21,22,7,6,4,7,11,47,21,22,7,14,8,0,0,2,3,8,0,0,3,36,0,10,9,0,7,10,1,7,6,4,7,11,47,21,22,7,14,8,0,0,2,3,8,0,0,3,19,0,10,9,0,7,10,2,7,6,4,7,11,47,21,22,7,14,8,0,0,2,3,8,0,0,3,2,12,15,2,2,15,2,2,15,2,2,23,2,7,9,1,7,6,4,7,11,96,21,22,15,4,4,3,2,12,23,3,16,0,0,0,11,8,0,0,21,7,6,97,7,6,4,7,11,13,21,22,8,0,0,21,15,2,2,19,97,26],
 [12,7,14,20,0,8,0,0,7,1,1,2087,4,-1,0,8,9,3,7,6,6,7,11,20,21,22,7,14,0,10,8,0,0,7,6,46,7,6,4,7,11,21,21,22,2,45,9,3,7,9,2,7,0,10,9,3,7,9,1,7,6,4,7,11,47,21,22,2,21,0,19,6,24,7,0,10,9,0,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,3,2,9,0,7,6,38,7,11,74,21,5,4,7,22,3,2020,0,10,8,0,0,7,6,9,7,6,4,7,11,21,21,22,2,1919,0,8,9,3,7,6,6,7,11,10,21,22,7,14,0,10,8,0,0,7,6,28,7,6,4,7,11,21,21,22,2,112,0,110,9,0,7,1,1,92,1,-1,0,10,9,0,7,12,7,6,4,7,11,21,21,22,2,21,6,70,7,0,10,10,0,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,5,3,2,22,3,60,0,10,9,0,7,13,7,6,4,7,11,21,21,22,2,21,6,71,7,0,10,10,0,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,5,3,2,22,3,29,6,98,7,0,19,9,0,7,0,10,10,0,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,5,3,2,22,23,2,7,0,8,9,3,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,22,3,1785,0,10,8,0,0,7,6,29,7,6,4,7,11,21,21,22,2,272,0,270,9,0,7,9,1,7,10,0,7,9,2,7,1,4,246,2,-1,0,8,9,1,7,6,6,7,11,17,21,22,7,0,8,9,1,7,6,6,7,11,12,21,22,7,14,0,10,9,0,7,8,0,0,7,6,4,7,11,81,21,22,7,0,10,9,0,7,8,0,0,7,6,4,7,11,83,21,22,7,14,0,10,8,0,1,7,10,0,7,6,4,7,11,97,21,22,7,14,8,0,0,7,10,0,7,0,180,6,99,7,0,171,0,8,8,0,0,7,6,6,7,11,36,21,22,7,0,155,0,8,8,2,0,7,6,6,7,11,36,21,22,7,0,139,8,2,1,7,0,130,0,112,8,1,0,7,0,8,8,2,0,7,6,6,7,11,100,21,22,7,0,94,9,0,7,0,26,12,7,0,17,0,8,8,2,0,7,6,6,7,11,100,21,22,7,8,0,0,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,22,11,21,21,7,8,1,0,7,0,10,10,2,7,8,0,0,7,6,4,7,11,101,21,22,7,6,38,7,11,39,21,22,7,0,35,6,87,7,0,26,0,17,0,8,8,2,0,7,6,6,7,11,36,21,22,7,6,6,7,6,4,7,11,15,21,22,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,63,7,10,1,21,22,7,6,38,7,11,85,21,22,7,0,10,10,3,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,38,7,11,95,21,5,4,11,22,7,0,8,9,3,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,22,3,1503,0,10,8,0,0,7,6,33,7,6,4,7,11,21,21,22,2,350,0,348,9,0,7,9,1,7,9,2,7,10,0,7,1,4,324,2,-1,0,18,11,10,21,7,0,8,9,1,7,6,6,7,11,41,21,22,7,6,4,7,11,42,21,22,7,0,18,11,43,21,7,0,8,9,1,7,6,6,7,11,41,21,22,7,6,4,7,11,42,21,22,7,14,0,8,8,0,0,7,6,6,7,11,100,21,22,7,0,40,0,24,0,8,8,0,1,7,6,6,7,11,100,21,22,7,0,8,10,1,7,6,6,7,11,10,21,22,7,6,4,7,11,9,21,22,7,0,8,10,1,7,6,6,7,11,11,21,22,7,6,4,7,11,9,21,22,7,0,10,9,0,7,8,0,1,7,6,4,7,11,83,21,22,7,0,19,0,10,9,0,7,8,0,1,7,6,4,7,11,81,21,22,7,10,1,7,6,4,7,11,97,21,22,7,0,17,0,8,8,0,1,7,6,6,7,11,36,21,22,7,6,6,7,6,4,7,11,15,21,22,7,14,0,10,10,3,7,8,0,0,7,6,4,7,11,93,21,22,7,14,0,71,6,102,7,0,62,0,53,8,1,2,7,0,8,8,2,1,7,6,6,7,11,100,21,22,7,0,35,9,0,7,8,1,3,7,0,22,11,21,21,7,8,1,2,7,0,10,10,2,7,8,1,1,7,6,4,7,11,101,21,22,7,6,38,7,11,39,21,22,7,8,0,0,7,6,63,7,10,0,21,22,7,6,38,7,11,85,21,22,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,15,7,5,7,6,4,7,12,7,14,20,0,10,2,7,10,1,7,10,0,7,8,0,0,7,1,4,68,2,-1,0,8,9,1,7,6,6,7,11,7,21,22,2,3,9,0,3,56,0,8,9,1,7,6,6,7,11,11,21,22,7,0,39,0,8,9,1,7,6,6,7,11,10,21,22,7,10,2,7,10,3,7,0,19,6,94,7,0,10,9,0,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,63,7,10,1,21,22,7,6,4,7,10,0,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,16,7,6,4,7,11,13,21,22,8,0,0,21,15,2,2,5,3,6,22,7,0,8,9,3,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,22,3,1143,0,10,8,0,0,7,6,40,7,6,4,7,11,21,21,22,2,119,0,117,9,0,7,9,1,7,9,2,7,10,0,7,1,4,93,1,0,0,8,9,0,7,6,6,7,11,100,21,22,7,10,3,7,6,4,7,12,7,14,20,0,10,2,7,10,1,7,10,0,7,8,0,0,7,1,4,50,2,-1,0,8,9,1,7,6,6,7,11,7,21,22,2,3,9,0,3,38,0,8,9,1,7,6,6,7,11,11,21,22,7,0,21,0,8,9,1,7,6,6,7,11,10,21,22,7,10,2,7,10,3,7,9,0,7,6,63,7,10,1,21,22,7,6,4,7,10,0,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,16,7,6,4,7,11,13,21,22,8,0,0,21,15,2,2,5,3,2,22,7,0,8,9,3,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,22,3,1014,0,10,8,0,0,7,6,77,7,6,4,7,11,21,21,22,2,144,0,142,9,0,7,9,1,7,9,2,7,10,0,7,1,4,118,3,-1,0,32,9,1,7,10,1,7,10,2,7,0,19,6,86,7,0,10,10,3,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,63,7,10,0,21,22,7,0,32,9,0,7,10,1,7,10,2,7,0,19,6,86,7,0,10,10,3,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,63,7,10,0,21,22,7,14,9,2,7,10,1,7,10,2,7,0,37,6,103,7,0,28,8,0,1,7,0,19,8,0,0,7,0,10,10,3,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,63,7,10,0,21,5,5,7,22,7,0,8,9,3,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,22,3,860,0,10,8,0,0,7,6,78,7,6,4,7,11,21,21,22,2,260,0,258,9,1,7,10,0,7,9,0,7,9,2,7,1,4,234,2,-1,9,1,7,10,0,7,10,1,7,10,1,7,10,3,7,10,0,7,9,0,7,10,2,7,1,5,51,2,-1,10,1,7,10,2,7,10,3,7,0,37,6,104,7,0,28,9,1,7,0,19,9,0,7,0,10,10,4,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,63,7,10,0,21,5,5,3,22,7,10,1,7,10,3,7,10,0,7,9,0,7,10,2,7,1,5,42,1,-1,10,1,7,10,2,7,10,3,7,0,28,6,105,7,0,19,9,0,7,0,10,10,4,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,63,7,10,0,21,5,5,2,22,7,10,1,7,10,3,7,10,0,7,9,0,7,10,2,7,1,5,42,1,-1,10,1,7,10,2,7,10,3,7,0,28,6,106,7,0,19,9,0,7,0,10,10,4,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,63,7,10,0,21,5,5,2,22,7,10,1,7,10,3,7,10,0,7,9,0,7,10,2,7,1,5,42,1,-1,10,1,7,10,2,7,10,3,7,0,28,6,107,7,0,19,9,0,7,0,10,10,4,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,63,7,10,0,21,5,5,2,22,7,6,73,7,11,66,21,5,8,3,22,7,0,8,9,3,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,22,3,590,0,10,8,0,0,7,6,79,7,6,4,7,11,21,21,22,2,238,0,236,9,0,7,9,1,7,9,2,7,10,0,7,1,4,212,1,-1,10,2,7,10,1,7,9,0,7,10,0,7,1,4,145,1,-1,6,108,7,0,135,9,0,7,0,126,0,117,6,94,7,0,108,0,99,6,98,7,0,90,6,6,7,0,81,0,72,6,94,7,0,63,0,54,10,1,7,10,2,7,10,3,7,0,10,6,1,7,9,0,7,6,4,7,11,37,21,22,2,30,0,28,6,109,7,0,19,6,4,7,0,10,9,0,7,6,110,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,3,2,6,111,7,6,63,7,10,0,21,22,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,5,3,2,22,7,14,0,8,10,3,7,6,6,7,11,90,21,22,7,14,8,0,0,2,9,8,0,0,7,6,6,7,8,1,0,5,2,6,22,3,35,6,112,7,0,25,10,3,7,0,16,0,7,6,1,7,6,6,7,8,1,0,22,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,5,3,6,22,15,4,2,23,2,7,0,8,9,3,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,22,3,342,0,10,8,0,0,7,6,80,7,6,4,7,11,21,21,22,2,59,0,57,9,0,7,9,1,7,9,2,7,10,0,7,1,4,33,1,-1,9,0,7,10,1,7,10,2,7,0,19,6,80,7,0,10,10,3,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,63,7,10,0,21,5,5,2,22,7,0,8,9,3,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,22,3,273,0,272,0,45,0,38,0,8,9,3,7,6,6,7,11,11,21,22,7,0,22,0,15,0,8,9,3,7,6,6,7,11,11,21,22,7,6,6,7,11,36,21,22,7,6,6,7,11,34,21,22,7,6,4,7,11,15,21,22,7,6,6,7,11,100,21,22,7,0,86,0,8,9,3,7,6,6,7,11,10,21,22,7,9,2,7,9,1,7,0,8,9,0,7,6,6,7,11,90,21,22,7,14,8,0,0,2,53,0,51,6,109,7,0,42,0,24,0,15,0,8,9,3,7,6,6,7,11,11,21,22,7,6,6,7,11,36,21,22,7,6,6,7,6,4,7,11,15,21,22,7,0,10,8,0,0,7,6,110,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,3,2,6,111,15,2,2,7,6,63,7,10,0,21,22,7,6,4,7,12,7,14,20,0,9,1,7,9,2,7,10,0,7,8,0,0,7,9,0,7,1,5,106,2,-1,0,8,9,1,7,6,6,7,11,7,21,22,2,41,0,8,10,0,7,6,6,7,11,90,21,22,2,3,9,0,3,29,6,112,7,0,19,10,0,7,0,10,9,0,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,5,3,3,22,3,56,0,8,9,1,7,6,6,7,11,11,21,22,7,0,39,0,8,9,1,7,6,6,7,11,10,21,22,7,10,3,7,10,4,7,0,19,6,94,7,0,10,9,0,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,63,7,10,2,21,22,7,6,4,7,10,1,21,5,3,3,22,23,3,16,0,0,0,11,8,0,0,21,7,6,16,7,6,4,7,11,13,21,22,8,0,0,21,15,2,2,22,15,2,2,3,91,0,10,9,3,7,12,7,6,4,7,11,21,21,22,2,21,6,70,7,0,10,9,0,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,5,3,7,22,3,60,0,10,9,3,7,13,7,6,4,7,11,21,21,22,2,21,6,71,7,0,10,9,0,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,5,3,7,22,3,29,6,98,7,0,19,9,3,7,0,10,9,0,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,5,3,7,22,15,2,2,23,5,16,0,0,0,11,8,0,0,21,7,6,113,7,6,4,7,11,13,21,22,8,0,0,21,15,2,2,19,113,26],
-[12,7,14,20,0,8,0,0,7,1,1,2098,2,-1,0,8,9,1,7,6,6,7,11,10,21,22,7,14,0,10,8,0,0,7,6,112,7,6,4,7,11,21,21,22,2,124,9,0,7,10,0,7,1,2,102,2,-1,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,14,0,35,6,112,7,0,26,0,17,0,8,8,0,0,7,6,6,7,11,36,21,22,7,6,6,7,6,4,7,11,15,21,22,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,37,8,0,0,7,0,28,9,1,7,0,19,10,1,7,0,8,8,0,0,7,6,6,7,11,36,21,22,7,6,6,7,6,38,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,15,21,22,7,6,4,7,11,9,21,5,3,5,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1952,0,10,8,0,0,7,6,99,7,6,4,7,11,21,21,22,2,151,9,0,7,10,0,7,1,2,129,5,-1,0,19,9,1,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,14,0,62,6,99,7,0,53,9,4,7,0,44,0,17,0,8,8,0,0,7,6,6,7,11,36,21,22,7,6,6,7,6,4,7,11,15,21,22,7,0,19,9,3,7,0,10,9,2,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,37,8,0,0,7,0,28,9,0,7,0,19,10,1,7,0,8,8,0,0,7,6,6,7,11,36,21,22,7,6,6,7,6,38,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,15,21,22,7,6,4,7,11,9,21,5,3,8,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1791,0,10,8,0,0,7,6,103,7,6,4,7,11,21,21,22,2,200,9,0,7,10,0,7,1,2,178,3,-1,0,19,9,2,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,14,0,8,8,0,0,7,6,6,7,11,36,21,22,7,14,0,21,9,1,7,0,12,10,1,7,8,0,0,7,6,4,7,6,38,7,11,15,21,22,7,6,4,7,10,0,21,22,7,14,0,8,8,0,0,7,6,6,7,11,36,21,22,7,14,0,28,6,103,7,0,19,0,10,8,2,0,7,6,4,7,6,4,7,11,15,21,22,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,77,8,3,0,7,0,68,0,28,6,114,7,0,19,0,10,8,0,0,7,6,6,7,6,4,7,11,15,21,22,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,32,8,1,0,7,0,23,9,0,7,0,14,10,1,7,8,2,0,7,8,0,0,7,6,4,7,6,63,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,15,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,15,21,22,7,6,4,7,11,9,21,5,3,12,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1581,0,10,8,0,0,7,6,108,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,108,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1502,0,10,8,0,0,7,6,109,7,6,4,7,11,21,21,22,2,78,9,0,7,10,0,7,1,2,56,3,-1,0,28,6,109,7,0,19,9,2,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,4,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1414,0,10,8,0,0,7,6,98,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,98,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1335,0,10,8,0,0,7,6,94,7,6,4,7,11,21,21,22,2,51,9,0,7,10,0,7,1,2,29,1,-1,6,115,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1274,0,10,8,0,0,7,6,67,7,6,4,7,11,21,21,22,2,78,9,0,7,10,0,7,1,2,56,3,-1,0,28,6,67,7,0,19,9,2,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,4,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1186,0,10,8,0,0,7,6,68,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,68,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1107,0,10,8,0,0,7,6,69,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,69,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1028,0,10,8,0,0,7,6,72,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,72,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,949,0,10,8,0,0,7,6,70,7,6,4,7,11,21,21,22,2,51,9,0,7,10,0,7,1,2,29,1,-1,6,116,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,888,0,10,8,0,0,7,6,71,7,6,4,7,11,21,21,22,2,51,9,0,7,10,0,7,1,2,29,1,-1,6,117,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,827,0,10,8,0,0,7,6,102,7,6,4,7,11,21,21,22,2,51,9,0,7,10,0,7,1,2,29,1,-1,6,118,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,766,0,10,8,0,0,7,6,88,7,6,4,7,11,21,21,22,2,78,9,0,7,10,0,7,1,2,56,3,-1,0,28,6,88,7,0,19,9,2,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,4,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,678,0,10,8,0,0,7,6,104,7,6,4,7,11,21,21,22,2,78,9,0,7,10,0,7,1,2,56,3,-1,0,28,6,104,7,0,19,9,2,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,4,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,590,0,10,8,0,0,7,6,105,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,105,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,511,0,10,8,0,0,7,6,106,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,106,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,432,0,10,8,0,0,7,6,107,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,107,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,353,0,10,8,0,0,7,6,80,7,6,4,7,11,21,21,22,2,51,9,0,7,10,0,7,1,2,29,1,-1,6,119,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,292,0,10,8,0,0,7,6,84,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,84,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,213,0,10,8,0,0,7,6,24,7,6,4,7,11,21,21,22,2,51,9,0,7,10,0,7,1,2,29,1,-1,6,120,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,152,0,10,8,0,0,7,6,26,7,6,4,7,11,21,21,22,2,21,1,0,3,0,-1,6,110,23,1,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,121,0,10,8,0,0,7,6,87,7,6,4,7,11,21,21,22,2,47,1,0,29,1,-1,0,19,6,87,7,0,10,9,0,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,12,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,64,0,10,8,0,0,7,6,121,7,6,4,7,11,21,21,22,2,21,1,0,3,0,-1,6,122,23,1,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,33,0,10,8,0,0,7,6,86,7,6,4,7,11,21,21,22,2,21,1,0,3,1,-1,12,23,2,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,2,12,15,2,2,23,3,16,0,0,0,11,8,0,0,21,7,6,123,7,6,4,7,11,13,21,22,8,0,0,21,15,2,2,19,123,26],
-[12,7,14,20,0,1,0,33,1,-1,0,23,0,10,9,0,7,12,7,6,4,7,11,48,21,22,7,12,7,12,7,6,124,7,6,63,7,11,113,21,22,7,6,1,7,6,4,7,11,123,21,5,3,2,22,16,0,0,0,11,8,0,0,21,7,6,125,7,6,4,7,11,13,21,22,8,0,0,21,15,2,2,19,125,26],
+[12,7,14,20,0,8,0,0,7,1,1,2107,2,-1,0,8,9,1,7,6,6,7,11,10,21,22,7,14,0,10,8,0,0,7,6,112,7,6,4,7,11,21,21,22,2,124,9,0,7,10,0,7,1,2,102,2,-1,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,14,0,35,6,112,7,0,26,0,17,0,8,8,0,0,7,6,6,7,11,36,21,22,7,6,6,7,6,4,7,11,15,21,22,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,37,8,0,0,7,0,28,9,1,7,0,19,10,1,7,0,8,8,0,0,7,6,6,7,11,36,21,22,7,6,6,7,6,38,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,15,21,22,7,6,4,7,11,9,21,5,3,5,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1961,0,10,8,0,0,7,6,99,7,6,4,7,11,21,21,22,2,151,9,0,7,10,0,7,1,2,129,5,-1,0,19,9,1,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,14,0,62,6,99,7,0,53,9,4,7,0,44,0,17,0,8,8,0,0,7,6,6,7,11,36,21,22,7,6,6,7,6,4,7,11,15,21,22,7,0,19,9,3,7,0,10,9,2,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,37,8,0,0,7,0,28,9,0,7,0,19,10,1,7,0,8,8,0,0,7,6,6,7,11,36,21,22,7,6,6,7,6,38,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,15,21,22,7,6,4,7,11,9,21,5,3,8,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1800,0,10,8,0,0,7,6,103,7,6,4,7,11,21,21,22,2,200,9,0,7,10,0,7,1,2,178,3,-1,0,19,9,2,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,14,0,8,8,0,0,7,6,6,7,11,36,21,22,7,14,0,21,9,1,7,0,12,10,1,7,8,0,0,7,6,4,7,6,38,7,11,15,21,22,7,6,4,7,10,0,21,22,7,14,0,8,8,0,0,7,6,6,7,11,36,21,22,7,14,0,28,6,103,7,0,19,0,10,8,2,0,7,6,4,7,6,4,7,11,15,21,22,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,77,8,3,0,7,0,68,0,28,6,114,7,0,19,0,10,8,0,0,7,6,6,7,6,4,7,11,15,21,22,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,32,8,1,0,7,0,23,9,0,7,0,14,10,1,7,8,2,0,7,8,0,0,7,6,4,7,6,63,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,15,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,15,21,22,7,6,4,7,11,9,21,5,3,12,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1590,0,10,8,0,0,7,6,108,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,108,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1511,0,10,8,0,0,7,6,109,7,6,4,7,11,21,21,22,2,78,9,0,7,10,0,7,1,2,56,3,-1,0,28,6,109,7,0,19,9,2,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,4,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1423,0,10,8,0,0,7,6,98,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,98,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1344,0,10,8,0,0,7,6,94,7,6,4,7,11,21,21,22,2,51,9,0,7,10,0,7,1,2,29,1,-1,6,115,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1283,0,10,8,0,0,7,6,67,7,6,4,7,11,21,21,22,2,78,9,0,7,10,0,7,1,2,56,3,-1,0,28,6,67,7,0,19,9,2,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,4,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1195,0,10,8,0,0,7,6,68,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,68,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1116,0,10,8,0,0,7,6,69,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,69,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,1037,0,10,8,0,0,7,6,72,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,72,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,958,0,10,8,0,0,7,6,70,7,6,4,7,11,21,21,22,2,51,9,0,7,10,0,7,1,2,29,1,-1,6,116,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,897,0,10,8,0,0,7,6,71,7,6,4,7,11,21,21,22,2,51,9,0,7,10,0,7,1,2,29,1,-1,6,117,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,836,0,10,8,0,0,7,6,102,7,6,4,7,11,21,21,22,2,51,9,0,7,10,0,7,1,2,29,1,-1,6,118,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,775,0,10,8,0,0,7,6,88,7,6,4,7,11,21,21,22,2,78,9,0,7,10,0,7,1,2,56,3,-1,0,28,6,88,7,0,19,9,2,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,4,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,687,0,10,8,0,0,7,6,104,7,6,4,7,11,21,21,22,2,78,9,0,7,10,0,7,1,2,56,3,-1,0,28,6,104,7,0,19,9,2,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,4,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,599,0,10,8,0,0,7,6,105,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,105,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,520,0,10,8,0,0,7,6,106,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,106,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,441,0,10,8,0,0,7,6,107,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,107,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,362,0,10,8,0,0,7,6,80,7,6,4,7,11,21,21,22,2,51,9,0,7,10,0,7,1,2,29,1,-1,6,119,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,301,0,10,8,0,0,7,6,84,7,6,4,7,11,21,21,22,2,69,9,0,7,10,0,7,1,2,47,2,-1,0,19,6,84,7,0,10,9,1,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,3,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,222,0,10,8,0,0,7,6,24,7,6,4,7,11,21,21,22,2,51,9,0,7,10,0,7,1,2,29,1,-1,6,120,7,0,19,9,0,7,0,10,10,1,7,6,6,7,6,4,7,11,15,21,22,7,6,4,7,10,0,21,22,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,161,0,10,8,0,0,7,6,26,7,6,4,7,11,21,21,22,2,21,1,0,3,0,-1,6,110,23,1,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,130,0,10,8,0,0,7,6,87,7,6,4,7,11,21,21,22,2,47,1,0,29,1,-1,0,19,6,87,7,0,10,9,0,7,12,7,6,4,7,11,9,21,22,7,6,4,7,11,9,21,22,7,12,7,6,4,7,11,9,21,5,3,2,22,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,73,0,10,8,0,0,7,6,121,7,6,4,7,11,21,21,22,2,21,1,0,3,0,-1,6,122,23,1,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,42,0,10,8,0,0,7,6,86,7,6,4,7,11,21,21,22,2,21,1,0,3,1,-1,12,23,2,7,0,8,9,1,7,6,6,7,11,11,21,22,7,6,4,7,11,26,21,5,3,5,22,3,11,6,123,7,9,1,7,6,4,7,11,58,21,5,3,5,22,15,2,2,23,3,16,0,0,0,11,8,0,0,21,7,6,124,7,6,4,7,11,13,21,22,8,0,0,21,15,2,2,19,124,26],
+[12,7,14,20,0,1,0,33,1,-1,0,23,0,10,9,0,7,12,7,6,4,7,11,48,21,22,7,12,7,12,7,6,125,7,6,63,7,11,113,21,22,7,6,1,7,6,4,7,11,124,21,5,3,2,22,16,0,0,0,11,8,0,0,21,7,6,126,7,6,4,7,11,13,21,22,8,0,0,21,15,2,2,19,126,26],
 ]);
-preload_vals.push(["arc.compiler","0","***curr-ns***","(ssexpand macex1 macex compile)","2","***export***","1","no","atom","cons","car","cdr","dotted-to-proper","fn-name","-1","+","self","dotted-pos","ssyntax","ssexpand","type","is","***macros***","ref","indirect","rep","apply","macex1","quote","fn","complex-args?","arg","uniq","with","list","complex-args","len","<","3","union","do","%pair","map1","cadr","zip","mappend","sym","mem","%macex","macex","acons","caar","o","cadar","if","cddar","caddar","\"Can't understand vars list\"","err","%complex-args","map","complex-args-get-var","%pos","4","compile-lookup-let","cddr","compile-lookup","refer-let","refer-local","refer-free","refer-nil","refer-t","refer-global","7","compile-refer","flat","dedup","%if","assign","ccc","ns","find-free","set-minus","find-sets","box","make-boxes","ignore","return","exit-let","cdddr","tailp","caddr","cadddr","reduce-nest-exit","argument","collect-free","keep","remove-globs","constant","close","rev","set-intersect","enter-let","test","assign-let","assign-local","assign-free","assign-global","conti","shift","((apply))","(apply)","frame","%compile","jump","(argument)","(refer-nil)","(refer-t)","(enter-let)","(ns)","(indirect)","halt","((halt))","preproc","(halt)","compile"]);
+preload_vals.push(["arc.compiler","0","***curr-ns***","(ssexpand macex1 macex compile)","2","***export***","1","no","atom","cons","car","cdr","dotted-to-proper","fn-name","-1","+","self","dotted-pos","ssyntax","ssexpand","type","is","***macros***","ref","indirect","rep","apply","macex1","quote","fn","complex-args?","arg","uniq","with","list","complex-args","len","<","3","union","do","%pair","map1","cadr","zip","mappend","sym","mem","%macex","macex","acons","caar","o","cadar","if","cddar","caddar","\"Can't understand vars list\"","err","%complex-args","map","complex-args-get-var","%pos","4","compile-lookup-let","cddr","compile-lookup","refer-let","refer-local","refer-free","refer-nil","refer-t","refer-global","7","compile-refer","flat","dedup","%if","assign","ccc","ns","find-free","set-minus","find-sets","box","make-boxes","ignore","return","exit-let","cdddr","tailp","caddr","cadddr","reduce-nest-exit","argument","collect-free","keep","remove-globs","constant","close","rev","set-intersect","enter-let","test","assign-let","assign-local","assign-free","assign-global","conti","shift","((apply))","(apply)","frame","%compile","jump","(argument)","(refer-nil)","(refer-t)","(enter-let)","(ns)","(indirect)","halt","((halt))","\"Unknown operation: \"","preproc","(halt)","compile"]);
 /** @} */
 /** @file arc.fasl { */
 // This is an auto generated file.
