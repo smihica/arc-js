@@ -1,7 +1,7 @@
 var ArcJS = (function() {
   var ArcJS = this;
 
-  ArcJS.version = '0.1.4';
+  ArcJS.version = '0.1.5';
 #ifdef NO_EVAL
   ArcJS.version += ' (no-eval)';
 #endif

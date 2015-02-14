@@ -1,6 +1,6 @@
 {
   "name": "arc-js",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "An Arc-langugage compiler and VM-interpreter written in JavaScript.",
   "homepage": "http://smihica.github.io/arc-js/",
   "main": "arc.js",
